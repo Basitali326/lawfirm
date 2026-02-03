@@ -79,6 +79,27 @@ export default function RegisterForm() {
                   </p>
                 )}
               </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">
+                    First name <span className="text-red-400">*</span>
+                  </Label>
+                  <Input id="first_name" {...register("first_name")} />
+                  {errors.first_name && (
+                    <p className="text-sm text-red-400">{errors.first_name.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">
+                    Last name <span className="text-red-400">*</span>
+                  </Label>
+                  <Input id="last_name" {...register("last_name")} />
+                  {errors.last_name && (
+                    <p className="text-sm text-red-400">{errors.last_name.message}</p>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">
                   Email <span className="text-red-400">*</span>

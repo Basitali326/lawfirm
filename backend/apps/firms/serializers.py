@@ -6,6 +6,9 @@ from apps.authx.models import Firm
 class FirmMeSerializer(serializers.ModelSerializer):
     owner_email = serializers.EmailField(source='owner.email', read_only=True)
     email = serializers.SerializerMethodField(read_only=True)
+    owner_first_name = serializers.CharField(source='owner.first_name', read_only=True)
+    owner_last_name = serializers.CharField(source='owner.last_name', read_only=True)
+    role = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Firm
@@ -20,6 +23,9 @@ class FirmMeSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
             'owner_email',
+            'owner_first_name',
+            'owner_last_name',
+            'role',
         ]
         read_only_fields = ('slug', 'email', 'owner_email', 'created_at', 'updated_at')
 
@@ -27,10 +33,34 @@ class FirmMeSerializer(serializers.ModelSerializer):
         # Prefer firm email if set, otherwise fallback to owner email for display
         return obj.email or (obj.owner.email if obj.owner else None)
 
+    def get_role(self, obj):
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            if getattr(request.user, 'is_superuser', False):
+                return "Super Admin"
+            # Firm owner defaults to Owner
+            if obj and obj.owner_id == request.user.id:
+                return "Owner"
+            return "User"
+        return "User"
+
     def validate(self, attrs):
         request = self.context.get('request')
         if request and request.method in ('PUT', 'PATCH'):
             if 'email' in request.data and request.data['email']:
                 # Block email changes explicitly
                 raise serializers.ValidationError({'email': 'Email cannot be changed here.'})
+            if self.instance and 'name' in request.data:
+                incoming_name = request.data.get('name', '').strip()
+                if incoming_name and incoming_name != self.instance.name:
+                    raise serializers.ValidationError({'name': 'Firm name cannot be changed.'})
+            # Allow owner name updates via this serializer
+            user = request.user
+            first = request.data.get('owner_first_name')
+            last = request.data.get('owner_last_name')
+            if first is not None:
+                user.first_name = first
+            if last is not None:
+                user.last_name = last
+            user.save(update_fields=['first_name', 'last_name'])
         return super().validate(attrs)

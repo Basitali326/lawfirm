@@ -22,6 +22,8 @@ def _unique_username_from_email(email: str) -> str:
 
 class RegisterFirmSerializer(serializers.Serializer):
     firm_name = serializers.CharField(max_length=255)
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True)
@@ -46,11 +48,13 @@ class RegisterFirmSerializer(serializers.Serializer):
     @transaction.atomic
     def create(self, validated_data):
         firm_name = validated_data['firm_name']
+        first_name = validated_data['first_name']
+        last_name = validated_data['last_name']
         email = validated_data['email']
         password = validated_data['password']
 
         username = _unique_username_from_email(email)
-        user = User(username=username, email=email)
+        user = User(username=username, email=email, first_name=first_name, last_name=last_name)
         user.set_password(password)
         user.full_clean(exclude=['password'])
         user.save()
@@ -94,6 +98,17 @@ class RefreshTokenLogoutSerializer(serializers.Serializer):
         if cookie_value:
             return cookie_value
         raise serializers.ValidationError('Refresh token is required.')
+
+    def validate(self, attrs):
+        # Ensure refresh is populated either from input or cookie
+        refresh = attrs.get('refresh')
+        if not refresh:
+            cookie_value = self.context.get('refresh_from_cookie')
+            if cookie_value:
+                attrs['refresh'] = cookie_value
+        if not attrs.get('refresh'):
+            raise serializers.ValidationError({'refresh': 'Refresh token is required.'})
+        return attrs
 
     def save(self, **kwargs):
         refresh_token = self.validated_data['refresh']

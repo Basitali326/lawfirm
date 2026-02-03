@@ -20,6 +20,9 @@ def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None) 
         'user': {
             'id': user.id,
             'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': 'Owner',
         },
         'firm': {
             'id': firm.id,

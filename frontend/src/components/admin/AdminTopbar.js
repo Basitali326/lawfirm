@@ -14,8 +14,10 @@ export default function AdminTopbar() {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const email = session?.user?.email || "";
-  const displayName = session?.user?.name || "Firm Admin";
+  const displayName = session?.user?.name || "";
+  const emailFallback = session?.user?.email || "";
+  const nameForBadge = displayName || emailFallback || firmName || "";
+  const role = session?.role || session?.user?.role || "";
   const { data: firmData } = useFirmMe();
   const firmName = firmData?.name || "Your firm";
 
@@ -45,15 +47,15 @@ export default function AdminTopbar() {
           className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-700"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-            {(displayName || "A").charAt(0).toUpperCase()}
+            {(nameForBadge || "A").charAt(0).toUpperCase()}
           </span>
-          <span className="hidden text-sm sm:block">{displayName}</span>
           <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} />
         </button>
         {open && (
           <div className="absolute right-0 top-12 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
             <div className="px-3 pb-2 text-xs font-medium uppercase text-slate-400">
               {firmName}
+              {role ? ` • ${role}` : ""}
             </div>
             <button
               onClick={handleProfile}
