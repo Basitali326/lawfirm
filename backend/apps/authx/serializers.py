@@ -75,12 +75,15 @@ class LoginSerializer(serializers.Serializer):
 
 
 class RefreshTokenLogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
+    refresh = serializers.CharField(required=False, allow_blank=True)
 
     def validate_refresh(self, value):
-        if not value:
-            raise serializers.ValidationError('Refresh token is required.')
-        return value
+        if value:
+            return value
+        cookie_value = self.context.get('refresh_from_cookie')
+        if cookie_value:
+            return cookie_value
+        raise serializers.ValidationError('Refresh token is required.')
 
     def save(self, **kwargs):
         refresh_token = self.validated_data['refresh']

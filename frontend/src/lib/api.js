@@ -1,45 +1,16 @@
 import { API_BASE_URL, AUTH_MODE } from "@/lib/config";
 
-const STORAGE_KEY = "auth_tokens";
-
-function loadTokens() {
-  if (typeof window === "undefined") return { access: null, refresh: null };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { access: null, refresh: null };
-    const parsed = JSON.parse(raw);
-    return {
-      access: parsed.access || null,
-      refresh: parsed.refresh || null,
-    };
-  } catch (err) {
-    return { access: null, refresh: null };
-  }
-}
-
-let tokens = loadTokens();
+let tokens = { access: null };
 
 export const tokenStore = {
   getAccess() {
     return tokens.access;
   },
-  getRefresh() {
-    return tokens.refresh;
-  },
-  set({ access, refresh }) {
-    tokens = {
-      access: access || null,
-      refresh: refresh || null,
-    };
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
-    }
+  setAccess(access) {
+    tokens = { access: access || null };
   },
   clear() {
-    tokens = { access: null, refresh: null };
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
+    tokens = { access: null };
   },
 };
 
@@ -54,7 +25,21 @@ function extractErrorMessage(payload) {
   return "Request failed.";
 }
 
-export async function apiFetch(path, options = {}) {
+let isRefreshing = false;
+let refreshWaiters = [];
+
+function queueRefresh() {
+  return new Promise((resolve, reject) => {
+    refreshWaiters.push({ resolve, reject });
+  });
+}
+
+function drainRefresh(err, access) {
+  refreshWaiters.forEach((w) => (err ? w.reject(err) : w.resolve(access)));
+  refreshWaiters = [];
+}
+
+export async function apiFetch(path, options = {}, { retry = true } = {}) {
   const url = `${API_BASE_URL}${path}`;
   const headers = {
     "Content-Type": "application/json",
@@ -80,6 +65,19 @@ export async function apiFetch(path, options = {}) {
   const isJson = contentType.includes("application/json");
   const payload = isJson ? await response.json() : await response.text();
 
+  if (response.status === 401 && AUTH_MODE === "token" && retry) {
+    // Attempt refresh once, then retry original request
+    try {
+      const newAccess = await refreshAccessToken();
+      if (newAccess) {
+        return apiFetch(path, options, { retry: false });
+      }
+    } catch (err) {
+      tokenStore.clear();
+      throw err;
+    }
+  }
+
   if (!response.ok) {
     const message = extractErrorMessage(payload);
     const error = new Error(message);
@@ -92,4 +90,33 @@ export async function apiFetch(path, options = {}) {
   }
 
   return payload;
+}
+
+async function refreshAccessToken() {
+  if (isRefreshing) {
+    return queueRefresh();
+  }
+  isRefreshing = true;
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/authx/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({}), // backend will read refresh from httpOnly cookie
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.access) {
+      const err = new Error("Unable to refresh session");
+      drainRefresh(err);
+      throw err;
+    }
+    tokenStore.setAccess(data.access);
+    drainRefresh(null, data.access);
+    return data.access;
+  } catch (err) {
+    drainRefresh(err);
+    throw err;
+  } finally {
+    isRefreshing = false;
+  }
 }

@@ -5,9 +5,13 @@ const AUTH_MODE =
 const USE_NEXTAUTH = process.env.NEXT_PUBLIC_USE_NEXTAUTH === "true";
 const SESSION_COOKIE_NAME =
   process.env.NEXT_PUBLIC_SESSION_COOKIE_NAME || "sessionid";
-
+const REFRESH_COOKIE_NAME = "refresh_token";
 
 export function middleware(request) {
+  const requiresAuth = matchesProtectedPath(request.nextUrl.pathname);
+
+  if (!requiresAuth) return NextResponse.next();
+
   if (USE_NEXTAUTH) {
     const hasSession =
       request.cookies.get("__Secure-next-auth.session-token") ||
@@ -21,6 +25,7 @@ export function middleware(request) {
   }
 
   if (AUTH_MODE === "token") {
+    // Token mode: rely on client-side guard (/me) since access token lives in memory.
     return NextResponse.next();
   }
 
@@ -34,6 +39,33 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
+function matchesProtectedPath(pathname) {
+  const protectedPrefixes = [
+    "/dashboard",
+    "/clients",
+    "/cases",
+    "/tasks",
+    "/documents",
+    "/calendar",
+    "/billing",
+    "/reports",
+    "/settings",
+  ];
+  return protectedPrefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/clients/:path*",
+    "/cases/:path*",
+    "/tasks/:path*",
+    "/documents/:path*",
+    "/calendar/:path*",
+    "/billing/:path*",
+    "/reports/:path*",
+    "/settings/:path*",
+  ],
 };

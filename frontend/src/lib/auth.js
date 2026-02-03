@@ -5,9 +5,8 @@ import { AUTH_MODE } from "@/lib/config";
 function setTokensFromResponse(data) {
   if (AUTH_MODE !== "token") return;
   const access = data?.tokens?.access || data?.access;
-  const refresh = data?.tokens?.refresh || data?.refresh;
-  if (access || refresh) {
-    tokenStore.set({ access, refresh });
+  if (access) {
+    tokenStore.setAccess(access);
   }
 }
 
@@ -30,28 +29,16 @@ export async function login(payload) {
 }
 
 export async function refreshToken() {
-  const refresh = tokenStore.getRefresh();
-  if (!refresh) {
-    throw new Error("No refresh token");
-  }
-  const data = await apiFetch(endpoints.refresh, {
-    method: "POST",
-    body: JSON.stringify({ refresh }),
-  });
-  const access = data?.access;
-  if (access) {
-    tokenStore.set({ access, refresh });
-  }
-  return access;
+  // refresh handled in api.js; this is a passthrough if needed elsewhere
+  return null;
 }
 
 export async function logout() {
-  const refresh = tokenStore.getRefresh();
   const access = tokenStore.getAccess();
   tokenStore.clear();
   return apiFetch(endpoints.logout, {
     method: "POST",
-    body: JSON.stringify({ refresh }),
     headers: access ? { Authorization: `Bearer ${access}` } : undefined,
+    body: JSON.stringify({}), // refresh token will be taken from httpOnly cookie server-side
   });
 }

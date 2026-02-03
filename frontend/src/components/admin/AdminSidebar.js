@@ -12,6 +12,9 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  CheckSquare,
+  CalendarDays,
+  BarChart3,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -20,22 +23,24 @@ import { useAppSelector } from "@/hooks/useAppSelector";
 import { toggleSidebar } from "@/store/slices/uiSlice";
 
 const navItems = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard, badge: "" },
-  { label: "Matters", href: "/admin/matters", icon: Briefcase, badge: "" },
-  { label: "Clients", href: "/admin/clients", icon: Users, badge: "" },
-  { label: "Documents", href: "/admin/documents", icon: FileText, badge: "5" },
-  { label: "Billing", href: "/admin/billing", icon: CreditCard, badge: "" },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["OWNER", "ADMIN", "STAFF"] },
+  { label: "Clients", href: "/clients", icon: Users, roles: ["OWNER", "ADMIN", "STAFF"] },
+  { label: "Cases", href: "/cases", icon: Briefcase, roles: ["OWNER", "ADMIN", "STAFF"] },
+  { label: "Tasks", href: "/tasks", icon: CheckSquare, roles: ["OWNER", "ADMIN", "STAFF"] },
+  { label: "Documents", href: "/documents", icon: FileText, roles: ["OWNER", "ADMIN", "STAFF"] },
+  { label: "Calendar", href: "/calendar", icon: CalendarDays, roles: ["OWNER", "ADMIN", "STAFF"] },
+  { label: "Billing", href: "/billing", icon: CreditCard, roles: ["OWNER", "ADMIN"] },
+  { label: "Reports", href: "/reports", icon: BarChart3, roles: ["OWNER", "ADMIN"] },
+  { label: "Settings", href: "/settings", icon: Settings, roles: ["OWNER", "ADMIN", "STAFF"] },
 ];
 
-const accountItems = [
-  { label: "Settings", href: "/admin/settings", icon: Settings },
-  { label: "Logout", href: "/login", icon: LogOut },
-];
+const accountItems = [{ label: "Logout", href: "/login", icon: LogOut }];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
+  const userRole = "OWNER"; // placeholder; role-based filtering can use this value later
 
   return (
     <aside
@@ -71,32 +76,30 @@ export default function AdminSidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center justify-between rounded-xl px-3 py-3 text-sm transition",
-                isActive
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-white"
-              )}
-            >
-              <span className="flex items-center gap-3">
-                <Icon className="h-4 w-4" />
-                {sidebarOpen && item.label}
-              </span>
-              {sidebarOpen && item.badge && (
-                <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-xs text-slate-950">
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+        {navItems
+          .filter((item) => !item.roles || item.roles.includes(userRole))
+          .map((item) => {
+            const isActive = pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <div key={item.href} className="space-y-1">
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center justify-between rounded-xl px-3 py-3 text-sm transition",
+                    isActive
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                  )}
+                >
+                  <span className="flex items-center gap-3">
+                    <Icon className="h-4 w-4" />
+                    {sidebarOpen && item.label}
+                  </span>
+                </Link>
+              </div>
+            );
+          })}
       </nav>
 
       <div className="px-4 pb-3 pt-4">
