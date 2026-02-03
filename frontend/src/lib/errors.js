@@ -11,6 +11,19 @@ export function normalizeError(error) {
     };
   }
 
+  if (error.data && typeof error.data === "object" && !Array.isArray(error.data)) {
+    const fieldErrors = [];
+    for (const [field, messages] of Object.entries(error.data)) {
+      const message = Array.isArray(messages) ? messages.join(" ") : String(messages);
+      fieldErrors.push({ field, message });
+    }
+    return {
+      message: fieldErrors.map((e) => e.message).join(" ") || error.message,
+      fieldErrors,
+      status: error.status ?? null,
+    };
+  }
+
   if (error.data && Array.isArray(error.data.errors)) {
     return {
       message: error.data.errors.map((e) => e.message).join(" "),

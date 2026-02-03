@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -18,15 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function slugify(value) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50);
-}
-
 export default function RegisterForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -36,24 +27,16 @@ export default function RegisterForm() {
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-    watch,
   } = useForm({
     resolver: zodResolver(registerSchema),
   });
 
-  const firmName = watch("firm_name");
-  const firmSlug = useMemo(() => slugify(firmName || ""), [firmName]);
-
   const onSubmit = async (values) => {
     try {
-      const payload = {
-        ...values,
-        firm_slug: firmSlug || undefined,
-      };
-      await registerFirm(payload);
+      await registerFirm(values);
       if (USE_NEXTAUTH) {
         const result = await signIn("credentials", {
-          email: values.owner_email,
+          email: values.email,
           password: values.password,
           callbackUrl: "/admin",
           redirect: true,
@@ -69,13 +52,9 @@ export default function RegisterForm() {
       const { message, fieldErrors } = normalizeError(error);
       const mapped = mapFieldErrors(fieldErrors);
       if (mapped.firm_name) setError("firm_name", { message: mapped.firm_name });
-      if (mapped.owner_full_name)
-        setError("owner_full_name", { message: mapped.owner_full_name });
-      if (mapped.owner_email)
-        setError("owner_email", { message: mapped.owner_email });
+      if (mapped.email) setError("email", { message: mapped.email });
       if (mapped.password) setError("password", { message: mapped.password });
-      if (mapped.confirm_password)
-        setError("confirm_password", { message: mapped.confirm_password });
+      if (mapped.password2) setError("password2", { message: mapped.password2 });
       toast.error(message || "Registration failed");
     }
   };
@@ -100,29 +79,14 @@ export default function RegisterForm() {
                   </p>
                 )}
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="owner_full_name">
-                    Owner full name <span className="text-red-400">*</span>
-                  </Label>
-                  <Input id="owner_full_name" {...register("owner_full_name")} />
-                  {errors.owner_full_name && (
-                    <p className="text-sm text-red-400">
-                      {errors.owner_full_name.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="owner_email">
-                    Owner email <span className="text-red-400">*</span>
-                  </Label>
-                  <Input id="owner_email" type="email" {...register("owner_email")} />
-                  {errors.owner_email && (
-                    <p className="text-sm text-red-400">
-                      {errors.owner_email.message}
-                    </p>
-                  )}
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">
+                  Email <span className="text-red-400">*</span>
+                </Label>
+                <Input id="email" type="email" {...register("email")} />
+                {errors.email && (
+                  <p className="text-sm text-red-400">{errors.email.message}</p>
+                )}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -151,14 +115,14 @@ export default function RegisterForm() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirm_password">
+                  <Label htmlFor="password2">
                     Confirm password <span className="text-red-400">*</span>
                   </Label>
                   <div className="relative">
                     <Input
-                      id="confirm_password"
+                      id="password2"
                       type={showConfirm ? "text" : "password"}
-                      {...register("confirm_password")}
+                      {...register("password2")}
                     />
                     <button
                       type="button"
@@ -169,9 +133,9 @@ export default function RegisterForm() {
                       {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {errors.confirm_password && (
+                  {errors.password2 && (
                     <p className="text-sm text-red-400">
-                      {errors.confirm_password.message}
+                      {errors.password2.message}
                     </p>
                   )}
                 </div>

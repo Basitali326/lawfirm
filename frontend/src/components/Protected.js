@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { AUTH_MODE, USE_NEXTAUTH } from "@/lib/config";
+import { tokenStore } from "@/lib/api";
 
 export default function Protected({ children }) {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const [tokenChecked, setTokenChecked] = useState(AUTH_MODE !== "token");
 
   useEffect(() => {
     if (USE_NEXTAUTH) {
@@ -19,6 +21,12 @@ export default function Protected({ children }) {
     }
 
     if (AUTH_MODE === "token") {
+      const access = tokenStore.getAccess();
+      if (!access) {
+        router.replace("/login");
+      } else {
+        setTokenChecked(true);
+      }
       return;
     }
 
@@ -35,7 +43,7 @@ export default function Protected({ children }) {
     );
   }
 
-  if (USE_NEXTAUTH && !session) {
+  if ((USE_NEXTAUTH && !session) || (AUTH_MODE === "token" && !tokenChecked)) {
     return null;
   }
 

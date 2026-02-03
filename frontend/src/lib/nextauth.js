@@ -35,13 +35,14 @@ export const authOptions = {
 
         const data = await response.json();
         const user = data?.user || {};
+        const tokens = data?.tokens || {};
 
         return {
           id: user.id || user.email || credentials?.email,
           email: user.email || credentials?.email,
           name: user.full_name || user.name || "User",
-          access: data?.access,
-          refresh: data?.refresh,
+          access: tokens.access || data?.access,
+          refresh: tokens.refresh || data?.refresh,
           role: data?.role,
           firm: data?.firm,
           is_superadmin: user.is_superadmin || false,

@@ -15,6 +15,7 @@ from .services import build_auth_response
 
 class RegisterFirmView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = RegisterFirmSerializer
 
     @transaction.atomic
     def post(self, request):
@@ -32,6 +33,7 @@ class RegisterFirmView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = LoginSerializer
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={'request': request})
@@ -43,6 +45,7 @@ class LoginView(APIView):
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = RefreshTokenLogoutSerializer
 
     def post(self, request):
         serializer = RefreshTokenLogoutSerializer(data=request.data)

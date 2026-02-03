@@ -1,16 +1,45 @@
 import { API_BASE_URL, AUTH_MODE } from "@/lib/config";
 
-let accessToken = null;
+const STORAGE_KEY = "auth_tokens";
+
+function loadTokens() {
+  if (typeof window === "undefined") return { access: null, refresh: null };
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { access: null, refresh: null };
+    const parsed = JSON.parse(raw);
+    return {
+      access: parsed.access || null,
+      refresh: parsed.refresh || null,
+    };
+  } catch (err) {
+    return { access: null, refresh: null };
+  }
+}
+
+let tokens = loadTokens();
 
 export const tokenStore = {
-  get() {
-    return accessToken;
+  getAccess() {
+    return tokens.access;
   },
-  set(token) {
-    accessToken = token || null;
+  getRefresh() {
+    return tokens.refresh;
+  },
+  set({ access, refresh }) {
+    tokens = {
+      access: access || null,
+      refresh: refresh || null,
+    };
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
+    }
   },
   clear() {
-    accessToken = null;
+    tokens = { access: null, refresh: null };
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
   },
 };
 
@@ -33,7 +62,7 @@ export async function apiFetch(path, options = {}) {
   };
 
   if (AUTH_MODE === "token") {
-    const token = tokenStore.get();
+    const token = tokenStore.getAccess();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 

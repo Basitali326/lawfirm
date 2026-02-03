@@ -36,7 +36,7 @@ export default function LoginForm() {
     errorParam === "CredentialsSignin"
       ? "Invalid email or password."
       : errorParam
-        ? "Sign in failed. Please try again."
+        ? decodeURIComponent(errorParam)
         : "";
 
   const onSubmit = async (values) => {
@@ -45,15 +45,16 @@ export default function LoginForm() {
         const result = await signIn("credentials", {
           ...values,
           callbackUrl: "/admin",
-          redirect: true,
+          redirect: false,
         });
         if (result?.error) {
           throw new Error(result.error);
         }
+        router.push(result?.url || "/admin");
         return;
-      } else {
-        await login(values);
       }
+
+      await login(values);
       toast.success("Welcome back");
       router.push("/admin");
     } catch (error) {
