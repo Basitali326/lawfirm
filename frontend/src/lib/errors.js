@@ -15,7 +15,8 @@ export function normalizeError(error) {
     const fieldErrors = [];
     for (const [field, messages] of Object.entries(error.data)) {
       const message = Array.isArray(messages) ? messages.join(" ") : String(messages);
-      fieldErrors.push({ field, message });
+      const mappedField = field === "non_field_errors" ? "_global" : field;
+      fieldErrors.push({ field: mappedField, message });
     }
     return {
       message: fieldErrors.map((e) => e.message).join(" ") || error.message,

@@ -22,6 +22,7 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState("");
   const {
     register,
     handleSubmit,
@@ -41,6 +42,7 @@ export default function LoginForm() {
 
   const onSubmit = async (values) => {
     try {
+      setFormError("");
       if (USE_NEXTAUTH) {
         const result = await signIn("credentials", {
           ...values,
@@ -48,7 +50,27 @@ export default function LoginForm() {
           redirect: false,
         });
         if (result?.error) {
-          throw new Error(result.error);
+          // Try to decode structured error {field,message}
+          let field = null;
+          let message = result.error;
+          try {
+            const parsed = JSON.parse(result.error);
+            field = parsed.field || null;
+            message = parsed.message || message;
+          } catch (_) {
+            // not JSON, keep defaults
+          }
+          if (field === "email") {
+            setError("email", { message });
+            return;
+          }
+          if (field === "password") {
+            setError("password", { message });
+            return;
+          }
+          throw new Error(
+            message === "CredentialsSignin" ? "Invalid email or password." : message
+          );
         }
         router.push(result?.url || "/admin");
         return;
@@ -59,6 +81,7 @@ export default function LoginForm() {
       router.push("/admin");
     } catch (error) {
       const { message, fieldErrors } = normalizeError(error);
+      setFormError("");
       const mapped = mapFieldErrors(fieldErrors);
       if (mapped.email) {
         setError("email", { message: mapped.email });
@@ -66,7 +89,10 @@ export default function LoginForm() {
       if (mapped.password) {
         setError("password", { message: mapped.password });
       }
-      toast.error(message || "Login failed");
+      // If only a global error and no field-specific ones, attach to password by default
+      if (!mapped.email && !mapped.password && (mapped._global || message)) {
+        setError("password", { message: mapped._global || message || "Login failed" });
+      }
     }
   };
 
@@ -81,6 +107,11 @@ export default function LoginForm() {
             {errorMessage && (
               <div className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
                 {errorMessage}
+              </div>
+            )}
+            {formError && !errorMessage && (
+              <div className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                {formError}
               </div>
             )}
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>

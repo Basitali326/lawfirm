@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'apps.authx',
+    'apps.firms',
 ]
 
 MIDDLEWARE = [
@@ -111,6 +112,11 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'REFRESH_COOKIE_NAME': 'refresh_token',
+    'REFRESH_COOKIE_PATH': '/',
+    # Leave domain empty to let the browser scope it to the current host (works for 127.0.0.1 and localhost)
+    'REFRESH_COOKIE_DOMAIN': os.environ.get('REFRESH_COOKIE_DOMAIN', ''),
+    'REFRESH_COOKIE_SECURE': False,
+    'REFRESH_COOKIE_SAMESITE': 'Lax',
 }
 
 CORS_ALLOW_CREDENTIALS = True

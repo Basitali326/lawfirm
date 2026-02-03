@@ -3,4 +3,5 @@ export const endpoints = {
   login: "/api/authx/login/",
   logout: "/api/authx/logout/",
   refresh: "/api/authx/token/refresh/",
+  firmMe: "/api/firms/me/",
 };

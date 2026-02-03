@@ -50,6 +50,7 @@ function matchesProtectedPath(pathname) {
     "/billing",
     "/reports",
     "/settings",
+    "/profile",
   ];
   return protectedPrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)

@@ -1,10 +1,15 @@
-import { API_BASE_URL, AUTH_MODE } from "@/lib/config";
+import { getSession } from "next-auth/react";
+
+import { API_BASE_URL, AUTH_MODE, USE_NEXTAUTH } from "@/lib/config";
 
 let tokens = { access: null };
 
 export const tokenStore = {
   getAccess() {
     return tokens.access;
+  },
+  hasAccess() {
+    return !!tokens.access;
   },
   setAccess(access) {
     tokens = { access: access || null };
@@ -49,6 +54,27 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
   if (AUTH_MODE === "token") {
     const token = tokenStore.getAccess();
     if (token) headers.Authorization = `Bearer ${token}`;
+    if (!token) {
+      try {
+        const refreshed = await ensureAccessToken();
+        if (refreshed) headers.Authorization = `Bearer ${refreshed}`;
+      } catch (err) {
+        // ignore; 401 will be handled below
+      }
+    }
+  }
+
+  // NextAuth cookie mode: pull access token from session and attach as Bearer
+  if (AUTH_MODE === "cookie" && USE_NEXTAUTH) {
+    try {
+      const session = await getSession();
+      const sessionAccess = session?.access || session?.token?.access;
+      if (sessionAccess) {
+        headers.Authorization = `Bearer ${sessionAccess}`;
+      }
+    } catch (err) {
+      // ignore; may still succeed if endpoint allows cookie
+    }
   }
 
   const fetchOptions = {
@@ -118,5 +144,16 @@ async function refreshAccessToken() {
     throw err;
   } finally {
     isRefreshing = false;
+  }
+}
+
+export async function ensureAccessToken() {
+  if (tokenStore.hasAccess()) return tokenStore.getAccess();
+  try {
+    const newAccess = await refreshAccessToken();
+    return newAccess;
+  } catch (err) {
+    tokenStore.clear();
+    throw err;
   }
 }

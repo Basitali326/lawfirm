@@ -21,18 +21,24 @@ import { cn } from "@/lib/utils";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { toggleSidebar } from "@/store/slices/uiSlice";
+import { navItems as baseNavItems } from "@/components/admin/navConfig";
 
-const navItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["OWNER", "ADMIN", "STAFF"] },
-  { label: "Clients", href: "/clients", icon: Users, roles: ["OWNER", "ADMIN", "STAFF"] },
-  { label: "Cases", href: "/cases", icon: Briefcase, roles: ["OWNER", "ADMIN", "STAFF"] },
-  { label: "Tasks", href: "/tasks", icon: CheckSquare, roles: ["OWNER", "ADMIN", "STAFF"] },
-  { label: "Documents", href: "/documents", icon: FileText, roles: ["OWNER", "ADMIN", "STAFF"] },
-  { label: "Calendar", href: "/calendar", icon: CalendarDays, roles: ["OWNER", "ADMIN", "STAFF"] },
-  { label: "Billing", href: "/billing", icon: CreditCard, roles: ["OWNER", "ADMIN"] },
-  { label: "Reports", href: "/reports", icon: BarChart3, roles: ["OWNER", "ADMIN"] },
-  { label: "Settings", href: "/settings", icon: Settings, roles: ["OWNER", "ADMIN", "STAFF"] },
-];
+const iconMap = {
+  "/dashboard": LayoutDashboard,
+  "/clients": Users,
+  "/cases": Briefcase,
+  "/tasks": CheckSquare,
+  "/documents": FileText,
+  "/calendar": CalendarDays,
+  "/billing": CreditCard,
+  "/reports": BarChart3,
+  "/settings": Settings,
+  "/profile": Settings,
+};
+
+const navItems = baseNavItems
+  .filter((item) => item.href !== "/profile") // keep profile out of sidebar
+  .map((item) => ({ ...item, icon: iconMap[item.href], roles: ["OWNER", "ADMIN", "STAFF"] }));
 
 const accountItems = [{ label: "Logout", href: "/login", icon: LogOut }];
 
@@ -69,17 +75,12 @@ export default function AdminSidebar() {
         </button>
       </div>
 
-      <div className="px-4 pb-4">
-        <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-          General
-        </p>
-      </div>
-
       <nav className="flex-1 space-y-1 px-3">
         {navItems
           .filter((item) => !item.roles || item.roles.includes(userRole))
           .map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
             return (
               <div key={item.href} className="space-y-1">

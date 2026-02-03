@@ -30,7 +30,23 @@ export const authOptions = {
         });
 
         if (!response.ok) {
-          return null;
+          let field = null;
+          let message = "Invalid email or password.";
+          try {
+            const data = await response.json();
+            if (data?.email) {
+              field = "email";
+              message = Array.isArray(data.email) ? data.email.join(" ") : data.email;
+            } else if (data?.password) {
+              field = "password";
+              message = Array.isArray(data.password) ? data.password.join(" ") : data.password;
+            } else if (data?.detail) {
+              message = data.detail;
+            }
+          } catch (_) {
+            // ignore parse errors
+          }
+          throw new Error(JSON.stringify({ field, message }));
         }
 
         const data = await response.json();

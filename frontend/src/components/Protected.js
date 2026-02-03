@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { AUTH_MODE, USE_NEXTAUTH } from "@/lib/config";
-import { apiFetch, tokenStore } from "@/lib/api";
+import { apiFetch, tokenStore, ensureAccessToken } from "@/lib/api";
 
 export default function Protected({ children }) {
   const router = useRouter();
@@ -22,17 +22,18 @@ export default function Protected({ children }) {
 
     if (AUTH_MODE === "token") {
       const access = tokenStore.getAccess();
-      if (!access) {
-        router.replace("/login");
-      } else {
-        // verify with backend
-        apiFetch("/api/authx/me/", { method: "GET", credentials: "include" })
-          .then(() => setTokenChecked(true))
-          .catch(() => {
-            tokenStore.clear();
-            router.replace("/login");
-          });
-      }
+      const verify = async () => {
+        try {
+          const token = access || (await ensureAccessToken());
+          if (!token) throw new Error("no token");
+          await apiFetch("/api/authx/me/", { method: "GET", credentials: "include" });
+          setTokenChecked(true);
+        } catch (e) {
+          tokenStore.clear();
+          router.replace("/login");
+        }
+      };
+      verify();
       return;
     }
 

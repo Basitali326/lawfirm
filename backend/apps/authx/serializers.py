@@ -67,11 +67,21 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         request = self.context.get('request')
-        user = authenticate(request=request, email=attrs.get('email'), password=attrs.get('password'))
-        if not user:
-            raise serializers.ValidationError('Invalid email or password.')
-        attrs['user'] = user
-        return attrs
+        email = attrs.get('email')
+        password = attrs.get('password')
+        user = authenticate(request=request, email=email, password=password)
+        if user:
+            attrs['user'] = user
+            return attrs
+
+        # Provide field-specific errors
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        if not User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({'email': 'Email not found.'})
+
+        raise serializers.ValidationError({'password': 'Incorrect password.'})
 
 
 class RefreshTokenLogoutSerializer(serializers.Serializer):
