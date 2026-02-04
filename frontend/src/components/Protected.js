@@ -11,6 +11,8 @@ export default function Protected({ children }) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [tokenChecked, setTokenChecked] = useState(AUTH_MODE !== "token");
+  const [meChecked, setMeChecked] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     if (USE_NEXTAUTH) {
@@ -40,6 +42,42 @@ export default function Protected({ children }) {
     // Cookie mode relies on middleware to guard /admin.
   }, [USE_NEXTAUTH, AUTH_MODE, status, session, router]);
 
+  useEffect(() => {
+    const checkVerification = async () => {
+      try {
+        const me = await apiFetch("/api/authx/me/", { method: "GET", credentials: "include" });
+        if (me?.email_verified === false) {
+          setRedirecting(true);
+          const email = me?.user?.email || "";
+          router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
+          return;
+        }
+        setMeChecked(true);
+      } catch (e) {
+        // fallback to login on failure
+        router.replace("/login");
+      }
+    };
+
+    // Skip check if already redirecting
+    if (redirecting) return;
+
+    // Only check when authenticated
+    if (USE_NEXTAUTH) {
+      if (status === "authenticated") checkVerification();
+      return;
+    }
+
+    if (AUTH_MODE === "token" && tokenChecked) {
+      checkVerification();
+      return;
+    }
+
+    if (AUTH_MODE === "cookie") {
+      checkVerification();
+    }
+  }, [USE_NEXTAUTH, AUTH_MODE, status, tokenChecked, router, redirecting]);
+
   if (USE_NEXTAUTH && status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -50,7 +88,12 @@ export default function Protected({ children }) {
     );
   }
 
-  if ((USE_NEXTAUTH && !session) || (AUTH_MODE === "token" && !tokenChecked)) {
+  if (
+    (USE_NEXTAUTH && !session) ||
+    (AUTH_MODE === "token" && !tokenChecked) ||
+    !meChecked ||
+    redirecting
+  ) {
     return null;
   }
 

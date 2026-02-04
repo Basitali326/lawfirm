@@ -43,3 +43,7 @@ Switching to Postgres later
 CORS for Next.js
 - Defaults allow http://localhost:3000 and http://127.0.0.1:3000
 - Edit CORS_ALLOWED_ORIGINS in .env if frontend host changes
+
+Email delivery
+- Dev: default console backend prints emails to the terminal.
+- Prod: set EMAIL_BACKEND to an SMTP backend and configure EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_USE_TLS.

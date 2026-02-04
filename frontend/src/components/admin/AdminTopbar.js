@@ -7,8 +7,7 @@ import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
-import { useFirmMe } from "@/lib/queries/useFirmMe";
-import { getSession } from "next-auth/react";
+import { useFirmMeQuery } from "@/features/firm/firm.hooks";
 
 export default function AdminTopbar() {
   const { data: session } = useSession();
@@ -16,10 +15,10 @@ export default function AdminTopbar() {
   const router = useRouter();
   const displayName = session?.user?.name || "";
   const emailFallback = session?.user?.email || "";
+  const { data: firmData } = useFirmMeQuery();
+  const firmName = firmData?.name || "Your firm";
   const nameForBadge = displayName || emailFallback || firmName || "";
   const role = session?.role || session?.user?.role || "";
-  const { data: firmData } = useFirmMe();
-  const firmName = firmData?.name || "Your firm";
 
   const handleProfile = () => {
     setOpen(false);
@@ -61,7 +60,7 @@ export default function AdminTopbar() {
               onClick={handleProfile}
               className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
             >
-              Profile
+              Firm Profile
             </button>
             <button
               onClick={handleSignOut}

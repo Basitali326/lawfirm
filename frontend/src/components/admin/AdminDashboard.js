@@ -29,7 +29,7 @@ export default function AdminDashboard() {
             Welcome back, {name}
           </h1>
           <p className="text-sm text-slate-500">
-            Here's what's happening with your firm today.
+            Here is what is happening with your firm today.
           </p>
         </div>
         <div className="flex items-center gap-3"></div>

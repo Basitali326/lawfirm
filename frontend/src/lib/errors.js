@@ -3,6 +3,18 @@ export function normalizeError(error) {
     return { message: "Request failed.", fieldErrors: [], status: null };
   }
 
+  // Axios-style error wrapper
+  if (error.__fromAxios) {
+    return normalizeError({
+      message: error.message,
+      data: error.data,
+      status: error.status,
+      errors: error.errors,
+      code: error.code,
+      details: error.details,
+    });
+  }
+
   if (error.errors && Array.isArray(error.errors)) {
     return {
       message: error.errors.map((e) => e.message).join(" "),
@@ -33,6 +45,17 @@ export function normalizeError(error) {
     };
   }
 
+  if (error.error && typeof error.error === "object") {
+    const errObj = error.error;
+    return {
+      message: errObj.message || "Request failed.",
+      fieldErrors: [],
+      status: error.status ?? null,
+      code: errObj.code,
+      details: errObj.details,
+    };
+  }
+
   if (typeof error === "string") {
     return { message: error, fieldErrors: [], status: null };
   }
@@ -51,4 +74,29 @@ export function mapFieldErrors(fieldErrors) {
     result[err.field] = err.message;
   }
   return result;
+}
+
+// Converts axios errors into a shape consumable by normalizeError.
+export function shapeAxiosError(error) {
+  if (error?.response) {
+    return {
+      __fromAxios: true,
+      message: error.response.data?.error?.message
+        || error.response.data?.detail
+        || error.response.data?.message
+        || error.message
+        || "Request failed.",
+      data: error.response.data?.error?.details || error.response.data,
+      status: error.response.status,
+      errors: error.response.data?.errors || error.response.data?.error?.details,
+      code: error.response.data?.error?.code,
+      details: error.response.data?.error?.details,
+    };
+  }
+  return error;
+}
+
+export function getApiErrorMessage(error) {
+  const { message } = normalizeError(error);
+  return message;
 }

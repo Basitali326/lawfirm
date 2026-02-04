@@ -91,6 +91,22 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
   const isJson = contentType.includes("application/json");
   const payload = isJson ? await response.json() : await response.text();
 
+  const extractData = (body) => {
+    if (body && typeof body === "object" && body !== null) {
+      if (Object.prototype.hasOwnProperty.call(body, "data")) {
+        return body.data;
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "error")) {
+        const errInfo = body.error || {};
+        const error = new Error(errInfo.message || "Request failed.");
+        error.code = errInfo.code;
+        error.details = errInfo.details;
+        return error;
+      }
+    }
+    return body;
+  };
+
   if (response.status === 401 && AUTH_MODE === "token" && retry) {
     // Attempt refresh once, then retry original request
     try {
@@ -105,17 +121,19 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
   }
 
   if (!response.ok) {
-    const message = extractErrorMessage(payload);
+    const errInfo = payload?.error || {};
+    const message = errInfo.message || extractErrorMessage(payload);
     const error = new Error(message);
     error.status = response.status;
-    error.data = payload;
+    error.data = errInfo.details || payload;
+    error.code = errInfo.code;
     if (payload?.errors) {
       error.errors = payload.errors;
     }
     throw error;
   }
 
-  return payload;
+  return extractData(payload);
 }
 
 async function refreshAccessToken() {

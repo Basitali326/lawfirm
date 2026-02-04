@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { useAppSelector } from "@/hooks/useAppSelector";
-import { toggleSidebar } from "@/store/slices/uiSlice";
+import { toggleSidebar } from "@/store/uiSlice";
 import { navItems as baseNavItems } from "@/components/admin/navConfig";
 
 const iconMap = {

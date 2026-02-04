@@ -1,0 +1,12 @@
+Verify your email
+
+Hello {{ user.first_name|default:"there" }},
+
+Please confirm your email address to secure your account.
+
+Verification link:
+{{ verify_link }}
+
+This link expires in 24 hours.
+
+— The Legal SaaS team

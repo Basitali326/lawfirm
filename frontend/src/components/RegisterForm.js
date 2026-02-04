@@ -7,12 +7,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
-import { signIn } from "next-auth/react";
 
 import { registerSchema } from "@/lib/schemas/auth";
 import { register as registerFirm } from "@/lib/auth";
 import { mapFieldErrors, normalizeError } from "@/lib/errors";
-import { USE_NEXTAUTH } from "@/lib/config";
 import AppButton from "@/components/AppButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,20 +32,8 @@ export default function RegisterForm() {
   const onSubmit = async (values) => {
     try {
       await registerFirm(values);
-      if (USE_NEXTAUTH) {
-        const result = await signIn("credentials", {
-          email: values.email,
-          password: values.password,
-          callbackUrl: "/admin",
-          redirect: true,
-        });
-        if (result?.error) {
-          throw new Error(result.error);
-        }
-        return;
-      }
-      toast.success("Firm created");
-      router.push("/admin");
+      toast.success("Firm created. Check your email for the verification code.");
+      router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
     } catch (error) {
       const { message, fieldErrors } = normalizeError(error);
       const mapped = mapFieldErrors(fieldErrors);

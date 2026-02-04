@@ -3,9 +3,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-
-from .models import Firm, generate_unique_slug
+from .models import Firm, generate_unique_slug, UserProfile
 from .validators import validate_strong_password
+from .services_otp import create_email_otp, send_email_otp, ensure_profile
 
 User = get_user_model()
 
@@ -62,6 +62,10 @@ class RegisterFirmSerializer(serializers.Serializer):
         firm_slug = generate_unique_slug(Firm, firm_name)
         firm = Firm.objects.create(name=firm_name, slug=firm_slug, owner=user)
 
+        ensure_profile(user)
+        otp = create_email_otp(user)
+        send_email_otp(user, otp.code)
+
         return user, firm
 
 
@@ -115,3 +119,20 @@ class RefreshTokenLogoutSerializer(serializers.Serializer):
         token = RefreshToken(refresh_token)
         token.blacklist()
         return {}
+
+
+class VerifyEmailSerializer(serializers.Serializer):
+    token = serializers.UUIDField()
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class SendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6)

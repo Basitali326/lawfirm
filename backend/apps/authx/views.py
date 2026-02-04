@@ -2,10 +2,11 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -13,15 +14,21 @@ from .serializers import (
     LoginSerializer,
     RefreshTokenLogoutSerializer,
     RegisterFirmSerializer,
+    SendOTPSerializer,
+    VerifyOTPSerializer,
 )
 from .services import build_auth_body, build_tokens
-from .models import Firm
+from .models import Firm, EmailOTP, UserProfile
+from .services_otp import create_email_otp, send_email_otp, ensure_profile
+from datetime import timedelta
+from common.api_response import api_success, api_error
 
 logger = logging.getLogger(__name__)
 
 
 class RegisterFirmView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = RegisterFirmSerializer
 
     @transaction.atomic
@@ -31,7 +38,10 @@ class RegisterFirmView(APIView):
         user, firm = serializer.save()
         access, refresh = build_tokens(user)
         data = build_auth_body(user, access, firm)
-        response = Response(data, status=status.HTTP_201_CREATED)
+        data['email_verification_required'] = True
+        data['detail'] = 'Firm created. Verification code sent to email.'
+        data['email'] = user.email
+        response = api_success(data, status=status.HTTP_201_CREATED)
         set_refresh_cookie(response, refresh)
         logger.info("register user=%s firm=%s refresh_set=%s", user.id, firm.id, bool(refresh))
         return response
@@ -39,6 +49,7 @@ class RegisterFirmView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = LoginSerializer
 
     def post(self, request):
@@ -47,10 +58,96 @@ class LoginView(APIView):
         user = serializer.validated_data['user']
         access, refresh = build_tokens(user)
         data = build_auth_body(user, access)
-        response = Response(data, status=status.HTTP_200_OK)
+        response = api_success(data, status=status.HTTP_200_OK)
         set_refresh_cookie(response, refresh)
         logger.info("login user=%s refresh_set=%s access_len=%s", user.id, bool(refresh), len(access))
         return response
+
+
+class VerifyOTPView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = VerifyOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        code = serializer.validated_data['code']
+
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            return api_error('Invalid code', status=status.HTTP_400_BAD_REQUEST, code="INVALID_CODE")
+
+        otp = (
+            EmailOTP.objects.filter(user=user, purpose="email_verification", used_at__isnull=True)
+            .order_by("-created_at")
+            .first()
+        )
+        if not otp:
+            return api_error('Invalid or expired code', status=status.HTTP_400_BAD_REQUEST, code="INVALID_CODE")
+        if otp.is_expired:
+            return api_error('Invalid or expired code', status=status.HTTP_400_BAD_REQUEST, code="INVALID_CODE")
+        if otp.code != code:
+            return api_error('Invalid or expired code', status=status.HTTP_400_BAD_REQUEST, code="INVALID_CODE")
+
+        otp.mark_used()
+        profile = ensure_profile(user)
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+
+        return api_success({'detail': 'Email verified.'}, status=status.HTTP_200_OK)
+
+
+class ResendVerificationView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = SendOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user:
+            profile = ensure_profile(user)
+            if not profile.email_verified:
+                otp = create_email_otp(user)
+                send_email_otp(user, otp.code)
+
+        return api_success(
+            {'detail': 'If the account exists, a verification email has been sent.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class SendOTPView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = SendOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user:
+            profile = ensure_profile(user)
+            if not profile.email_verified:
+                otp = create_email_otp(user)
+                send_email_otp(user, otp.code)
+
+        return api_success({'detail': 'If the account exists, a code was sent.'}, status=status.HTTP_200_OK)
 
 
 class LogoutView(APIView):
@@ -65,7 +162,7 @@ class LogoutView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        response = Response({'detail': 'Logged out'}, status=status.HTTP_205_RESET_CONTENT)
+        response = api_success({'detail': 'Logged out'}, status=status.HTTP_205_RESET_CONTENT)
         clear_refresh_cookie(response)
         logger.info("logout user=%s", request.user.id if request.user.is_authenticated else None)
         return response
@@ -73,6 +170,7 @@ class LogoutView(APIView):
 
 class JWTRefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request, *args, **kwargs):
         refresh_key = settings.SIMPLE_JWT.get('REFRESH_COOKIE_NAME', 'refresh_token')
@@ -90,23 +188,27 @@ class JWTRefreshView(TokenRefreshView):
         response = super().post(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
             new_refresh = None
-            if hasattr(response, 'data'):
-                new_refresh = response.data.get('refresh') or incoming_refresh
-                response.data.pop('refresh', None)
+            payload = response.data if hasattr(response, 'data') else {}
+            new_refresh = payload.get('refresh') or incoming_refresh
+            if 'refresh' in payload:
+                payload.pop('refresh', None)
             if new_refresh:
                 set_refresh_cookie(response, new_refresh)
+            wrapped = api_success(payload, status=status.HTTP_200_OK)
+            wrapped.cookies = response.cookies
             logger.info(
                 "token_refresh success access_len=%s has_refresh_cookie=%s",
-                len(response.data.get('access', '')) if hasattr(response, 'data') else None,
+                len(payload.get('access', '')) if payload else None,
                 bool(new_refresh),
             )
-        else:
-            logger.warning(
-                "token_refresh failed status=%s cookie_present=%s",
-                response.status_code,
-                bool(request.COOKIES.get(refresh_key)),
-            )
-        return response
+            return wrapped
+        logger.warning(
+            "token_refresh failed status=%s cookie_present=%s",
+            response.status_code,
+            bool(request.COOKIES.get(refresh_key)),
+        )
+        detail = response.data.get('detail') if hasattr(response, 'data') else 'Token refresh failed'
+        return api_error(detail or 'Token refresh failed', status=response.status_code, code="AUTH_ERROR")
 
 
 class MeView(APIView):
@@ -114,9 +216,15 @@ class MeView(APIView):
 
     def get(self, request):
         firm = Firm.objects.filter(owner=request.user).first()
-        return Response(
+        profile = ensure_profile(request.user)
+        return api_success(
             {
-                'user': {'id': request.user.id, 'email': request.user.email},
+                'user': {
+                    'id': request.user.id,
+                    'email': request.user.email,
+                    'first_name': request.user.first_name,
+                    'last_name': request.user.last_name,
+                },
                 'firm': {
                     'id': firm.id,
                     'name': firm.name,
@@ -124,6 +232,8 @@ class MeView(APIView):
                 }
                 if firm
                 else None,
+                'role': 'Owner',
+                'email_verified': profile.email_verified,
             }
         )
 

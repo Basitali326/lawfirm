@@ -3,6 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 
+from common.api_response import api_success
+
 from apps.authx.models import Firm, generate_unique_slug
 from .serializers import FirmMeSerializer
 
@@ -41,22 +43,23 @@ class FirmMeView(generics.RetrieveUpdateAPIView):
     def retrieve(self, request, *args, **kwargs):
         obj = self.get_object()
         if obj is None:
-            return Response(
+            return api_success(
                 {
                     "firm": None,
                     "detail": "Firm not found for this user. Please contact your administrator.",
-                    "role": request.user.is_superuser and "Super Admin" or "",
                     "owner_first_name": request.user.first_name,
                     "owner_last_name": request.user.last_name,
-                },
-                status=200,
+                }
             )
         serializer = self.get_serializer(obj)
         data = serializer.data
-        data['role'] = request.user.is_superuser and "Super Admin" or ""
         data['owner_first_name'] = request.user.first_name
         data['owner_last_name'] = request.user.last_name
-        return Response(data)
+        return api_success(data)
 
     def patch(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        return api_success(response.data, status=response.status_code)

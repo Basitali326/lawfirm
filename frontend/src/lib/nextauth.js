@@ -29,27 +29,28 @@ export const authOptions = {
           credentials: "include",
         });
 
+        const raw = await response.json();
+        const payload = raw?.data ?? raw;
+
         if (!response.ok) {
           let field = null;
           let message = "Invalid email or password.";
-          try {
-            const data = await response.json();
-            if (data?.email) {
-              field = "email";
-              message = Array.isArray(data.email) ? data.email.join(" ") : data.email;
-            } else if (data?.password) {
-              field = "password";
-              message = Array.isArray(data.password) ? data.password.join(" ") : data.password;
-            } else if (data?.detail) {
-              message = data.detail;
-            }
-          } catch (_) {
-            // ignore parse errors
+          const err = raw?.error?.details || raw?.error || payload || {};
+          if (err?.email) {
+            field = "email";
+            message = Array.isArray(err.email) ? err.email.join(" ") : err.email;
+          } else if (err?.password) {
+            field = "password";
+            message = Array.isArray(err.password) ? err.password.join(" ") : err.password;
+          } else if (err?.detail) {
+            message = err.detail;
+          } else if (err?.message) {
+            message = err.message;
           }
           throw new Error(JSON.stringify({ field, message }));
         }
 
-        const data = await response.json();
+        const data = payload;
         const user = data?.user || {};
         const tokens = data?.tokens || {};
 

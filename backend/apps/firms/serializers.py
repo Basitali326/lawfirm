@@ -8,7 +8,6 @@ class FirmMeSerializer(serializers.ModelSerializer):
     email = serializers.SerializerMethodField(read_only=True)
     owner_first_name = serializers.CharField(source='owner.first_name', read_only=True)
     owner_last_name = serializers.CharField(source='owner.last_name', read_only=True)
-    role = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Firm
@@ -25,7 +24,6 @@ class FirmMeSerializer(serializers.ModelSerializer):
             'owner_email',
             'owner_first_name',
             'owner_last_name',
-            'role',
         ]
         read_only_fields = ('slug', 'email', 'owner_email', 'created_at', 'updated_at')
 
@@ -33,16 +31,6 @@ class FirmMeSerializer(serializers.ModelSerializer):
         # Prefer firm email if set, otherwise fallback to owner email for display
         return obj.email or (obj.owner.email if obj.owner else None)
 
-    def get_role(self, obj):
-        request = self.context.get('request')
-        if request and request.user and request.user.is_authenticated:
-            if getattr(request.user, 'is_superuser', False):
-                return "Super Admin"
-            # Firm owner defaults to Owner
-            if obj and obj.owner_id == request.user.id:
-                return "Owner"
-            return "User"
-        return "User"
 
     def validate(self, attrs):
         request = self.context.get('request')

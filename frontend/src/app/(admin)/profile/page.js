@@ -1,19 +1,18 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useForm, Controller } from "react-hook-form";
-import { toast } from "sonner";
 
-import { useFirmMe, useUpdateFirmMe } from "@/lib/queries/useFirmMe";
+import { useFirmMeQuery, useUpdateFirmMeMutation } from "@/features/firm/firm.hooks";
 import AppButton from "@/components/AppButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
-  const { data, isLoading } = useFirmMe();
-  const updateMutation = useUpdateFirmMe();
+  const { data, isLoading } = useFirmMeQuery();
+  const updateMutation = useUpdateFirmMeMutation();
 
   const {
     register,
@@ -45,13 +44,13 @@ export default function ProfilePage() {
       if (data.firm === null) {
         reset({
           name: "",
-        phone: phonePrefix,
-        address: "",
-        email: data.owner_email || "",
-        first_name: data.owner_first_name || "",
-        last_name: data.owner_last_name || "",
-        role: roleValue,
-      });
+          phone: phonePrefix,
+          address: "",
+          email: data.owner_email || "",
+          first_name: data.owner_first_name || "",
+          last_name: data.owner_last_name || "",
+          role: roleValue,
+        });
         return;
       }
       const normalizedPhone =
@@ -71,7 +70,7 @@ export default function ProfilePage() {
         role: roleValue,
       });
     }
-  }, [data, reset]);
+  }, [data, reset, session, phonePrefix]);
 
   useEffect(() => {
     if (!phoneValue) {
@@ -80,19 +79,13 @@ export default function ProfilePage() {
   }, [phoneValue, phonePrefix, setValue]);
 
   const onSubmit = async (values) => {
-    try {
-      await ensureAccessToken();
-      await updateMutation.mutateAsync({
-        // name and email are locked by backend; we only send editable fields
-        phone: values.phone,
-        address: values.address,
-        owner_first_name: values.first_name,
-        owner_last_name: values.last_name,
-      });
-      toast.success("Profile updated");
-    } catch (error) {
-      // errors handled globally
-    }
+    await updateMutation.mutateAsync({
+      // name and email are locked by backend; we only send editable fields
+      phone: values.phone,
+      address: values.address,
+      owner_first_name: values.first_name,
+      owner_last_name: values.last_name,
+    });
   };
 
   return (
@@ -111,7 +104,7 @@ export default function ProfilePage() {
 
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" disabled {...register("email")} />
+            <Input id="email" disabled readOnly {...register("email")} />
           </div>
 
           <div className="space-y-2">
