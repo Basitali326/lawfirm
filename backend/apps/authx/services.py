@@ -22,13 +22,14 @@ def build_tokens(user: User) -> Tuple[str, str]:
 def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None) -> dict:
     firm = firm or Firm.objects.filter(owner=user).first()
     profile = _get_profile(user)
+    role_value = getattr(user, "role", None) or "FIRM_OWNER"
     return {
         'user': {
             'id': user.id,
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'role': 'Owner',
+            'role': role_value,
             'email_verified': profile.email_verified,
         },
         'firm': {

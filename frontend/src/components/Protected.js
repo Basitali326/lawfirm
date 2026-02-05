@@ -45,16 +45,9 @@ export default function Protected({ children }) {
   useEffect(() => {
     const checkVerification = async () => {
       try {
-        const me = await apiFetch("/api/authx/me/", { method: "GET", credentials: "include" });
-        if (me?.email_verified === false) {
-          setRedirecting(true);
-          const email = me?.user?.email || "";
-          router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
-          return;
-        }
+        await apiFetch("/api/authx/me/", { method: "GET", credentials: "include" });
         setMeChecked(true);
       } catch (e) {
-        // fallback to login on failure
         router.replace("/login");
       }
     };

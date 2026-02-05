@@ -4,4 +4,5 @@ export const endpoints = {
   logout: "/api/authx/logout/",
   refresh: "/api/authx/token/refresh/",
   firmProfile: "/api/firms/profile/",
+  casesCreate: "/api/cases/",
 };

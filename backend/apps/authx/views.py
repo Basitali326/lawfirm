@@ -217,6 +217,7 @@ class MeView(APIView):
     def get(self, request):
         firm = Firm.objects.filter(owner=request.user).first()
         profile = ensure_profile(request.user)
+        role_value = getattr(request.user, "role", None) or "FIRM_OWNER"
         return api_success(
             {
                 'user': {
@@ -224,6 +225,7 @@ class MeView(APIView):
                     'email': request.user.email,
                     'first_name': request.user.first_name,
                     'last_name': request.user.last_name,
+                    'role': role_value,
                 },
                 'firm': {
                     'id': firm.id,
@@ -232,7 +234,6 @@ class MeView(APIView):
                 }
                 if firm
                 else None,
-                'role': 'Owner',
                 'email_verified': profile.email_verified,
             }
         )

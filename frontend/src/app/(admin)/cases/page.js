@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 import DataTable from "@/components/datatable/DataTable";
 import { Input } from "@/components/ui/input";
@@ -109,22 +110,31 @@ export default function CasesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Cases</h1>
-          <p className="text-sm text-slate-500">UI preview only. Backend calls are disabled.</p>
+          <p className="text-sm text-slate-500">
+            Browse and manage cases. Use “Add Case” to create a new one.
+          </p>
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-slate-500">Search</Label>
-          <Input
-            placeholder="Search cases"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-64"
-          />
+        <div className="flex items-center gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-500">Search</Label>
+            <Input
+              placeholder="Search cases"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="w-64"
+            />
+          </div>
+          <Link
+            href="/cases/add"
+            className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+          >
+            Add Case
+          </Link>
         </div>
       </div>
-
       <div className="flex flex-wrap gap-2">
         {statusChips.map((chip) => (
           <button

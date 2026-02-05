@@ -58,6 +58,10 @@ class RegisterFirmSerializer(serializers.Serializer):
         user.set_password(password)
         user.full_clean(exclude=['password'])
         user.save()
+        # assign firm owner role
+        if hasattr(user, "role"):
+            user.role = "FIRM_OWNER"
+            user.save(update_fields=["role"])
 
         firm_slug = generate_unique_slug(Firm, firm_name)
         firm = Firm.objects.create(name=firm_name, slug=firm_slug, owner=user)

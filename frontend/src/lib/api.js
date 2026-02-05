@@ -107,11 +107,25 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
     return body;
   };
 
-  if (response.status === 401 && AUTH_MODE === "token" && retry) {
-    // Attempt refresh once, then retry original request
+  const shouldRefresh =
+    response.status === 401 &&
+    retry &&
+    ((AUTH_MODE === "token") || (AUTH_MODE === "cookie"));
+
+  if (shouldRefresh) {
     try {
       const newAccess = await refreshAccessToken();
       if (newAccess) {
+        // Attach fresh token for retry
+        if (AUTH_MODE === "token") {
+          tokenStore.setAccess(newAccess);
+        } else {
+          // cookie mode: retry with Authorization header
+          options.headers = {
+            ...(options.headers || {}),
+            Authorization: `Bearer ${newAccess}`,
+          };
+        }
         return apiFetch(path, options, { retry: false });
       }
     } catch (err) {
@@ -149,14 +163,15 @@ async function refreshAccessToken() {
       body: JSON.stringify({}), // backend will read refresh from httpOnly cookie
     });
     const data = await response.json();
-    if (!response.ok || !data?.access) {
+    const access = data?.access || data?.data?.access;
+    if (!response.ok || !access) {
       const err = new Error("Unable to refresh session");
       drainRefresh(err);
       throw err;
     }
-    tokenStore.setAccess(data.access);
-    drainRefresh(null, data.access);
-    return data.access;
+    tokenStore.setAccess(access);
+    drainRefresh(null, access);
+    return access;
   } catch (err) {
     drainRefresh(err);
     throw err;
