@@ -7,11 +7,12 @@ import DataTable from "@/components/datatable/DataTable";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useCasesQuery } from "@/features/cases/cases.hooks";
 
 const statusChips = [
   { label: "All", value: "ALL" },
   { label: "Open", value: "OPEN" },
-  { label: "On hold", value: "ON_HOLD" },
+  { label: "On hold", value: "HOLD" },
   { label: "Closed", value: "CLOSED" },
 ];
 
@@ -19,30 +20,8 @@ const priorityTone = {
   LOW: "text-emerald-700 bg-emerald-50",
   MEDIUM: "text-amber-700 bg-amber-50",
   HIGH: "text-rose-700 bg-rose-50",
+  URGENT: "text-white bg-rose-600",
 };
-
-const sampleRows = [
-  {
-    id: "1",
-    case_number: "CASE-000101",
-    title: "Contract Dispute – ABC vs XYZ Ltd",
-    status: "OPEN",
-    priority: "HIGH",
-    opened_at: "2026-02-15",
-    assigned_to: { email: "lawyer1@example.com" },
-    created_at: "2026-02-01",
-  },
-  {
-    id: "2",
-    case_number: "CASE-000102",
-    title: "M&A – Acme acquires Bright Co",
-    status: "ON_HOLD",
-    priority: "MEDIUM",
-    opened_at: "2026-01-20",
-    assigned_to: { email: "lawyer2@example.com" },
-    created_at: "2026-01-18",
-  },
-];
 
 export default function CasesPage() {
   const [page, setPage] = useState(1);
@@ -50,18 +29,28 @@ export default function CasesPage() {
   const [status, setStatus] = useState("ALL");
   const [ordering, setOrdering] = useState("-created_at");
 
-  const filteredRows = useMemo(() => {
-    return sampleRows
-      .filter((r) =>
-        status === "ALL" ? true : r.status === status
-      )
-      .filter((r) =>
-        search
-          ? r.title.toLowerCase().includes(search.toLowerCase()) ||
-            r.case_number.toLowerCase().includes(search.toLowerCase())
-          : true
-      );
-  }, [status, search]);
+  const queryParams = useMemo(() => {
+    const params = { page, sort: ordering };
+    if (search) params.search = search;
+    if (status !== "ALL") params.status = status;
+    return params;
+  }, [page, ordering, search, status]);
+
+  const { data, isLoading } = useCasesQuery(queryParams, { keepPreviousData: true });
+
+  const rows = useMemo(() => {
+    const items = data?.data || [];
+    return items.map((item) => ({
+      id: item.id,
+      case_number: item.case_number || "—",
+      title: item.title,
+      status: item.status,
+      priority: item.priority,
+      opened_at: item.open_date,
+      assigned_to: item.assigned_lead_detail?.email || "—",
+      created_at: item.created_at,
+    }));
+  }, [data]);
 
   const columns = [
     { key: "case_number", header: "Case #", sortable: true },
@@ -76,7 +65,7 @@ export default function CasesPage() {
             "rounded-full px-3 py-1 text-xs font-semibold",
             row.status === "CLOSED"
               ? "bg-slate-100 text-slate-700"
-              : row.status === "ON_HOLD"
+              : row.status === "HOLD"
               ? "bg-amber-100 text-amber-800"
               : "bg-emerald-100 text-emerald-800"
           )}
@@ -101,7 +90,7 @@ export default function CasesPage() {
       ),
     },
     { key: "opened_at", header: "Opened", sortable: true },
-    { key: "assigned_to", header: "Assigned", render: (row) => row.assigned_to?.email || "—" },
+    { key: "assigned_to", header: "Assigned", render: (row) => row.assigned_to || "—" },
     { key: "created_at", header: "Created", sortable: true },
   ];
 
@@ -128,7 +117,7 @@ export default function CasesPage() {
             />
           </div>
           <Link
-            href="/cases/add"
+            href="/case/add"
             className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
           >
             Add Case
@@ -158,9 +147,13 @@ export default function CasesPage() {
 
       <DataTable
         columns={columns}
-        rows={filteredRows}
-        meta={{ page, page_size: 20, count: filteredRows.length }}
-        loading={false}
+        rows={rows}
+        meta={{
+          page: data?.meta?.page || page,
+          page_size: data?.meta?.page_size || 20,
+          count: data?.meta?.count ?? rows.length,
+        }}
+        loading={isLoading}
         onPageChange={(next) => setPage(next)}
         onSortChange={() => {}}
         currentSort={{

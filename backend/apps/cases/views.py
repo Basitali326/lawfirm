@@ -41,8 +41,11 @@ class CaseViewSet(
         role = (getattr(user, "role", "") or "").upper()
         if role == "SUPER_ADMIN":
             return qs.order_by("-created_at")
-        if role == "FIRM_OWNER":
-            return qs.filter(firm_id=getattr(user, "firm_id", None)).order_by("-created_at")
+        if role == "FIRM_OWNER" or role == "OWNER" or (not role and hasattr(user, "owned_firm")):
+            firm_id = getattr(user, "firm_id", None)
+            if not firm_id and hasattr(user, "owned_firm"):
+                firm_id = getattr(user.owned_firm, "id", None)
+            return qs.filter(firm_id=firm_id).order_by("-created_at")
         if role == "CLIENT":
             return qs.filter(client__user=user).order_by("-created_at")
         return qs.none()
@@ -50,16 +53,17 @@ class CaseViewSet(
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
-        serializer = self.get_serializer(page, many=True)
         if page is not None:
+            serializer = self.get_serializer(page, many=True)
             meta = {
-                "page": page.number,
+                "page": self.paginator.page.number,
                 "page_size": self.paginator.get_page_size(request),
                 "count": self.paginator.page.paginator.count,
                 "total_pages": self.paginator.page.paginator.num_pages,
             }
-            data = self.get_serializer(page, many=True).data
-            return api_success(message="Cases retrieved", data=data, meta=meta)
+            return api_success(message="Cases retrieved", data=serializer.data, meta=meta)
+
+        serializer = self.get_serializer(queryset, many=True)
         meta = {
             "page": 1,
             "page_size": len(serializer.data),

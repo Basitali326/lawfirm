@@ -69,3 +69,19 @@ class AddCaseAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertFalse(response.data["success"])
         self.assertEqual(response.data["message"], "Forbidden")
+
+    def test_list_cases_success(self):
+        # seed one
+        self.client.post(
+            "/api/v1/cases/",
+            {
+                "title": "List Me",
+                "status": "OPEN",
+                "priority": "MEDIUM",
+            },
+            format="json",
+        )
+        response = self.client.get("/api/v1/cases/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["success"])
+        self.assertGreaterEqual(len(response.data["data"]), 1)

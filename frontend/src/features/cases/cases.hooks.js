@@ -1,8 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { createCase } from "@/features/cases/cases.api";
+import { createCase, fetchCases } from "@/features/cases/cases.api";
 import { normalizeError, shapeAxiosError } from "@/lib/errors";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 
 export function useCreateCaseMutation(options = {}) {
   const queryClient = useQueryClient();
@@ -19,5 +21,17 @@ export function useCreateCaseMutation(options = {}) {
       toast.error(normalized.message || "Failed to create case");
       options.onError?.(error, variables, context);
     },
+  });
+}
+
+export function useCasesQuery(params = {}, options = {}) {
+  const { data: session } = useSession();
+  const token = session?.access || session?.token?.access;
+
+  return useQuery({
+    queryKey: ["cases", params, token],
+    queryFn: () => fetchCases({ token, params }),
+    enabled: !!token,
+    ...options,
   });
 }
