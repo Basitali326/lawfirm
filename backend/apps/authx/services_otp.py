@@ -26,7 +26,11 @@ def create_email_otp(user, purpose: str = "email_verification") -> EmailOTP:
 def send_email_otp(user, code: str):
     subject = "Your verification code"
     body = f"Your OTP is {code}. It expires in 10 minutes."
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
+    # Always log OTP to server console for dev visibility
+    print(f"[OTP] user={user.email} code={code}")
+    # Only send email when enabled (see OTP_EMAIL_ENABLED in settings)
+    if getattr(settings, "OTP_EMAIL_ENABLED", False):
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email])
 
 
 def ensure_profile(user):

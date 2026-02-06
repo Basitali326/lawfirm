@@ -16,6 +16,7 @@ import {
   CalendarDays,
   BarChart3,
   Trash2,
+  User2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const iconMap = {
   "/reports": BarChart3,
   "/trash": Trash2,
   "/settings": Settings,
+  "/settings/users": User2,
   "/profile": Settings,
 };
 
@@ -49,6 +51,9 @@ export default function AdminSidebar() {
   const dispatch = useAppDispatch();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
   const userRole = "OWNER"; // placeholder; role-based filtering can use this value later
+
+  const rootItems = navItems.filter((i) => !i.parent);
+  const settingsChildren = navItems.filter((i) => i.parent === "/settings");
 
   return (
     <aside
@@ -78,12 +83,13 @@ export default function AdminSidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {navItems
+        {rootItems
           .filter((item) => !item.roles || item.roles.includes(userRole))
           .map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
+            const isSettings = item.href === "/settings";
             return (
               <div key={item.href} className="space-y-1">
                 <Link
@@ -100,6 +106,31 @@ export default function AdminSidebar() {
                     {sidebarOpen && item.label}
                   </span>
                 </Link>
+                {isSettings && sidebarOpen && settingsChildren.length > 0 && (
+                  <div className="ml-8 space-y-1">
+                    {settingsChildren.map((child) => {
+                      const childActive =
+                        pathname === child.href ||
+                        pathname.startsWith(`${child.href}/`);
+                      const ChildIcon = child.icon;
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
+                            childActive
+                              ? "bg-slate-800 text-white"
+                              : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                          )}
+                        >
+                          <ChildIcon className="h-4 w-4" />
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

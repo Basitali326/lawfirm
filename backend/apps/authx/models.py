@@ -42,6 +42,7 @@ class Firm(models.Model):
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
     email_verified = models.BooleanField(default=False)
+    role = models.CharField(max_length=32, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

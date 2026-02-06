@@ -10,6 +10,7 @@ env = environ.Env(
     DJANGO_SECRET_KEY=(str, 'change-me'),
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
+    # default SQLite stays in backend/ when you run manage.py from that folder
     DATABASE_URL=(str, 'sqlite:///db.sqlite3'),
     CORS_ALLOWED_ORIGINS=(list, []),
     CSRF_TRUSTED_ORIGINS=(list, []),
@@ -23,6 +24,8 @@ env = environ.Env(
     EMAIL_HOST_PASSWORD=(str, ''),
     EMAIL_USE_TLS=(bool, True),
     FRONTEND_URL=(str, 'http://localhost:3000'),
+    OTP_EMAIL_ENABLED=(bool, False),
+    INVITE_EXPIRE_HOURS=(int, 24),
 )
 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
@@ -52,6 +55,7 @@ INSTALLED_APPS = [
     'apps.authx',
     'apps.firms',
     'apps.cases',
+    'apps.usersx',
 ]
 
 MIDDLEWARE = [
@@ -139,6 +143,8 @@ SIMPLE_JWT = {
 EMAIL_BACKEND = env('EMAIL_BACKEND')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 FRONTEND_URL = env('FRONTEND_URL')
+OTP_EMAIL_ENABLED = env('OTP_EMAIL_ENABLED')
+INVITE_EXPIRE_HOURS = env('INVITE_EXPIRE_HOURS')
 
 if EMAIL_BACKEND != 'django.core.mail.backends.console.EmailBackend':
     EMAIL_HOST = env('EMAIL_HOST')

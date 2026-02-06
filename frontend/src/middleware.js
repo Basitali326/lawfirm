@@ -50,7 +50,9 @@ function matchesProtectedPath(pathname) {
     "/calendar",
     "/billing",
     "/reports",
+    "/trash",
     "/settings",
+    "/settings/users",
     "/profile",
   ];
   return protectedPrefixes.some(

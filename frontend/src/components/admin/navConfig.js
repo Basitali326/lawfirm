@@ -9,6 +9,7 @@ export const navItems = [
   { label: "Reports", href: "/reports" },
   { label: "Trash", href: "/trash" },
   { label: "Settings", href: "/settings" },
+  { label: "Users", href: "/settings/users", parent: "/settings" },
   { label: "Profile", href: "/profile" },
 ];
 

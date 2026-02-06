@@ -1,38 +1,20 @@
 from rest_framework.views import exception_handler
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, NotAuthenticated, PermissionDenied, NotFound
+from core.responses import api_error
 
 
 def custom_exception_handler(exc, context):
-    response = exception_handler(exc, context)
-
-    if response is None:
-        return Response(
-            {"error": {"message": "Server error", "code": "SERVER_ERROR"}},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-    # Default message and code
-    message = "Error"
-    code = None
-    details = response.data
-
     if isinstance(exc, ValidationError):
-        message = "Validation error"
-        code = "VALIDATION_ERROR"
-    elif isinstance(exc, NotAuthenticated):
-        message = "Authentication failed"
-        code = "AUTH_ERROR"
-    elif isinstance(exc, PermissionDenied):
-        message = "Permission denied"
-        code = "PERMISSION_DENIED"
-    elif isinstance(exc, NotFound):
-        message = "Not found"
-        code = "NOT_FOUND"
-    else:
-        message = str(exc) or "Server error"
-        code = "SERVER_ERROR"
+        return api_error("Validation error", errors=exc.detail, status_code=status.HTTP_400_BAD_REQUEST)
+    if isinstance(exc, NotAuthenticated):
+        return api_error("Authentication credentials were not provided.", status_code=status.HTTP_401_UNAUTHORIZED)
+    if isinstance(exc, PermissionDenied):
+        return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
+    if isinstance(exc, NotFound):
+        return api_error("Not found", status_code=status.HTTP_404_NOT_FOUND)
 
-    response.data = {"error": {"message": message, "code": code, "details": details}}
-    return response
+    response = exception_handler(exc, context)
+    if response is not None:
+        return api_error(str(exc) or "Server error", errors=response.data, status_code=response.status_code)
+    return api_error("Server error", errors={"detail": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
