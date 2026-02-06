@@ -4,6 +4,8 @@ from django.db import IntegrityError
 from rest_framework import status, mixins, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied, NotFound, NotAuthenticated
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 
 from core.responses import api_success, api_error
 from .models import Case
@@ -39,6 +41,11 @@ class CaseViewSet(
         qs = Case.objects.select_related("client", "assigned_lead", "firm").filter(is_deleted=False)
         user = self.request.user
         role = (getattr(user, "role", "") or "").upper()
+        if not role:
+            if getattr(user, "is_superuser", False):
+                role = "SUPER_ADMIN"
+            elif getattr(user, "owned_firm", None) or getattr(user, "firm_id", None):
+                role = "FIRM_OWNER"
         if role == "SUPER_ADMIN":
             return qs.order_by("-created_at")
         if role == "FIRM_OWNER" or role == "OWNER" or (not role and hasattr(user, "owned_firm")):
@@ -120,3 +127,69 @@ class CaseViewSet(
         if isinstance(exc, NotAuthenticated):
             return api_error("Authentication credentials were not provided.", status_code=status.HTTP_401_UNAUTHORIZED)
         return super().handle_exception(exc)
+
+
+class TrashView(APIView):
+    """
+    Lists and restores soft-deleted resources.
+    Currently supports: type=case
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        items = []
+        role = (getattr(request.user, "role", "") or "").upper()
+        firm_id = getattr(request.user, "firm_id", None)
+        is_super = getattr(request.user, "is_superuser", False) or role == "SUPER_ADMIN"
+
+        qs = Case.objects.filter(is_deleted=True)
+        if not is_super:
+            if firm_id:
+                qs = qs.filter(firm_id=firm_id)
+            elif hasattr(request.user, "owned_firm"):
+                qs = qs.filter(firm=request.user.owned_firm)
+            else:
+                qs = qs.none()
+
+        for c in qs.order_by("-deleted_at"):
+            items.append(
+                {
+                    "type": "case",
+                    "id": str(c.id),
+                    "title": c.title,
+                    "case_number": c.case_number,
+                    "deleted_at": c.deleted_at,
+                    "firm_id": c.firm_id,
+                }
+            )
+
+        return api_success("Trash items", data=items)
+
+    def post(self, request):
+        item_type = request.data.get("type")
+        item_id = request.data.get("id")
+        if item_type != "case" or not item_id:
+            return api_error("Invalid restore request", status_code=status.HTTP_400_BAD_REQUEST)
+
+        role = (getattr(request.user, "role", "") or "").upper()
+        firm_id = getattr(request.user, "firm_id", None)
+        is_super = getattr(request.user, "is_superuser", False) or role == "SUPER_ADMIN"
+        try:
+            case = Case.objects.get(id=item_id, is_deleted=True)
+        except Case.DoesNotExist:
+            return api_error("Item not found or already restored", status_code=status.HTTP_404_NOT_FOUND)
+
+        if not is_super:
+            allowed = False
+            if firm_id and case.firm_id == firm_id:
+                allowed = True
+            elif hasattr(request.user, "owned_firm") and getattr(request.user.owned_firm, "id", None) == case.firm_id:
+                allowed = True
+            if not allowed:
+                return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
+
+        case.is_deleted = False
+        case.deleted_at = None
+        case.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
+        return api_success("Case restored", data={"id": str(case.id), "type": "case"})

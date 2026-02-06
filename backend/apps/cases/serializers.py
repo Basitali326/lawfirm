@@ -67,6 +67,11 @@ class CaseSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         user = getattr(request, "user", None)
         role = (getattr(user, "role", "") or "").upper()
+        if not role:
+            if getattr(user, "is_superuser", False):
+                role = "SUPER_ADMIN"
+            elif getattr(user, "owned_firm", None) or getattr(user, "firm_id", None):
+                role = "FIRM_OWNER"
         header_firm = request.headers.get("X-FIRM-ID") if request else None
         if role == "SUPER_ADMIN" and header_firm:
             try:

@@ -1,189 +1,226 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useForm } from "react-hook-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import AppButton from "@/components/AppButton";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useCreateCaseMutation } from "@/features/cases/cases.hooks";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+
+const STATUS_OPTIONS = [
+  { value: "OPEN", label: "Open" },
+  { value: "HOLD", label: "On hold" },
+  { value: "CLOSED", label: "Closed" },
+];
+
+const PRIORITY_OPTIONS = [
+  { value: "LOW", label: "Low" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "HIGH", label: "High" },
+  { value: "URGENT", label: "Urgent" },
+];
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+async function createCase(payload, token) {
+  const res = await fetch(`${API_BASE}/api/v1/cases/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  const ok = res.ok && body?.success !== false;
+  if (!ok) {
+    const err = new Error(body?.message || "Failed to create case");
+    err.body = body;
+    throw err;
+  }
+  return body;
+}
 
 export default function AddCasePage() {
   const router = useRouter();
-  const [form, setForm] = useState({
-    title: "",
-    case_number: "",
-    case_type: "",
-    priority: "MEDIUM",
-    status: "OPEN",
-    description: "",
-  });
-  const [fieldErrors, setFieldErrors] = useState({});
+  const { data: session } = useSession();
+  const accessToken = session?.access || session?.token?.access;
+  const queryClient = useQueryClient();
 
-  const createMutation = useCreateCaseMutation({
-    onSuccess: () => {
-      toast.success("Case created");
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+    watch,
+    reset,
+  } = useForm({
+    defaultValues: useMemo(
+      () => ({
+        title: "",
+        case_type: "",
+        status: "OPEN",
+        priority: "MEDIUM",
+        description: "",
+        court_name: "",
+        judge_name: "",
+        open_date: todayISO(),
+      }),
+      []
+    ),
+  });
+
+  const mutation = useMutation({
+    mutationFn: (values) => {
+      if (!accessToken) throw new Error("Not authenticated");
+      const payload = { ...values }; // no case_number -> backend auto-generates
+      return createCase(payload, accessToken);
+    },
+    onSuccess: (body) => {
+      toast.success("Case created successfully");
+      reset();
+      queryClient.invalidateQueries({ queryKey: ["cases"] });
       router.push("/cases");
     },
     onError: (error) => {
-      const errors = error?.errors || error?.details || {};
-      if (errors && typeof errors === "object") setFieldErrors(errors);
+      const body = error?.body;
+      toast.error(body?.message || error.message || "Failed to create case");
+      const fieldErrors = body?.errors;
+      if (fieldErrors && typeof fieldErrors === "object") {
+        Object.entries(fieldErrors).forEach(([field, msgs]) => {
+          const message = Array.isArray(msgs) ? msgs.join(" ") : String(msgs);
+          setError(field, { type: "server", message });
+        });
+      }
     },
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setFieldErrors({});
-    if (!form.title.trim()) {
-      setFieldErrors({ title: ["Title is required"] });
-      toast.error("Title is required");
-      return;
-    }
-    createMutation.mutate({
-      title: form.title.trim(),
-      case_number: form.case_number.trim() || null,
-      case_type: form.case_type.trim() || null,
-      priority: form.priority,
-      status: form.status,
-      description: form.description.trim() || null,
-    });
+  const onSubmit = (data) => {
+    mutation.mutate(data);
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Add Case</h1>
-          <p className="text-sm text-slate-500">Fill in details and submit to create a case.</p>
+          <p className="text-sm text-slate-500">Create a new case. Case number is auto-generated.</p>
         </div>
-        <Link
-          href="/cases"
+        <button
+          onClick={() => router.push("/cases")}
           className="text-sm font-semibold text-slate-600 hover:text-slate-900"
         >
           ← Back to cases
-        </Link>
+        </button>
       </div>
 
       <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label="Title *"
-            value={form.title}
-            onChange={(v) => setForm((f) => ({ ...f, title: v }))}
-            error={fieldErrors?.title}
-            placeholder="Acme vs John"
-            autoFocus
-          />
-          <Field
-            label="Case number"
-            value={form.case_number}
-            onChange={(v) => setForm((f) => ({ ...f, case_number: v }))}
-            error={fieldErrors?.case_number}
-            placeholder="CIV-2026-001"
+            error={errors.title?.message}
+            inputProps={{
+              ...register("title", { required: "Title is required" }),
+              placeholder: "Acme vs John",
+              autoFocus: true,
+            }}
           />
           <Field
             label="Case type"
-            value={form.case_type}
-            onChange={(v) => setForm((f) => ({ ...f, case_type: v }))}
-            error={fieldErrors?.case_type}
-            placeholder="Civil"
-          />
-          <SelectField
-            label="Priority"
-            value={form.priority}
-            onChange={(v) => setForm((f) => ({ ...f, priority: v }))}
-            options={[
-              { value: "LOW", label: "Low" },
-              { value: "MEDIUM", label: "Medium" },
-              { value: "HIGH", label: "High" },
-              { value: "URGENT", label: "Urgent" },
-            ]}
+            error={errors.case_type?.message}
+            inputProps={{ ...register("case_type"), placeholder: "Civil" }}
           />
           <SelectField
             label="Status"
-            value={form.status}
-            onChange={(v) => setForm((f) => ({ ...f, status: v }))}
-            options={[
-              { value: "OPEN", label: "Open" },
-              { value: "HOLD", label: "On hold" },
-              { value: "CLOSED", label: "Closed" },
-            ]}
+            value={watch("status")}
+            error={errors.status?.message}
+            options={STATUS_OPTIONS}
+            registerProps={register("status")}
+          />
+          <SelectField
+            label="Priority"
+            value={watch("priority")}
+            error={errors.priority?.message}
+            options={PRIORITY_OPTIONS}
+            registerProps={register("priority")}
+          />
+          <Field
+            label="Court name"
+            error={errors.court_name?.message}
+            inputProps={{ ...register("court_name"), placeholder: "Dubai Courts" }}
+          />
+          <Field
+            label="Judge name"
+            error={errors.judge_name?.message}
+            inputProps={{ ...register("judge_name"), placeholder: "Judge X" }}
+          />
+          <Field
+            label="Open date"
+            error={errors.open_date?.message}
+            inputProps={{ ...register("open_date", { required: true }), type: "date" }}
           />
         </div>
 
         <div>
-          <Label className="text-xs text-slate-600">Description</Label>
+          <label className="text-xs text-slate-600">Description</label>
           <textarea
             className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
             rows={4}
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             placeholder="Short summary..."
+            {...register("description")}
           />
-          {fieldErrors?.description && (
-            <p className="pt-1 text-xs text-rose-600">
-              {fieldErrors.description.join(", ")}
-            </p>
+          {errors.description && (
+            <p className="pt-1 text-xs text-rose-600">{errors.description.message}</p>
           )}
         </div>
 
-        {createMutation.error && !Object.keys(fieldErrors).length && (
-          <p className="text-sm text-rose-600">
-            {createMutation.error?.message || "Failed to create case"}
-          </p>
-        )}
-
         <div className="flex items-center gap-3">
-          <AppButton
+          <button
             type="submit"
-            loading={createMutation.isPending}
-            title="Create case"
-            className="h-10 px-4"
-          />
-          <Link
-            href="/cases"
+            disabled={isSubmitting || mutation.isPending}
+            className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {mutation.isPending ? "Saving..." : "Create case"}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/cases")}
             className="text-sm font-semibold text-slate-600 hover:text-slate-900"
           >
             Cancel
-          </Link>
+          </button>
         </div>
       </form>
     </div>
   );
 }
 
-function Field({ label, value, onChange, error, placeholder, autoFocus = false }) {
+function Field({ label, error, inputProps }) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-slate-600">{label}</Label>
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        autoFocus={autoFocus}
+      <label className="text-xs text-slate-600">{label}</label>
+      <input
+        className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+        {...inputProps}
       />
-      {error && (
-        <p className="text-xs text-rose-600">
-          {(Array.isArray(error) ? error : [error]).join(", ")}
-        </p>
-      )}
+      {error && <p className="text-xs text-rose-600">{error}</p>}
     </div>
   );
 }
 
-function SelectField({ label, value, onChange, options }) {
+function SelectField({ label, value, error, options, registerProps }) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-slate-600">{label}</Label>
+      <label className="text-xs text-slate-600">{label}</label>
       <select
         className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        {...registerProps}
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -191,6 +228,7 @@ function SelectField({ label, value, onChange, options }) {
           </option>
         ))}
       </select>
+      {error && <p className="text-xs text-rose-600">{error}</p>}
     </div>
   );
 }

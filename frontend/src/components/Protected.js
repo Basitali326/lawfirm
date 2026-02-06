@@ -17,7 +17,7 @@ export default function Protected({ children }) {
   useEffect(() => {
     if (USE_NEXTAUTH) {
       if (status !== "loading" && !session) {
-        router.replace("/login");
+        router.replace("/session-expired");
       }
       return;
     }
@@ -32,7 +32,7 @@ export default function Protected({ children }) {
           setTokenChecked(true);
         } catch (e) {
           tokenStore.clear();
-          router.replace("/login");
+          router.replace("/session-expired");
         }
       };
       verify();
@@ -48,7 +48,7 @@ export default function Protected({ children }) {
         await apiFetch("/api/authx/me/", { method: "GET", credentials: "include" });
         setMeChecked(true);
       } catch (e) {
-        router.replace("/login");
+        router.replace("/session-expired");
       }
     };
 

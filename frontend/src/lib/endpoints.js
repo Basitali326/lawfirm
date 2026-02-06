@@ -6,4 +6,6 @@ export const endpoints = {
   firmProfile: "/api/firms/profile/",
   casesList: "/api/v1/cases/",
   casesCreate: "/api/v1/cases/",
+  trashList: "/api/v1/trash/",
+  trashRestore: "/api/v1/trash/",
 };

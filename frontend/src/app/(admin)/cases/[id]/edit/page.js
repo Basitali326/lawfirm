@@ -1,13 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useMemo, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCaseQuery, useUpdateCaseMutation } from "@/features/cases/cases.hooks";
 import { toast } from "sonner";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 const STATUS_OPTIONS = [
   { value: "OPEN", label: "Open" },
@@ -22,40 +19,21 @@ const PRIORITY_OPTIONS = [
   { value: "URGENT", label: "Urgent" },
 ];
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
-async function createCase(payload, token) {
-  const res = await fetch(`${API_BASE}/api/v1/cases/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  const body = await res.json().catch(() => ({}));
-  const ok = res.ok && body?.success !== false;
-  if (!ok) {
-    const err = new Error(body?.message || "Failed to create case");
-    err.body = body;
-    throw err;
-  }
-  return body;
-}
-
-export default function AddCasePage() {
+export default function EditCasePage() {
+  const params = useParams();
   const router = useRouter();
-  const { data: session } = useSession();
-  const accessToken = session?.access || session?.token?.access;
-  const queryClient = useQueryClient();
+  const id = params?.id;
+
+  const { data: caseItem, isLoading } = useCaseQuery(id);
+  const updateMutation = useUpdateCaseMutation({
+    onSuccess: () => router.push(`/cases/${id}`),
+  });
 
   const {
     register,
     handleSubmit,
-    setError,
+    setValue,
     formState: { errors, isSubmitting },
-    watch,
-    reset,
   } = useForm({
     defaultValues: useMemo(
       () => ({
@@ -66,53 +44,51 @@ export default function AddCasePage() {
         description: "",
         court_name: "",
         judge_name: "",
-        open_date: todayISO(),
+        open_date: "",
       }),
       []
     ),
   });
 
-  const mutation = useMutation({
-    mutationFn: (values) => {
-      if (!accessToken) throw new Error("Not authenticated");
-      const payload = { ...values }; // no case_number -> backend auto-generates
-      return createCase(payload, accessToken);
-    },
-    onSuccess: (body) => {
-      toast.success("Case created successfully");
-      reset();
-      queryClient.invalidateQueries({ queryKey: ["cases"] });
-      router.push("/cases");
-    },
-    onError: (error) => {
-      const body = error?.body;
-      toast.error(body?.message || error.message || "Failed to create case");
-      const fieldErrors = body?.errors;
-      if (fieldErrors && typeof fieldErrors === "object") {
-        Object.entries(fieldErrors).forEach(([field, msgs]) => {
-          const message = Array.isArray(msgs) ? msgs.join(" ") : String(msgs);
-          setError(field, { type: "server", message });
-        });
+  useEffect(() => {
+    if (!caseItem) return;
+    const fields = [
+      "title",
+      "case_type",
+      "status",
+      "priority",
+      "description",
+      "court_name",
+      "judge_name",
+      "open_date",
+    ];
+    fields.forEach((field) => {
+      if (caseItem[field] !== undefined && caseItem[field] !== null) {
+        setValue(field, caseItem[field]);
       }
-    },
-  });
+    });
+  }, [caseItem, setValue]);
 
-  const onSubmit = (data) => {
-    mutation.mutate(data);
+  const onSubmit = (values) => {
+    if (!id) return;
+    updateMutation.mutate({ id, payload: values });
   };
+
+  if (isLoading) return <div className="text-slate-600">Loading...</div>;
+  if (!caseItem) return <div className="text-slate-600">Case not found.</div>;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Add Case</h1>
-          <p className="text-sm text-slate-500">Create a new case. Case number is auto-generated.</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Edit Case</h1>
+          <p className="text-sm text-slate-500">Update case details and save changes.</p>
         </div>
         <button
-          onClick={() => router.push("/cases")}
-          className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+          onClick={() => router.push(`/cases/${id}`)}
+          className="text-sm font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
         >
-          ← Back to cases
+          ← Back to case
         </button>
       </div>
 
@@ -137,14 +113,12 @@ export default function AddCasePage() {
           />
           <SelectField
             label="Status"
-            value={watch("status")}
             error={errors.status?.message}
             options={STATUS_OPTIONS}
             registerProps={register("status")}
           />
           <SelectField
             label="Priority"
-            value={watch("priority")}
             error={errors.priority?.message}
             options={PRIORITY_OPTIONS}
             registerProps={register("priority")}
@@ -182,15 +156,15 @@ export default function AddCasePage() {
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={isSubmitting || mutation.isPending}
+            disabled={isSubmitting || updateMutation.isPending}
             className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {mutation.isPending ? "Saving..." : "Create case"}
+            {updateMutation.isPending ? "Saving..." : "Save changes"}
           </button>
           <button
             type="button"
-            onClick={() => router.push("/cases")}
-            className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+            onClick={() => router.push(`/cases/${id}`)}
+            className="text-sm font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
           >
             Cancel
           </button>
@@ -202,24 +176,23 @@ export default function AddCasePage() {
 
 function Field({ label, error, inputProps }) {
   return (
-    <div className="space-y-1">
+    <div>
       <label className="text-xs text-slate-600">{label}</label>
       <input
-        className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+        className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
         {...inputProps}
       />
-      {error && <p className="text-xs text-rose-600">{error}</p>}
+      {error && <p className="pt-1 text-xs text-rose-600">{error}</p>}
     </div>
   );
 }
 
-function SelectField({ label, value, error, options, registerProps }) {
+function SelectField({ label, error, options, registerProps }) {
   return (
-    <div className="space-y-1">
+    <div>
       <label className="text-xs text-slate-600">{label}</label>
       <select
-        className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-        value={value}
+        className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
         {...registerProps}
       >
         {options.map((opt) => (
@@ -228,7 +201,7 @@ function SelectField({ label, value, error, options, registerProps }) {
           </option>
         ))}
       </select>
-      {error && <p className="text-xs text-rose-600">{error}</p>}
+      {error && <p className="pt-1 text-xs text-rose-600">{error}</p>}
     </div>
   );
 }

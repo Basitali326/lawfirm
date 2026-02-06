@@ -19,10 +19,17 @@ def build_tokens(user: User) -> Tuple[str, str]:
     return str(refresh.access_token), str(refresh)
 
 
-def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None) -> dict:
+def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None, refresh_token: Optional[str] = None) -> dict:
     firm = firm or Firm.objects.filter(owner=user).first()
     profile = _get_profile(user)
-    role_value = getattr(user, "role", None) or "FIRM_OWNER"
+    role_value = getattr(user, "role", None)
+    if not role_value:
+        if getattr(user, "is_superuser", False):
+            role_value = "SUPER_ADMIN"
+        elif getattr(user, "owned_firm", None) or getattr(user, "firm_id", None):
+            role_value = "FIRM_OWNER"
+        else:
+            role_value = "CLIENT"
     return {
         'user': {
             'id': user.id,
@@ -41,5 +48,6 @@ def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None) 
         else None,
         'tokens': {
             'access': access_token,
+            **({'refresh': refresh_token} if refresh_token else {}),
         },
     }

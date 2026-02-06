@@ -18,6 +18,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// Pre-filled superadmin credentials: matches backend seed defaults in
+// backend/core/management/commands/seed_defaults.py
+const SUPERADMIN_EMAIL = "admin@admin.com";
+const SUPERADMIN_PASSWORD = "Admin@12345!";
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,8 +33,13 @@ export default function LoginForm() {
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
+    setValue,
   } = useForm({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: SUPERADMIN_EMAIL,
+      password: SUPERADMIN_PASSWORD,
+    },
   });
 
   const errorParam = searchParams.get("error");
@@ -96,6 +106,12 @@ export default function LoginForm() {
     }
   };
 
+  const fillSuperadmin = () => {
+    setValue("email", SUPERADMIN_EMAIL);
+    setValue("password", SUPERADMIN_PASSWORD);
+    toast.success("Filled with superadmin credentials");
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto flex min-h-screen max-w-md items-center px-6">
@@ -148,6 +164,15 @@ export default function LoginForm() {
                     {errors.password.message}
                   </p>
                 )}
+              </div>
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={fillSuperadmin}
+                  className="text-xs font-semibold text-blue-300 hover:text-blue-200"
+                >
+                  Fill superadmin credentials
+                </button>
               </div>
               <AppButton
                 className="w-full"

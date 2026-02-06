@@ -7,6 +7,7 @@ export const navItems = [
   { label: "Calendar", href: "/calendar" },
   { label: "Billing", href: "/billing" },
   { label: "Reports", href: "/reports" },
+  { label: "Trash", href: "/trash" },
   { label: "Settings", href: "/settings" },
   { label: "Profile", href: "/profile" },
 ];

@@ -37,7 +37,7 @@ class RegisterFirmView(APIView):
         serializer.is_valid(raise_exception=True)
         user, firm = serializer.save()
         access, refresh = build_tokens(user)
-        data = build_auth_body(user, access, firm)
+        data = build_auth_body(user, access, firm, refresh)
         data['email_verification_required'] = True
         data['detail'] = 'Firm created. Verification code sent to email.'
         data['email'] = user.email
@@ -57,7 +57,7 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         access, refresh = build_tokens(user)
-        data = build_auth_body(user, access)
+        data = build_auth_body(user, access, refresh_token=refresh)
         response = api_success(data, status=status.HTTP_200_OK)
         set_refresh_cookie(response, refresh)
         logger.info("login user=%s refresh_set=%s access_len=%s", user.id, bool(refresh), len(access))
@@ -187,14 +187,12 @@ class JWTRefreshView(TokenRefreshView):
             request._full_data = mutable
         response = super().post(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
-            new_refresh = None
             payload = response.data if hasattr(response, 'data') else {}
             new_refresh = payload.get('refresh') or incoming_refresh
-            if 'refresh' in payload:
-                payload.pop('refresh', None)
             if new_refresh:
                 set_refresh_cookie(response, new_refresh)
-            wrapped = api_success(payload, status=status.HTTP_200_OK)
+            wrapped_payload = payload
+            wrapped = api_success(wrapped_payload, status=status.HTTP_200_OK)
             wrapped.cookies = response.cookies
             logger.info(
                 "token_refresh success access_len=%s has_refresh_cookie=%s",

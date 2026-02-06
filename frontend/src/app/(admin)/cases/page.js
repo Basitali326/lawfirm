@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { format, parseISO } from "date-fns";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Trash2, Eye, Pencil } from "lucide-react";
 
 import DataTable from "@/components/datatable/DataTable";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useCasesQuery } from "@/features/cases/cases.hooks";
+import { useCasesQuery, useDeleteCaseMutation } from "@/features/cases/cases.hooks";
 
 const statusChips = [
   { label: "All", value: "ALL" },
@@ -24,10 +27,12 @@ const priorityTone = {
 };
 
 export default function CasesPage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
   const [ordering, setOrdering] = useState("-created_at");
+  const deleteMutation = useDeleteCaseMutation();
 
   const queryParams = useMemo(() => {
     const params = { page, sort: ordering };
@@ -51,6 +56,15 @@ export default function CasesPage() {
       created_at: item.created_at,
     }));
   }, [data]);
+
+  const formatDateTime = (value) => {
+    if (!value) return "—";
+    try {
+      return format(parseISO(value), "PP p");
+    } catch (e) {
+      return value;
+    }
+  };
 
   const columns = [
     { key: "case_number", header: "Case #", sortable: true },
@@ -89,10 +103,64 @@ export default function CasesPage() {
         </span>
       ),
     },
-    { key: "opened_at", header: "Opened", sortable: true },
+    {
+      key: "opened_at",
+      header: "Opened",
+      sortable: true,
+      render: (row) => formatDateTime(row.opened_at),
+    },
     { key: "assigned_to", header: "Assigned", render: (row) => row.assigned_to || "—" },
-    { key: "created_at", header: "Created", sortable: true },
+    {
+      key: "created_at",
+      header: "Created",
+      sortable: true,
+      render: (row) => formatDateTime(row.created_at),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (row) => (
+        <div className="flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-100 cursor-pointer"
+            onClick={() => router.push(`/cases/${row.id}`)}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            View
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-100 cursor-pointer"
+            onClick={() => router.push(`/cases/${row.id}/edit`)}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md border border-rose-200 px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+            disabled={deleteMutation.isPending}
+            onClick={() => handleDelete(row)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </button>
+        </div>
+      ),
+    },
   ];
+
+  const handleDelete = (row) => {
+    if (!row?.id) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete case "${row.title || row.case_number}"? This is a soft delete and can be restored server-side.`
+    );
+    if (!confirmed) return;
+    deleteMutation.mutate(row.id, {
+      onError: () => {},
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -117,7 +185,7 @@ export default function CasesPage() {
             />
           </div>
           <Link
-            href="/case/add"
+            href="/cases/add"
             className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
           >
             Add Case

@@ -18,7 +18,7 @@ export function middleware(request) {
       request.cookies.get("next-auth.session-token");
     if (!hasSession) {
       const url = request.nextUrl.clone();
-      url.pathname = "/login";
+      url.pathname = "/session-expired";
       return NextResponse.redirect(url);
     }
     return NextResponse.next();
@@ -32,7 +32,7 @@ export function middleware(request) {
   const hasSession = request.cookies.get(SESSION_COOKIE_NAME);
   if (!hasSession) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/session-expired";
     return NextResponse.redirect(url);
   }
 
@@ -44,6 +44,7 @@ function matchesProtectedPath(pathname) {
     "/dashboard",
     "/clients",
     "/cases",
+    "/case",
     "/tasks",
     "/documents",
     "/calendar",
@@ -62,6 +63,7 @@ export const config = {
     "/dashboard/:path*",
     "/clients/:path*",
     "/cases/:path*",
+    "/case/:path*",
     "/tasks/:path*",
     "/documents/:path*",
     "/calendar/:path*",

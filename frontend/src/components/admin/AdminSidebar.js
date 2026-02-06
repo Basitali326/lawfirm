@@ -15,6 +15,7 @@ import {
   CheckSquare,
   CalendarDays,
   BarChart3,
+  Trash2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const iconMap = {
   "/calendar": CalendarDays,
   "/billing": CreditCard,
   "/reports": BarChart3,
+  "/trash": Trash2,
   "/settings": Settings,
   "/profile": Settings,
 };
