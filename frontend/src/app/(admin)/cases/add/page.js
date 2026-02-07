@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -23,6 +23,15 @@ const PRIORITY_OPTIONS = [
 ];
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+async function fetchUsers() {
+  const res = await fetch("/api/settings/users", { cache: "no-store" });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json?.success === false) {
+    throw new Error(json?.message || "Failed to load users");
+  }
+  return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+}
 
 async function createCase(payload, token) {
   const res = await fetch(`${API_BASE}/api/v1/cases/`, {
@@ -54,8 +63,8 @@ export default function AddCasePage() {
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-    watch,
     reset,
+    watch,
   } = useForm({
     defaultValues: useMemo(
       () => ({
@@ -67,15 +76,23 @@ export default function AddCasePage() {
         court_name: "",
         judge_name: "",
         open_date: todayISO(),
+        assigned_lead: "",
       }),
       []
     ),
   });
 
+  const { data: users } = useQuery({
+    queryKey: ["users-list"],
+    queryFn: fetchUsers,
+    staleTime: 60_000,
+  });
+
   const mutation = useMutation({
     mutationFn: (values) => {
       if (!accessToken) throw new Error("Not authenticated");
-      const payload = { ...values }; // no case_number -> backend auto-generates
+      const payload = { ...values };
+      if (!payload.assigned_lead) payload.assigned_lead = null;
       return createCase(payload, accessToken);
     },
     onSuccess: (body) => {
@@ -148,6 +165,16 @@ export default function AddCasePage() {
             error={errors.priority?.message}
             options={PRIORITY_OPTIONS}
             registerProps={register("priority")}
+          />
+          <SelectField
+            label="Assign user"
+            value={watch("assigned_lead")}
+            error={errors.assigned_lead?.message}
+            options={[
+              { value: "", label: "Unassigned" },
+              ...(users || []).map((u) => ({ value: u.id, label: u.name || u.email })),
+            ]}
+            registerProps={register("assigned_lead")}
           />
           <Field
             label="Court name"

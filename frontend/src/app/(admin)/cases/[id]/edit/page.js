@@ -3,6 +3,7 @@
 import { useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { useCaseQuery, useUpdateCaseMutation } from "@/features/cases/cases.hooks";
 import { toast } from "sonner";
 
@@ -29,6 +30,16 @@ export default function EditCasePage() {
     onSuccess: () => router.push(`/cases/${id}`),
   });
 
+  const { data: usersData } = useQuery({
+    queryKey: ["users-list"],
+    queryFn: () =>
+      fetch("/api/settings/users", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((j) => (Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []))
+        .catch(() => []),
+    staleTime: 60_000,
+  });
+
   const {
     register,
     handleSubmit,
@@ -45,6 +56,7 @@ export default function EditCasePage() {
         court_name: "",
         judge_name: "",
         open_date: "",
+        assigned_lead: "",
       }),
       []
     ),
@@ -67,11 +79,16 @@ export default function EditCasePage() {
         setValue(field, caseItem[field]);
       }
     });
+    if (caseItem.assigned_lead_detail?.id) {
+      setValue("assigned_lead", caseItem.assigned_lead_detail.id);
+    }
   }, [caseItem, setValue]);
 
   const onSubmit = (values) => {
     if (!id) return;
-    updateMutation.mutate({ id, payload: values });
+    const payload = { ...values };
+    if (!payload.assigned_lead) payload.assigned_lead = null;
+    updateMutation.mutate({ id, payload });
   };
 
   if (isLoading) return <div className="text-slate-600">Loading...</div>;
@@ -132,6 +149,18 @@ export default function EditCasePage() {
             label="Judge name"
             error={errors.judge_name?.message}
             inputProps={{ ...register("judge_name"), placeholder: "Judge X" }}
+          />
+          <SelectField
+            label="Assigned to"
+            error={errors.assigned_lead?.message}
+            options={[
+              { value: "", label: "Unassigned" },
+              ...(usersData || []).map((u) => ({
+                value: u.id,
+                label: u.name || u.email,
+              })),
+            ]}
+            registerProps={register("assigned_lead")}
           />
           <Field
             label="Open date"

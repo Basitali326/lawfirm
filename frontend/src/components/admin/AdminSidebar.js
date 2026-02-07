@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -12,6 +13,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   CheckSquare,
   CalendarDays,
   BarChart3,
@@ -51,6 +53,7 @@ export default function AdminSidebar() {
   const dispatch = useAppDispatch();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
   const userRole = "OWNER"; // placeholder; role-based filtering can use this value later
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const rootItems = navItems.filter((i) => !i.parent);
   const settingsChildren = navItems.filter((i) => i.parent === "/settings");
@@ -92,21 +95,48 @@ export default function AdminSidebar() {
             const isSettings = item.href === "/settings";
             return (
               <div key={item.href} className="space-y-1">
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center justify-between rounded-xl px-3 py-3 text-sm transition",
-                    isActive
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400 hover:bg-slate-900 hover:text-white"
-                  )}
-                >
-                  <span className="flex items-center gap-3">
-                    <Icon className="h-4 w-4" />
-                    {sidebarOpen && item.label}
-                  </span>
-                </Link>
-                {isSettings && sidebarOpen && settingsChildren.length > 0 && (
+                {isSettings ? (
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen((v) => !v)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm transition",
+                      isActive
+                        ? "bg-slate-800 text-white"
+                        : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                    )}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Icon className="h-4 w-4" />
+                      {sidebarOpen && item.label}
+                    </span>
+                    {sidebarOpen && (
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform",
+                          settingsOpen ? "rotate-180" : ""
+                        )}
+                      />
+                    )}
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center justify-between rounded-xl px-3 py-3 text-sm transition",
+                      isActive
+                        ? "bg-slate-800 text-white"
+                        : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                    )}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Icon className="h-4 w-4" />
+                      {sidebarOpen && item.label}
+                    </span>
+                  </Link>
+                )}
+
+                {isSettings && sidebarOpen && settingsChildren.length > 0 && settingsOpen && (
                   <div className="ml-8 space-y-1">
                     {settingsChildren.map((child) => {
                       const childActive =

@@ -40,7 +40,8 @@ class CaseViewSet(
     def get_queryset(self):
         qs = Case.objects.select_related("client", "assigned_lead", "firm").filter(is_deleted=False)
         user = self.request.user
-        role = (getattr(user, "role", "") or "").upper()
+        profile = getattr(user, "profile", None)
+        role = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
         if not role:
             if getattr(user, "is_superuser", False):
                 role = "SUPER_ADMIN"
@@ -50,6 +51,8 @@ class CaseViewSet(
             return qs.order_by("-created_at")
         if role == "FIRM_OWNER" or role == "OWNER" or (not role and hasattr(user, "owned_firm")):
             firm_id = getattr(user, "firm_id", None)
+            if not firm_id and profile:
+                firm_id = getattr(profile, "firm_id", None)
             if not firm_id and hasattr(user, "owned_firm"):
                 firm_id = getattr(user.owned_firm, "id", None)
             return qs.filter(firm_id=firm_id).order_by("-created_at")

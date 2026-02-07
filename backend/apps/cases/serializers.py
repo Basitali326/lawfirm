@@ -12,7 +12,7 @@ User = get_user_model()
 
 class CaseSerializer(serializers.ModelSerializer):
     client = serializers.UUIDField(required=False, allow_null=True, write_only=True)
-    assigned_lead = serializers.UUIDField(required=False, allow_null=True, write_only=True)
+    assigned_lead = serializers.IntegerField(required=False, allow_null=True, write_only=True)
 
     client_detail = serializers.SerializerMethodField(read_only=True)
     assigned_lead_detail = serializers.SerializerMethodField(read_only=True)
@@ -106,8 +106,11 @@ class CaseSerializer(serializers.ModelSerializer):
             user = User.objects.get(id=lead_id)
         except User.DoesNotExist:
             raise serializers.ValidationError({"assigned_lead": "Assigned lead not found"})
-        role = (getattr(self.context.get("request").user, "role", "") or "").upper()
-        if role != "SUPER_ADMIN" and getattr(user, "firm_id", None) != firm.id:
+        requester_role = (getattr(self.context.get("request").user, "role", "") or "").upper()
+        user_firm_id = getattr(user, "firm_id", None)
+        if hasattr(user, "profile") and user.profile:
+            user_firm_id = getattr(user.profile, "firm_id", user_firm_id)
+        if requester_role != "SUPER_ADMIN" and user_firm_id != firm.id:
             raise serializers.ValidationError({"assigned_lead": "Assigned lead must belong to the same firm"})
         return user
 
@@ -134,8 +137,15 @@ class CaseSerializer(serializers.ModelSerializer):
         attrs["created_by"] = request.user if self.instance is None else getattr(self.instance, "created_by", request.user)
         return attrs
 
+    def create(self, validated_data):
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        return super().update(instance, validated_data)
+
     def _generate_case_number(self, firm):
-        prefix = f"CIV-{timezone.localdate().year}-"
+        # Invoice-style case number: CIA-<YEAR>-NNN
+        prefix = f"CIA-{timezone.localdate().year}-"
         with transaction.atomic():
             counter, _ = FirmCaseCounter.objects.select_for_update().get_or_create(firm=firm)
             while True:
@@ -163,3 +173,8 @@ class CaseSerializer(serializers.ModelSerializer):
             "id": obj.assigned_lead.id,
             "email": obj.assigned_lead.email,
         }
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["assigned_users_detail"] = []
+        return data

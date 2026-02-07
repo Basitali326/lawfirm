@@ -67,7 +67,12 @@ export default function CasesPage() {
   };
 
   const columns = [
-    { key: "case_number", header: "Case #", sortable: true },
+    {
+      key: "case_number",
+      header: "Case #",
+      sortable: true,
+      render: (row) => row.case_number || "—",
+    },
     { key: "title", header: "Title", sortable: true },
     {
       key: "status",

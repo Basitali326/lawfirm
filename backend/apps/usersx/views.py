@@ -53,7 +53,7 @@ def firm_user_counts(firm):
         total = User.objects.filter(firm=firm, is_active=True).count()
     else:
         owner_count = 1 if getattr(firm, "owner_id", None) else 0
-        total = owner_count + User.objects.filter(is_active=True).count() - 1
+        total = owner_count + User.objects.filter(profile__firm=firm, is_active=True).count()
     remaining = max(0, USER_LIMIT - total)
     return total, remaining
 
@@ -97,7 +97,11 @@ class UsersListView(APIView):
         if any(f.name == "firm" for f in User._meta.fields):
             users = User.objects.filter(firm=firm, is_active=True).select_related("profile").order_by("-date_joined")
         else:
-            users = User.objects.filter(is_active=True).select_related("profile").order_by("-date_joined")
+            users = (
+                User.objects.filter(profile__firm=firm, is_active=True)
+                .select_related("profile")
+                .order_by("-date_joined")
+            )
         data = [
             {
                 "id": u.id,
@@ -146,6 +150,7 @@ class UsersListView(APIView):
         user.save(update_fields=["password"])
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.role = data.get("role")
+        profile.firm = firm
         profile.save(update_fields=["role"])
         total, remaining = firm_user_counts(firm)
         return api_success(
