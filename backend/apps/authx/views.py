@@ -16,12 +16,15 @@ from .serializers import (
     RegisterFirmSerializer,
     SendOTPSerializer,
     VerifyOTPSerializer,
+    ChangePasswordSerializer,
 )
 from .services import build_auth_body, build_tokens
 from .models import Firm, EmailOTP, UserProfile
 from .services_otp import create_email_otp, send_email_otp, ensure_profile
 from datetime import timedelta
 from common.api_response import api_success, api_error
+from core.responses import api_success as envelope_success, api_error as envelope_error
+from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 
 logger = logging.getLogger(__name__)
 
@@ -209,13 +212,46 @@ class JWTRefreshView(TokenRefreshView):
         return api_error(detail or 'Token refresh failed', status=response.status_code, code="AUTH_ERROR")
 
 
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        if not serializer.is_valid():
+            return envelope_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        response = envelope_success("Password updated successfully", data=None, status_code=status.HTTP_200_OK)
+        clear_refresh_cookie(response)
+        return response
+
+    def handle_exception(self, exc):
+        if isinstance(exc, NotAuthenticated):
+            return envelope_error("Authentication credentials were not provided.", status_code=status.HTTP_401_UNAUTHORIZED)
+        if isinstance(exc, PermissionDenied):
+            return envelope_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
+        return super().handle_exception(exc)
+
+
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        firm = Firm.objects.filter(owner=request.user).first()
         profile = ensure_profile(request.user)
-        role_value = getattr(request.user, "role", None) or "FIRM_OWNER"
+        firm = (
+            profile.firm
+            or Firm.objects.filter(owner=request.user).first()
+        )
+        if not firm and request.user.is_superuser:
+            firm = Firm.objects.first()
+
+        role_value = profile.role or getattr(request.user, "role", None)
+        if not role_value:
+            if getattr(request.user, "is_superuser", False):
+                role_value = "SUPER_ADMIN"
+            elif firm and getattr(firm, "owner_id", None) == request.user.id:
+                role_value = "FIRM_OWNER"
+            else:
+                role_value = "CLIENT"
         return api_success(
             {
                 'user': {

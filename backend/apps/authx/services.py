@@ -20,9 +20,10 @@ def build_tokens(user: User) -> Tuple[str, str]:
 
 
 def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None, refresh_token: Optional[str] = None) -> dict:
-    firm = firm or Firm.objects.filter(owner=user).first()
     profile = _get_profile(user)
-    role_value = getattr(user, "role", None)
+    firm = firm or profile.firm or Firm.objects.filter(owner=user).first()
+
+    role_value = profile.role or getattr(user, "role", None)
     if not role_value:
         if getattr(user, "is_superuser", False):
             role_value = "SUPER_ADMIN"

@@ -22,6 +22,9 @@ def resolve_firm_for_user(user):
     owned = getattr(user, "owned_firm", None)
     if owned:
         return owned
+    profile = getattr(user, "profile", None)
+    if profile and getattr(profile, "firm", None):
+        return profile.firm
     firm_id = getattr(user, "firm_id", None)
     if firm_id:
         try:
@@ -151,7 +154,7 @@ class UsersListView(APIView):
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.role = data.get("role")
         profile.firm = firm
-        profile.save(update_fields=["role"])
+        profile.save(update_fields=["role", "firm"])
         total, remaining = firm_user_counts(firm)
         return api_success(
             "User created",
@@ -327,7 +330,8 @@ class InviteUserView(APIView):
         user.save(update_fields=["password"])
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.role = data.get("role")
-        profile.save(update_fields=["role"])
+        profile.firm = firm
+        profile.save(update_fields=["role", "firm"])
         total, remaining = firm_user_counts(firm)
         return api_success(
             "User created",

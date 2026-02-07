@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Firm, generate_unique_slug, UserProfile
 from .validators import validate_strong_password
 from .services_otp import create_email_otp, send_email_otp, ensure_profile
+from core.password_policy import validate_password_strength
 
 User = get_user_model()
 
@@ -83,6 +84,8 @@ class LoginSerializer(serializers.Serializer):
         password = attrs.get('password')
         user = authenticate(request=request, email=email, password=password)
         if user:
+            if not user.is_active:
+                raise serializers.ValidationError({'password': 'Account disabled. Contact admin.'})
             attrs['user'] = user
             return attrs
 
@@ -105,7 +108,8 @@ class RefreshTokenLogoutSerializer(serializers.Serializer):
         cookie_value = self.context.get('refresh_from_cookie')
         if cookie_value:
             return cookie_value
-        raise serializers.ValidationError('Refresh token is required.')
+        # If no refresh anywhere, allow graceful logout (cookie already gone)
+        return ""
 
     def validate(self, attrs):
         # Ensure refresh is populated either from input or cookie
@@ -114,14 +118,13 @@ class RefreshTokenLogoutSerializer(serializers.Serializer):
             cookie_value = self.context.get('refresh_from_cookie')
             if cookie_value:
                 attrs['refresh'] = cookie_value
-        if not attrs.get('refresh'):
-            raise serializers.ValidationError({'refresh': 'Refresh token is required.'})
         return attrs
 
     def save(self, **kwargs):
         refresh_token = self.validated_data['refresh']
-        token = RefreshToken(refresh_token)
-        token.blacklist()
+        if refresh_token:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
         return {}
 
 
@@ -140,3 +143,31 @@ class SendOTPSerializer(serializers.Serializer):
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     code = serializers.CharField(max_length=6)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Incorrect password")
+        return value
+
+    def validate_new_password(self, value):
+        current = self.initial_data.get("current_password")
+        if current and value and current == value:
+            raise serializers.ValidationError("New password must be different from current password")
+        try:
+            validate_password_strength(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+        return value
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        new_password = self.validated_data["new_password"]
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+        return user

@@ -20,9 +20,21 @@ class FirmMeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         user = self.request.user
+        # 1) firm owned by user
         firm = Firm.objects.filter(owner=user).first()
         if firm:
             return firm
+
+        # 2) firm attached on profile
+        profile = getattr(user, "profile", None)
+        if profile and getattr(profile, "firm", None):
+            return profile.firm
+
+        # 3) superuser: fall back to first firm
+        if user.is_superuser:
+            existing = Firm.objects.first()
+            if existing:
+                return existing
 
         if user.is_superuser:
             name = f"Admin Firm {user.id}"
@@ -53,8 +65,15 @@ class FirmMeView(generics.RetrieveUpdateAPIView):
             )
         serializer = self.get_serializer(obj)
         data = serializer.data
-        data['owner_first_name'] = request.user.first_name
-        data['owner_last_name'] = request.user.last_name
+        # Also surface current user info for convenience
+        data['current_user'] = {
+            "id": request.user.id,
+            "email": request.user.email,
+            "first_name": request.user.first_name,
+            "last_name": request.user.last_name,
+            "role": getattr(getattr(request.user, "profile", None), "role", None)
+            or getattr(request.user, "role", None),
+        }
         return api_success(data)
 
     def patch(self, request, *args, **kwargs):

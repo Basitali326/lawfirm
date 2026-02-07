@@ -1,171 +1,172 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { useForm, Controller } from "react-hook-form";
+import { useMemo, useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useForm } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 
-import { useFirmMeQuery, useUpdateFirmMeMutation } from "@/features/firm/firm.hooks";
-import AppButton from "@/components/AppButton";
+import { useMeQuery } from "@/features/me/me.hooks";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import AppButton from "@/components/AppButton";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
-  const { data, isLoading } = useFirmMeQuery();
-  const updateMutation = useUpdateFirmMeMutation();
+  const { data } = useMeQuery();
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+
+  const user = useMemo(() => {
+    if (data?.user) return data.user;
+    if (session?.user) {
+      return {
+        email: session.user.email,
+        first_name: session.user.first_name || session.user.name || "",
+        last_name: session.user.last_name || "",
+        role: session.role || session.user.role,
+      };
+    }
+    return null;
+  }, [data, session]);
 
   const {
     register,
-    control,
-    watch,
-    setValue,
     handleSubmit,
+    setError,
     reset,
-    formState: { isSubmitting },
+    formState: { errors },
   } = useForm({
-    defaultValues: {
-      name: "",
-      phone: "",
-      address: "",
-      email: "",
-      first_name: "",
-      last_name: "",
-      role: "",
+    defaultValues: { current_password: "", new_password: "" },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await fetch("/api/profile/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok || body?.success === false) {
+        const error = new Error(body?.message || "Request failed");
+        error.errors = body?.errors || {};
+        error.status = res.status;
+        throw error;
+      }
+      return body;
+    },
+    onSuccess: () => {
+      toast.success("Password updated successfully");
+      reset({ current_password: "", new_password: "" });
+    },
+    onError: (error) => {
+      const fieldErrors = error?.errors || {};
+      Object.entries(fieldErrors).forEach(([field, messages]) => {
+        const message = Array.isArray(messages) ? messages.join(" ") : String(messages);
+        setError(field, { type: "server", message });
+      });
+      toast.error(error?.message || "Unable to update password");
     },
   });
 
-  const phonePrefix = "+971 ";
-  const phoneValue = watch("phone");
-
-  useEffect(() => {
-    if (data) {
-      const roleValue = data.role || session?.role || session?.user?.role || "";
-
-      if (data.firm === null) {
-        reset({
-          name: "",
-          phone: phonePrefix,
-          address: "",
-          email: data.owner_email || "",
-          first_name: data.owner_first_name || "",
-          last_name: data.owner_last_name || "",
-          role: roleValue,
-        });
-        return;
-      }
-      const normalizedPhone =
-        data.phone?.startsWith(phonePrefix)
-          ? data.phone
-          : data.phone
-          ? `${phonePrefix}${data.phone.replace(/^\+?971\s?/, "")}`
-          : phonePrefix;
-
-      reset({
-        name: data.name || "",
-        phone: normalizedPhone,
-        address: data.address || "",
-        email: data.email || data.owner_email || "",
-        first_name: data.owner_first_name || "",
-        last_name: data.owner_last_name || "",
-        role: roleValue,
-      });
-    }
-  }, [data, reset, session, phonePrefix]);
-
-  useEffect(() => {
-    if (!phoneValue) {
-      setValue("phone", phonePrefix, { shouldDirty: false });
-    }
-  }, [phoneValue, phonePrefix, setValue]);
-
-  const onSubmit = async (values) => {
-    await updateMutation.mutateAsync({
-      // name and email are locked by backend; we only send editable fields
-      phone: values.phone,
-      address: values.address,
-      owner_first_name: values.first_name,
-      owner_last_name: values.last_name,
-    });
+  const onSubmit = (values) => {
+    changePasswordMutation.mutate(values);
   };
 
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Firm Profile</h1>
-        <p className="text-sm text-slate-500">Manage your firm information.</p>
+        <h1 className="text-2xl font-semibold text-slate-900">Profile</h1>
+        <p className="text-sm text-slate-500">Your account details.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="name">Firm name</Label>
-            <Input id="name" placeholder="Firm name" {...register("name")} />
-          </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Account</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <Field label="Email" value={user?.email || "—"} />
+          <Field label="Role" value={user?.role || "—"} />
+          <Field label="First name" value={user?.first_name || "—"} />
+          <Field label="Last name" value={user?.last_name || "—"} />
+        </CardContent>
+      </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" disabled readOnly {...register("email")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="first_name">First name</Label>
-            <Input id="first_name" placeholder="First name" {...register("first_name")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="last_name">Last name</Label>
-            <Input id="last_name" placeholder="Last name" {...register("last_name")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Input
-              id="role"
-              disabled
-              readOnly
-              {...register("role")}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone (UAE)</Label>
-            <Controller
-              name="phone"
-              control={control}
-              render={({ field }) => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Change Password</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+            <div className="space-y-2">
+              <Label htmlFor="current_password">Current Password</Label>
+              <div className="relative">
                 <Input
-                  id="phone"
-                  placeholder="+971 50 123 4567"
-                  {...field}
-                  onChange={(e) => {
-                    const value = e.target.value || "";
-                    const stripped = value.startsWith(phonePrefix)
-                      ? value.slice(phonePrefix.length)
-                      : value.replace(/^\+?971\s?/, "");
-                    field.onChange(`${phonePrefix}${stripped}`);
-                  }}
-                  onFocus={(e) => {
-                    if (!e.target.value) {
-                      field.onChange(phonePrefix);
-                    }
-                  }}
+                  id="current_password"
+                  type={showCurrent ? "text" : "password"}
+                  autoComplete="current-password"
+                  {...register("current_password", { required: "Current password is required" })}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent((v) => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center text-slate-500"
+                  aria-label={showCurrent ? "Hide current password" : "Show current password"}
+                >
+                  {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.current_password && (
+                <p className="text-sm text-red-500">{errors.current_password.message}</p>
               )}
-            />
-          </div>
-        </div>
+            </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="address">Address</Label>
-            <Input id="address" placeholder="Address" {...register("address")} />
-          </div>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="new_password">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new_password"
+                  type={showNew ? "text" : "password"}
+                  autoComplete="new-password"
+                  {...register("new_password", { required: "New password is required" })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew((v) => !v)}
+                  className="absolute inset-y-0 right-2 flex items-center text-slate-500"
+                  aria-label={showNew ? "Hide new password" : "Show new password"}
+                >
+                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.new_password && (
+                <p className="text-sm text-red-500">{errors.new_password.message}</p>
+              )}
+            </div>
 
-        <div className="pt-2">
-          <AppButton type="submit" loading={isSubmitting || updateMutation.isPending || isLoading} title="Save changes" />
-        </div>
-      </form>
+            <AppButton
+              type="submit"
+              loading={changePasswordMutation.isPending}
+              disabled={changePasswordMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              Update Password
+            </AppButton>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Field({ label, value }) {
+  return (
+    <div className="space-y-1">
+      <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">{value}</div>
     </div>
   );
 }

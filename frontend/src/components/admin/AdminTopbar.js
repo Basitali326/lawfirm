@@ -7,7 +7,6 @@ import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
-import { useFirmMeQuery } from "@/features/firm/firm.hooks";
 
 export default function AdminTopbar() {
   const { data: session } = useSession();
@@ -15,9 +14,7 @@ export default function AdminTopbar() {
   const router = useRouter();
   const displayName = session?.user?.name || "";
   const emailFallback = session?.user?.email || "";
-  const { data: firmData } = useFirmMeQuery();
-  const firmName = firmData?.name || "Your firm";
-  const nameForBadge = displayName || emailFallback || firmName || "";
+  const nameForBadge = displayName || emailFallback || "";
   const role = session?.role || session?.user?.role || "";
 
   const handleProfile = () => {
@@ -52,15 +49,12 @@ export default function AdminTopbar() {
         </button>
         {open && (
           <div className="absolute right-0 top-12 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-            <div className="px-3 pb-2 text-xs font-medium uppercase text-slate-400">
-              {firmName}
-              {role ? ` • ${role}` : ""}
-            </div>
+            <div className="px-3 pb-2 text-xs font-medium uppercase text-slate-400">{role || "User"}</div>
             <button
               onClick={handleProfile}
               className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
             >
-              Firm Profile
+              Profile
             </button>
             <button
               onClick={handleSignOut}

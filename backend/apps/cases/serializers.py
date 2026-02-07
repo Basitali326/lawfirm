@@ -119,8 +119,12 @@ class CaseSerializer(serializers.ModelSerializer):
         firm = self._get_target_firm()
         attrs["firm"] = firm
         is_create = self.instance is None
-        provided_case_number = self.validate_case_number(attrs.get("case_number"))
-        attrs["case_number"] = provided_case_number
+
+        provided_case_number = None
+        case_number_supplied = "case_number" in attrs
+        if case_number_supplied:
+            provided_case_number = self.validate_case_number(attrs.get("case_number"))
+            attrs["case_number"] = provided_case_number
 
         client_id = attrs.pop("client", None)
         lead_id = attrs.pop("assigned_lead", None)
@@ -132,6 +136,14 @@ class CaseSerializer(serializers.ModelSerializer):
             attrs["close_date"] = timezone.localdate()
 
         if is_create and not provided_case_number:
+            attrs["case_number"] = self._generate_case_number(firm)
+        if (
+            (not is_create)
+            and case_number_supplied
+            and (not provided_case_number)
+            and (not getattr(self.instance, "case_number", None))
+        ):
+            # Backfill missing case numbers on existing records
             attrs["case_number"] = self._generate_case_number(firm)
 
         attrs["created_by"] = request.user if self.instance is None else getattr(self.instance, "created_by", request.user)
