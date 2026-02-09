@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -19,8 +20,17 @@ async function fetchCaseType(id) {
 export default function CaseTypeEditPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params?.id;
-  if (!id) {
+  const resolvedId =
+    (params?.id && params.id !== "undefined" && params.id) ||
+    (typeof window !== "undefined"
+      ? (() => {
+          const parts = window.location.pathname.split("/").filter(Boolean);
+          const idx = parts.indexOf("case-types");
+          if (idx !== -1 && parts.length > idx + 1) return parts[idx + 1];
+          return null;
+        })()
+      : null);
+  if (!resolvedId) {
     router.replace("/settings/case-types");
     return null;
   }
@@ -33,17 +43,9 @@ export default function CaseTypeEditPage() {
     formState: { errors, isSubmitting },
   } = useForm();
 
-  useQuery({
-    queryKey: ["case-type", id],
-    queryFn: () => fetchCaseType(id),
-    onSuccess: (data) =>
-      reset({
-        name: data?.name || "",
-        code: data?.code || "",
-        description: data?.description || "",
-        is_active: data?.is_active ?? true,
-        sort_order: data?.sort_order ?? 0,
-      }),
+  const { data: caseTypeData, isLoading } = useQuery({
+    queryKey: ["case-type", resolvedId],
+    queryFn: () => fetchCaseType(resolvedId),
     onError: (err) => {
       const msg = err?.body?.errors?.detail || err?.body?.message || err.message || "Case type not found";
       toast.error(msg);
@@ -51,9 +53,22 @@ export default function CaseTypeEditPage() {
     },
   });
 
+  // populate form when data arrives
+  useEffect(() => {
+    if (caseTypeData) {
+      reset({
+        name: caseTypeData?.name || "",
+        code: caseTypeData?.code || "",
+        description: caseTypeData?.description || "",
+        is_active: caseTypeData?.is_active ?? true,
+        sort_order: caseTypeData?.sort_order ?? 0,
+      });
+    }
+  }, [caseTypeData, reset]);
+
   const mutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await fetch(`/api/settings/case-types/${id}`, {
+      const res = await fetch(`/api/settings/case-types/${resolvedId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -111,6 +126,7 @@ export default function CaseTypeEditPage() {
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
       >
+        {isLoading && <p className="text-xs text-slate-500">Loading...</p>}
         <Field label="Name *" error={errors.name?.message}>
           <input
             className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"

@@ -11,7 +11,8 @@ async function ensureAccess() {
 function resolveId(req, params) {
   if (params?.id && params.id !== "undefined") return params.id;
   const segments = req.nextUrl?.pathname?.split("/").filter(Boolean) || [];
-  const idx = segments.indexOf("case-types");
+  // pathname: api/settings/task-templates/:id
+  const idx = segments.indexOf("task-templates");
   if (idx !== -1 && segments.length > idx + 1) return segments[idx + 1];
   return null;
 }
@@ -20,7 +21,7 @@ export async function GET(req, { params }) {
   const id = resolveId(req, params);
   if (!id) {
     return NextResponse.json(
-      { success: false, message: "Invalid case type id", data: null, errors: null, meta: null },
+      { success: false, message: "Invalid template id", data: null, errors: null, meta: null },
       { status: 400 }
     );
   }
@@ -31,7 +32,7 @@ export async function GET(req, { params }) {
       { status: 401 }
     );
   }
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${id}/`, {
+  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/task-templates/${id}/`, {
     headers: { Authorization: `Bearer ${access}` },
     cache: "no-store",
   });
@@ -43,7 +44,7 @@ export async function PATCH(req, { params }) {
   const id = resolveId(req, params);
   if (!id) {
     return NextResponse.json(
-      { success: false, message: "Invalid case type id", data: null, errors: null, meta: null },
+      { success: false, message: "Invalid template id", data: null, errors: null, meta: null },
       { status: 400 }
     );
   }
@@ -55,7 +56,7 @@ export async function PATCH(req, { params }) {
     );
   }
   const payload = await req.json();
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${id}/`, {
+  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/task-templates/${id}/`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${access}` },
     body: JSON.stringify(payload),
@@ -68,7 +69,7 @@ export async function DELETE(req, { params }) {
   const id = resolveId(req, params);
   if (!id) {
     return NextResponse.json(
-      { success: false, message: "Invalid case type id", data: null, errors: null, meta: null },
+      { success: false, message: "Invalid template id", data: null, errors: null, meta: null },
       { status: 400 }
     );
   }
@@ -79,7 +80,7 @@ export async function DELETE(req, { params }) {
       { status: 401 }
     );
   }
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${id}/`, {
+  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/task-templates/${id}/`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${access}` },
   });
