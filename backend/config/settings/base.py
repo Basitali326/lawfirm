@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'apps.firms',
     'apps.cases',
     'apps.usersx',
+    'apps.casetypes',
 ]
 
 MIDDLEWARE = [

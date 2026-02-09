@@ -55,7 +55,7 @@ def main():
         "first_name": "Smoke",
         "last_name": "Test",
         "email": unique_email,
-        "role": "STAFF",
+        "role": "LAWYER",
     }
     if args.firm_id:
         payload["firm_id"] = args.firm_id

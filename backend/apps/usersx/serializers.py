@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 User = get_user_model()
-ALLOWED_INVITE_ROLES = {"STAFF", "ACCOUNTANT", "VIEWER"}
+ALLOWED_INVITE_ROLES = {"FIRM_OWNER", "LAWYER", "PARALEGAL", "VIEWER", "CLIENT"}
 USER_LIMIT = 10
 
 

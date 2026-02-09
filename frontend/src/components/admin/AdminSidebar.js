@@ -39,6 +39,7 @@ const iconMap = {
   "/trash": Trash2,
   "/settings": Settings,
   "/settings/users": User2,
+  "/settings/case-types": Briefcase,
   "/profile": Settings,
 };
 

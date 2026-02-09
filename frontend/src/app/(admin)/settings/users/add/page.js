@@ -31,9 +31,12 @@ async function localFetch(url, options) {
 }
 
 const roles = [
-  { value: "STAFF", label: "Staff" },
-  { value: "ACCOUNTANT", label: "Accountant" },
+  { value: "FIRM_OWNER", label: "Firm Owner" },
+  { value: "LAWYER", label: "Lawyer" },
+  { value: "PARALEGAL", label: "Paralegal" },
   { value: "VIEWER", label: "Viewer" },
+  { value: "CLIENT", label: "Client" },
+  { value: "SUPER_ADMIN", label: "Super Admin" },
 ];
 
 export default function AddUserPage() {

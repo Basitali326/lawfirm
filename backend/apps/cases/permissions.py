@@ -7,6 +7,7 @@ class CasePermission(BasePermission):
     - SUPER_ADMIN: all
     - FIRM_OWNER: CRUD within firm
     - CLIENT: read-only, only their cases
+    - LAWYER/PARALEGAL/VIEWER: read-only, assigned_lead only
     """
 
     def has_permission(self, request, view):
@@ -18,7 +19,7 @@ class CasePermission(BasePermission):
         owner_firm = getattr(request.user, "owned_firm", None)
         if owner_firm:
             return True
-        if role in {"STAFF", "ACCOUNTANT", "VIEWER", "CLIENT"}:
+        if role in {"LAWYER", "PARALEGAL", "VIEWER", "CLIENT"}:
             return request.method in SAFE_METHODS
         return False
 
@@ -28,11 +29,16 @@ class CasePermission(BasePermission):
         if role == "SUPER_ADMIN":
             return True
         if role in {"FIRM_OWNER", "OWNER"}:
-            return getattr(request.user, "firm_id", None) == getattr(obj, "firm_id", None)
+            user_firm_ids = {
+                getattr(request.user, "firm_id", None),
+                getattr(profile, "firm_id", None),
+                getattr(getattr(request.user, "owned_firm", None), "id", None),
+            }
+            return getattr(obj, "firm_id", None) in user_firm_ids
         owner_firm = getattr(request.user, "owned_firm", None)
         if owner_firm:
             return owner_firm.id == getattr(obj, "firm_id", None)
-        if role in {"STAFF", "ACCOUNTANT", "VIEWER"}:
+        if role in {"LAWYER", "PARALEGAL", "VIEWER"}:
             return (
                 request.method in SAFE_METHODS
                 and getattr(obj, "assigned_lead_id", None) == request.user.id

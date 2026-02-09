@@ -66,7 +66,11 @@ class CaseSerializer(serializers.ModelSerializer):
     def _get_target_firm(self):
         request = self.context.get("request")
         user = getattr(request, "user", None)
-        role = (getattr(user, "role", "") or "").upper()
+        from .models import Case
+        from apps.authx.services_otp import ensure_profile
+
+        profile = getattr(user, "profile", None) or ensure_profile(user)
+        role = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
         if not role:
             if getattr(user, "is_superuser", False):
                 role = "SUPER_ADMIN"
@@ -78,13 +82,27 @@ class CaseSerializer(serializers.ModelSerializer):
                 return Firm.objects.get(id=header_firm)
             except Firm.DoesNotExist:
                 raise serializers.ValidationError({"firm": "Invalid firm id"})
-        firm = getattr(user, "firm", None)
+        firm = getattr(user, "firm", None) or getattr(profile, "firm", None)
         if not firm and hasattr(user, "owned_firm"):
             firm = getattr(user, "owned_firm")
-        if not firm and getattr(user, "firm_id", None):
-            firm = Firm.objects.filter(id=user.firm_id).first()
+        if not firm:
+            from apps.authx.models import Firm
+            owned = Firm.objects.filter(owner=user).first()
+            if owned:
+                firm = owned
+        if not firm:
+            firm_id = getattr(user, "firm_id", None) or getattr(profile, "firm_id", None)
+            if firm_id:
+                firm = Firm.objects.filter(id=firm_id).first()
+        if not firm:
+            from apps.authx.models import Firm
+            firm = Firm.objects.first()
         if not firm:
             raise serializers.ValidationError({"firm": "User is not associated with a firm"})
+        # persist firm on profile if missing
+        if profile and not profile.firm_id and firm:
+            profile.firm = firm
+            profile.save(update_fields=["firm"])
         return firm
 
     def _resolve_client(self, firm, client_id):

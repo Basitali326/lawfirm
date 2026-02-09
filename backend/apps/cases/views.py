@@ -56,7 +56,7 @@ class CaseViewSet(
             if not firm_id and hasattr(user, "owned_firm"):
                 firm_id = getattr(user.owned_firm, "id", None)
             return qs.filter(firm_id=firm_id).order_by("-created_at")
-        if role in {"STAFF", "ACCOUNTANT", "VIEWER"}:
+        if role in {"LAWYER", "PARALEGAL", "VIEWER"}:
             firm_id = getattr(user, "firm_id", None) or getattr(profile, "firm_id", None)
             # Staff-like roles see cases where they are assigned lead (within firm)
             base = qs.filter(assigned_lead=user)

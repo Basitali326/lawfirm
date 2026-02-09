@@ -10,6 +10,7 @@ export const navItems = [
   { label: "Trash", href: "/trash" },
   { label: "Settings", href: "/settings" },
   { label: "Users", href: "/settings/users", parent: "/settings" },
+  { label: "Case Types", href: "/settings/case-types", parent: "/settings" },
   { label: "Profile", href: "/profile" },
 ];
 

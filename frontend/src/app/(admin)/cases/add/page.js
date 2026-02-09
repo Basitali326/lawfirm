@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
@@ -33,6 +33,16 @@ async function fetchUsers() {
   return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
 }
 
+async function fetchCaseTypes() {
+  const params = new URLSearchParams({ is_active: "true", page: "1", page_size: "100", sort: "name" });
+  const res = await fetch(`/api/settings/case-types?${params.toString()}`, { cache: "no-store" });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json?.success === false) {
+    throw new Error(json?.message || "Failed to load case types");
+  }
+  return json?.data || [];
+}
+
 async function createCase(payload, token) {
   const res = await fetch(`${API_BASE}/api/v1/cases/`, {
     method: "POST",
@@ -57,11 +67,15 @@ export default function AddCasePage() {
   const { data: session } = useSession();
   const accessToken = session?.access || session?.token?.access;
   const queryClient = useQueryClient();
+  const [caseTypeSearch, setCaseTypeSearch] = useState("");
+  const [caseTypeOpen, setCaseTypeOpen] = useState(false);
+  const caseTypeBoxRef = useRef(null);
 
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors, isSubmitting },
     reset,
     watch,
@@ -87,6 +101,30 @@ export default function AddCasePage() {
     queryFn: fetchUsers,
     staleTime: 60_000,
   });
+  const { data: caseTypes } = useQuery({
+    queryKey: ["case-types", "active"],
+    queryFn: fetchCaseTypes,
+    staleTime: 60_000,
+  });
+  const filteredCaseTypes = useMemo(() => {
+    const q = caseTypeSearch.trim().toLowerCase();
+    if (!q) return caseTypes || [];
+    return (caseTypes || []).filter(
+      (ct) =>
+        (ct.name || "").toLowerCase().includes(q) ||
+        (ct.code || "").toLowerCase().includes(q)
+    );
+  }, [caseTypes, caseTypeSearch]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (caseTypeBoxRef.current && !caseTypeBoxRef.current.contains(e.target)) {
+        setCaseTypeOpen(false);
+      }
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
 
   const mutation = useMutation({
     mutationFn: (values) => {
@@ -147,11 +185,51 @@ export default function AddCasePage() {
               autoFocus: true,
             }}
           />
-          <Field
-            label="Case type"
-            error={errors.case_type?.message}
-            inputProps={{ ...register("case_type"), placeholder: "Civil" }}
-          />
+          <div>
+            <label className="text-xs text-slate-600">Case type</label>
+            <div className="relative" ref={caseTypeBoxRef}>
+              <input
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Search case type"
+                value={caseTypeSearch}
+                onFocus={() => setCaseTypeOpen(true)}
+                onChange={(e) => {
+                  setCaseTypeSearch(e.target.value);
+                  setCaseTypeOpen(true);
+                  setValue("case_type", e.target.value);
+                }}
+              />
+              {caseTypeOpen && (
+                <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg">
+                  {filteredCaseTypes.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-slate-500">No results</div>
+                  ) : (
+                    filteredCaseTypes.map((ct) => (
+                      <button
+                        type="button"
+                        key={ct.id}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-100"
+                        onClick={() => {
+                          setValue("case_type", ct.name, { shouldValidate: true });
+                          setCaseTypeSearch(ct.name);
+                          setCaseTypeOpen(false);
+                        }}
+                      >
+                        <span>{ct.name}</span>
+                        {ct.code && <span className="text-xs text-slate-500">{ct.code}</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            {(!caseTypes || caseTypes.length === 0) && (
+              <p className="mt-1 text-xs text-slate-500">
+                No case types yet. <a className="text-slate-900 underline" href="/settings/case-types">Manage case types</a>
+              </p>
+            )}
+            {errors.case_type && <p className="text-xs text-rose-600 mt-1">{errors.case_type.message}</p>}
+          </div>
           <SelectField
             label="Status"
             value={watch("status")}
