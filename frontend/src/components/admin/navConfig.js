@@ -11,7 +11,6 @@ export const navItems = [
   { label: "Settings", href: "/settings" },
   { label: "Users", href: "/settings/users", parent: "/settings" },
   { label: "Case Types", href: "/settings/case-types", parent: "/settings" },
-  { label: "Case Templates", href: "/settings/case-templates", parent: "/settings" },
   { label: "Profile", href: "/profile" },
 ];
 

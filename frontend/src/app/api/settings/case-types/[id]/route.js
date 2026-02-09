@@ -8,22 +8,7 @@ async function ensureAccess() {
   return session?.access || session?.token?.access || session?.user?.access || session?.accessToken || null;
 }
 
-function resolveId(req, params) {
-  if (params?.id && params.id !== "undefined") return params.id;
-  const segments = req.nextUrl?.pathname?.split("/").filter(Boolean) || [];
-  const idx = segments.indexOf("case-types");
-  if (idx !== -1 && segments.length > idx + 1) return segments[idx + 1];
-  return null;
-}
-
 export async function GET(req, { params }) {
-  const id = resolveId(req, params);
-  if (!id) {
-    return NextResponse.json(
-      { success: false, message: "Invalid case type id", data: null, errors: null, meta: null },
-      { status: 400 }
-    );
-  }
   const access = await ensureAccess();
   if (!access) {
     return NextResponse.json(
@@ -31,7 +16,7 @@ export async function GET(req, { params }) {
       { status: 401 }
     );
   }
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${id}/`, {
+  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${params.id}/`, {
     headers: { Authorization: `Bearer ${access}` },
     cache: "no-store",
   });
@@ -40,13 +25,6 @@ export async function GET(req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
-  const id = resolveId(req, params);
-  if (!id) {
-    return NextResponse.json(
-      { success: false, message: "Invalid case type id", data: null, errors: null, meta: null },
-      { status: 400 }
-    );
-  }
   const access = await ensureAccess();
   if (!access) {
     return NextResponse.json(
@@ -55,7 +33,7 @@ export async function PATCH(req, { params }) {
     );
   }
   const payload = await req.json();
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${id}/`, {
+  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${params.id}/`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${access}` },
     body: JSON.stringify(payload),
@@ -65,13 +43,6 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
-  const id = resolveId(req, params);
-  if (!id) {
-    return NextResponse.json(
-      { success: false, message: "Invalid case type id", data: null, errors: null, meta: null },
-      { status: 400 }
-    );
-  }
   const access = await ensureAccess();
   if (!access) {
     return NextResponse.json(
@@ -79,7 +50,7 @@ export async function DELETE(req, { params }) {
       { status: 401 }
     );
   }
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${id}/`, {
+  const upstream = await fetch(`${API_BASE_URL}/api/v1/settings/case-types/${params.id}/`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${access}` },
   });

@@ -40,7 +40,6 @@ const iconMap = {
   "/settings": Settings,
   "/settings/users": User2,
   "/settings/case-types": Briefcase,
-  "/settings/case-templates": FileText,
   "/profile": Settings,
 };
 
