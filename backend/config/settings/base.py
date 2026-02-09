@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.usersx',
     'apps.casetypes',
     'apps.task_templates',
+    'apps.tasks',
 ]
 
 MIDDLEWARE = [

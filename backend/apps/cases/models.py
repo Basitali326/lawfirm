@@ -39,7 +39,13 @@ class Case(models.Model):
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="cases")
     client = models.ForeignKey(ClientProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name="cases")
     title = models.CharField(max_length=255)
-    case_type = models.CharField(max_length=255, null=True, blank=True)
+    case_type = models.ForeignKey(
+        "casetypes.CaseType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cases",
+    )
     case_number = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(max_length=10, choices=CaseStatus.choices, default=CaseStatus.OPEN)
     priority = models.CharField(max_length=10, choices=CasePriority.choices, default=CasePriority.MEDIUM)
