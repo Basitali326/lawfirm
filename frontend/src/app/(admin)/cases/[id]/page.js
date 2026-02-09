@@ -114,7 +114,15 @@ export default function CaseDetailPage() {
         <dl className="mt-5 grid gap-4 md:grid-cols-2">
           <Item label="Status" value={caseItem.status} />
           <Item label="Priority" value={caseItem.priority} />
-          <Item label="Case type" value={caseItem.case_type || "—"} />
+          <Item
+            label="Case type"
+            value={
+              caseItem.case_type_detail?.name ||
+              caseItem.case_type?.name ||
+              caseItem.case_type ||
+              "—"
+            }
+          />
           <Item label="Court" value={caseItem.court_name || "—"} />
           <Item label="Judge" value={caseItem.judge_name || "—"} />
           <Item label="Open date" value={formatDateTime(caseItem.open_date)} />

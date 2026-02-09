@@ -160,7 +160,7 @@ export default function EditCasePage() {
               autoFocus: true,
             }}
           />
-          <Field
+         <Field
             label="Case type"
             error={errors.case_type?.message}
           >
@@ -179,10 +179,10 @@ export default function EditCasePage() {
                 onChange={(e) => {
                   setValue("case_type", e.target.value, { shouldValidate: true });
                 }}
-              >
-                <option value="" disabled>
-                  {caseTypesLoading ? "Loading..." : "Select case type"}
-                </option>
+                >
+                  <option value="" disabled>
+                    {caseTypesLoading ? "Loading..." : "Select case type"}
+                  </option>
                 {(caseTypesData || []).map((ct) => (
                   <option key={ct.id} value={ct.id}>
                     {ct.name || ct.title || ct.code || ct.id}

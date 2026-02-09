@@ -237,11 +237,7 @@ class GenerateTasksAPIView(APIView):
 
         # prevent duplicates
         existing = None
-        if case.tasks_generated_at:
-            existing = "already_generated"
-        else:
-            existing = CaseTask.objects.filter(case=case, is_deleted=False, generated_from_template__isnull=False).exists()
-        if existing and not request.query_params.get("force"):
+        if case.tasks_generated_at and not request.query_params.get("force"):
             return api_error(
                 "Tasks already generated for this case",
                 errors={"tasks": ["Already generated"]},
