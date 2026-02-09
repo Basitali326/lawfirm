@@ -16,6 +16,7 @@ class CaseSerializer(serializers.ModelSerializer):
 
     client_detail = serializers.SerializerMethodField(read_only=True)
     assigned_lead_detail = serializers.SerializerMethodField(read_only=True)
+    case_type_detail = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Case
@@ -23,6 +24,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "case_type",
+            "case_type_detail",
             "case_number",
             "status",
             "priority",
@@ -30,6 +32,8 @@ class CaseSerializer(serializers.ModelSerializer):
             "court_name",
             "judge_name",
             "open_date",
+            "opened_at",
+            "tasks_generated_at",
             "close_date",
             "close_reason",
             "client",
@@ -49,6 +53,9 @@ class CaseSerializer(serializers.ModelSerializer):
             "deleted_at",
             "client_detail",
             "assigned_lead_detail",
+            "opened_at",
+            "tasks_generated_at",
+            "case_type_detail",
         )
 
     def validate_title(self, value):
@@ -202,6 +209,16 @@ class CaseSerializer(serializers.ModelSerializer):
         return {
             "id": obj.assigned_lead.id,
             "email": obj.assigned_lead.email,
+        }
+
+    def get_case_type_detail(self, obj):
+        ct = getattr(obj, "case_type", None)
+        if not ct:
+            return None
+        return {
+            "id": str(ct.id),
+            "name": getattr(ct, "name", None),
+            "code": getattr(ct, "code", None),
         }
 
     def to_representation(self, instance):

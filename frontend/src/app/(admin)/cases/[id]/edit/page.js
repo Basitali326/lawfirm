@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
@@ -25,10 +25,11 @@ export default function EditCasePage() {
   const router = useRouter();
   const id = params?.id;
 
-  const { data: caseItem, isLoading } = useCaseQuery(id);
+  const { data: caseItem, isLoading, error } = useCaseQuery(id);
   const updateMutation = useUpdateCaseMutation({
     onSuccess: () => router.push(`/cases/${id}`),
   });
+  const [caseTypeSearch, setCaseTypeSearch] = useState("");
 
   const { data: usersData } = useQuery({
     queryKey: ["users-list"],
@@ -40,10 +41,26 @@ export default function EditCasePage() {
     staleTime: 60_000,
   });
 
+  const { data: caseTypesData = [], isLoading: caseTypesLoading } = useQuery({
+    queryKey: ["case-types", { search: caseTypeSearch }],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/settings/case-types?is_active=true&page=1&page_size=100&sort=name${
+          caseTypeSearch ? `&search=${encodeURIComponent(caseTypeSearch)}` : ""
+        }`,
+        { cache: "no-store" }
+      );
+      const json = await res.json().catch(() => ({}));
+      return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+    },
+    staleTime: 60_000,
+  });
+
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: useMemo(
@@ -79,6 +96,22 @@ export default function EditCasePage() {
         setValue(field, caseItem[field]);
       }
     });
+    const ctRaw = caseItem.case_type;
+    const ctVal =
+      (caseItem.case_type_detail && caseItem.case_type_detail.id) ||
+      (ctRaw && typeof ctRaw === "object" ? ctRaw.id || ctRaw.value : ctRaw);
+    if (ctVal) {
+      setValue("case_type", ctVal);
+      const label =
+        caseItem.case_type_detail?.name ||
+        (ctRaw && typeof ctRaw === "object" ? ctRaw.name || ctRaw.title || ctRaw.code : null) ||
+        caseItem.case_type_detail?.code ||
+        (typeof ctRaw === "string" ? ctRaw : "") ||
+        "";
+      if (label) setCaseTypeSearch(label);
+    } else {
+      setValue("case_type", "");
+    }
     if (caseItem.assigned_lead_detail?.id) {
       setValue("assigned_lead", caseItem.assigned_lead_detail.id);
     }
@@ -92,6 +125,10 @@ export default function EditCasePage() {
   };
 
   if (isLoading) return <div className="text-slate-600">Loading...</div>;
+  if (error) {
+    console.error("Case load error", error);
+    return <div className="text-slate-600">Failed to load case. {error?.message || "Try again."}</div>;
+  }
   if (!caseItem) return <div className="text-slate-600">Case not found.</div>;
 
   return (
@@ -126,8 +163,34 @@ export default function EditCasePage() {
           <Field
             label="Case type"
             error={errors.case_type?.message}
-            inputProps={{ ...register("case_type"), placeholder: "Civil" }}
-          />
+          >
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={caseTypeSearch}
+                onChange={(e) => setCaseTypeSearch(e.target.value)}
+                placeholder="Search case type"
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+              />
+              <select
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+                {...register("case_type", { required: "Case type is required" })}
+                value={watch("case_type") || ""}
+                onChange={(e) => {
+                  setValue("case_type", e.target.value, { shouldValidate: true });
+                }}
+              >
+                <option value="" disabled>
+                  {caseTypesLoading ? "Loading..." : "Select case type"}
+                </option>
+                {(caseTypesData || []).map((ct) => (
+                  <option key={ct.id} value={ct.id}>
+                    {ct.name || ct.title || ct.code || ct.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </Field>
           <SelectField
             label="Status"
             error={errors.status?.message}
@@ -203,14 +266,18 @@ export default function EditCasePage() {
   );
 }
 
-function Field({ label, error, inputProps }) {
+function Field({ label, error, inputProps, children }) {
   return (
     <div>
       <label className="text-xs text-slate-600">{label}</label>
-      <input
-        className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-        {...inputProps}
-      />
+      {children ? (
+        <div className="mt-1">{children}</div>
+      ) : (
+        <input
+          className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+          {...inputProps}
+        />
+      )}
       {error && <p className="pt-1 text-xs text-rose-600">{error}</p>}
     </div>
   );

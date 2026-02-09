@@ -53,6 +53,11 @@ export default function CasesPage() {
       priority: item.priority,
       opened_at: item.open_date,
       assigned_to: item.assigned_lead_detail?.email || "—",
+      case_type:
+        item.case_type_detail?.name ||
+        (item.case_type && item.case_type.name) ||
+        item.case_type ||
+        "—",
       created_at: item.created_at,
     }));
   }, [data]);
@@ -72,6 +77,12 @@ export default function CasesPage() {
       header: "Case #",
       sortable: true,
       render: (row) => row.case_number || "—",
+    },
+    {
+      key: "case_type",
+      header: "Case Type",
+      sortable: false,
+      render: (row) => row.case_type || "—",
     },
     { key: "title", header: "Title", sortable: true },
     {

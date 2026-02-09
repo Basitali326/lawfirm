@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
-import { useCaseQuery, useDeleteCaseMutation } from "@/features/cases/cases.hooks";
+import { useCaseQuery, useDeleteCaseMutation, useGenerateCaseTasksMutation } from "@/features/cases/cases.hooks";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 const formatDateTime = (value) => {
   if (!value) return "—";
@@ -24,6 +25,18 @@ export default function CaseDetailPage() {
   const deleteMutation = useDeleteCaseMutation({
     onSuccess: () => router.push("/cases"),
   });
+  const generateMutation = useGenerateCaseTasksMutation({
+    onSuccess: () => {
+      toast.success("Tasks generated from template");
+      router.refresh?.();
+    },
+  });
+
+  const handleGenerate = () => {
+    const confirmed = window.confirm("Generate default tasks for this case from its template?");
+    if (!confirmed) return;
+    generateMutation.mutate(id);
+  };
 
   const handleDelete = () => {
     const confirmed = window.confirm(
@@ -67,6 +80,14 @@ export default function CaseDetailPage() {
           </Link>
           <button
             type="button"
+            onClick={handleGenerate}
+            disabled={generateMutation.isPending || !!caseItem.tasks_generated_at}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+          >
+            {generateMutation.isPending ? "Generating..." : caseItem.tasks_generated_at ? "Tasks Generated" : "Generate Tasks"}
+          </button>
+          <button
+            type="button"
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
             className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
@@ -97,6 +118,7 @@ export default function CaseDetailPage() {
           <Item label="Court" value={caseItem.court_name || "—"} />
           <Item label="Judge" value={caseItem.judge_name || "—"} />
           <Item label="Open date" value={formatDateTime(caseItem.open_date)} />
+          <Item label="Tasks generated at" value={formatDateTime(caseItem.tasks_generated_at)} />
           <Item label="Created" value={formatDateTime(caseItem.created_at)} />
           <Item label="Assigned to" value={caseItem.assigned_lead_detail?.email || "—"} />
         </dl>

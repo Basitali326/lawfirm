@@ -8,6 +8,7 @@ import {
   fetchCase,
   updateCase,
   deleteCase,
+  generateCaseTasks,
 } from "@/features/cases/cases.api";
 import { normalizeError, shapeAxiosError } from "@/lib/errors";
 
@@ -94,6 +95,29 @@ export function useDeleteCaseMutation(options = {}) {
     onError: (error, variables, context) => {
       const normalized = normalizeError(shapeAxiosError(error));
       toast.error(normalized.message || "Failed to delete case");
+      options.onError?.(error, variables, context);
+    },
+  });
+}
+
+export function useGenerateCaseTasksMutation(options = {}) {
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const token = session?.access || session?.token?.access;
+
+  return useMutation({
+    mutationFn: (id) => generateCaseTasks(id, token),
+    onSuccess: (data, variables, context) => {
+      toast.success(data?.message || "Tasks generated");
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      if (variables) {
+        queryClient.invalidateQueries({ queryKey: ["case", variables, token] });
+      }
+      options.onSuccess?.(data, variables, context);
+    },
+    onError: (error, variables, context) => {
+      const normalized = normalizeError(shapeAxiosError(error));
+      toast.error(normalized.message || "Failed to generate tasks");
       options.onError?.(error, variables, context);
     },
   });

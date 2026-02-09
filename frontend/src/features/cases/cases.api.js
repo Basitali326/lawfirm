@@ -81,3 +81,21 @@ export async function fetchCases({ token, params = {} }) {
   }
   return body; // keep full envelope to access meta
 }
+
+export async function generateCaseTasks(id, token) {
+  const res = await fetch(`/api/cases/${id}/generate-tasks/`, {
+    method: "POST",
+    headers: {
+      Authorization: token ? `Bearer ${token}` : undefined,
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body?.success === false) {
+    const err = new Error(body?.message || "Failed to generate tasks");
+    err.body = body;
+    throw err;
+  }
+  return body;
+}

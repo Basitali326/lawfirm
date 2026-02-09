@@ -13,6 +13,8 @@ from .serializers import CaseSerializer
 from .permissions import CasePermission
 from .filters import CaseFilter, CaseOrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.tasks.services import generate_tasks_for_case
+from apps.tasks.models import CaseTask
 
 logger = logging.getLogger(__name__)
 
@@ -203,3 +205,64 @@ class TrashView(APIView):
         case.deleted_at = None
         case.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
         return api_success("Case restored", data={"id": str(case.id), "type": "case"})
+
+
+class GenerateTasksAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, case_id):
+        user = request.user
+        role = (getattr(user, "role", "") or "").upper()
+        is_super = getattr(user, "is_superuser", False) or role == "SUPER_ADMIN"
+        try:
+            case = Case.objects.get(id=case_id, is_deleted=False)
+        except Case.DoesNotExist:
+            return api_error("Case not found", status_code=status.HTTP_404_NOT_FOUND)
+
+        if not is_super and case.firm_id != getattr(user, "firm_id", None):
+            return api_error("Not found", status_code=status.HTTP_404_NOT_FOUND)
+
+        allowed_roles = {"SUPER_ADMIN", "FIRM_OWNER"}
+        if case.assigned_lead_id == user.id:
+            allowed = True
+        elif role in allowed_roles or is_super:
+            allowed = True
+        else:
+            allowed = False
+        if not allowed:
+            return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
+
+        if case.status != "OPEN":
+            return api_error("Case must be OPEN to generate tasks", status_code=status.HTTP_400_BAD_REQUEST)
+
+        # prevent duplicates
+        existing = None
+        if case.tasks_generated_at:
+            existing = "already_generated"
+        else:
+            existing = CaseTask.objects.filter(case=case, is_deleted=False, generated_from_template__isnull=False).exists()
+        if existing and not request.query_params.get("force"):
+            return api_error(
+                "Tasks already generated for this case",
+                errors={"tasks": ["Already generated"]},
+                status_code=status.HTTP_409_CONFLICT,
+            )
+
+        try:
+            result = generate_tasks_for_case(case, triggered_by_user=user, force=False)
+        except Exception as exc:  # pragma: no cover
+            logger.exception("generate_tasks_for_case failed: case=%s user=%s", case.id, user.id)
+            return api_error("Server error", errors={"detail": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if result.get("reason") == "no_template":
+            return api_error("No default template found for this case type", status_code=status.HTTP_404_NOT_FOUND)
+        return api_success(
+            "Tasks generated",
+            data={
+                "case_id": str(case.id),
+                "template_id": result.get("template_id"),
+                "created_count": result.get("created_count", 0),
+                "tasks_generated_at": result.get("tasks_generated_at"),
+                "reason": result.get("reason"),
+            },
+        )

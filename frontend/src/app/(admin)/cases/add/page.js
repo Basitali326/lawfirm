@@ -69,6 +69,7 @@ export default function AddCasePage() {
   const queryClient = useQueryClient();
   const [caseTypeSearch, setCaseTypeSearch] = useState("");
   const [caseTypeOpen, setCaseTypeOpen] = useState(false);
+  const [selectedCaseTypeId, setSelectedCaseTypeId] = useState("");
   const caseTypeBoxRef = useRef(null);
 
   const {
@@ -153,6 +154,12 @@ export default function AddCasePage() {
   });
 
   const onSubmit = (data) => {
+    if (!selectedCaseTypeId) {
+      setError("case_type", { type: "required", message: "Please select a case type from the list" });
+      setCaseTypeOpen(true);
+      return;
+    }
+    data.case_type = selectedCaseTypeId;
     mutation.mutate(data);
   };
 
@@ -187,6 +194,7 @@ export default function AddCasePage() {
           />
           <div>
             <label className="text-xs text-slate-600">Case type</label>
+            <input type="hidden" {...register("case_type", { required: "Case type is required" })} />
             <div className="relative" ref={caseTypeBoxRef}>
               <input
                 className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
@@ -196,7 +204,8 @@ export default function AddCasePage() {
                 onChange={(e) => {
                   setCaseTypeSearch(e.target.value);
                   setCaseTypeOpen(true);
-                  setValue("case_type", e.target.value);
+                  setSelectedCaseTypeId("");
+                  setValue("case_type", "");
                 }}
               />
               {caseTypeOpen && (
@@ -210,8 +219,9 @@ export default function AddCasePage() {
                         key={ct.id}
                         className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-100"
                         onClick={() => {
-                          setValue("case_type", ct.name, { shouldValidate: true });
-                          setCaseTypeSearch(ct.name);
+                          setValue("case_type", ct.id, { shouldValidate: true });
+                          setSelectedCaseTypeId(ct.id);
+                          setCaseTypeSearch(ct.name || ct.code || "");
                           setCaseTypeOpen(false);
                         }}
                       >

@@ -53,6 +53,8 @@ class Case(models.Model):
     court_name = models.CharField(max_length=255, null=True, blank=True)
     judge_name = models.CharField(max_length=255, null=True, blank=True)
     open_date = models.DateField(default=timezone.localdate)
+    opened_at = models.DateTimeField(null=True, blank=True)
+    tasks_generated_at = models.DateTimeField(null=True, blank=True)
     close_date = models.DateField(null=True, blank=True)
     close_reason = models.TextField(null=True, blank=True)
     assigned_lead = models.ForeignKey(
