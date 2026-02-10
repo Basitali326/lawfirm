@@ -18,10 +18,19 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [TaskPermission]
     pagination_class = TaskPagination
 
+    def _get_firm_id(self, user):
+        firm_id = getattr(user, "firm_id", None)
+        profile = getattr(user, "profile", None)
+        if not firm_id and profile:
+            firm_id = getattr(profile, "firm_id", None)
+        if not firm_id and hasattr(user, "owned_firm"):
+            firm_id = getattr(user.owned_firm, "id", None)
+        return firm_id
+
     def get_queryset(self):
         user = self.request.user
-        firm = getattr(user, "firm", None)
-        qs = CaseTask.objects.filter(firm=firm, is_deleted=False).select_related("case", "case__case_type", "assigned_to")
+        firm_id = self._get_firm_id(user)
+        qs = CaseTask.objects.filter(firm_id=firm_id, is_deleted=False).select_related("case", "case__case_type", "assigned_to")
         status_params = self.request.query_params.getlist("status")
         if status_params:
             qs = qs.filter(status__in=status_params)

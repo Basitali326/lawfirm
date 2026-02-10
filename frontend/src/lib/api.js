@@ -190,3 +190,8 @@ export async function ensureAccessToken() {
     throw err;
   }
 }
+
+// Default export helper for client components
+export default async function localFetch(path, options = {}, opts = {}) {
+  return apiFetch(path, options, opts);
+}

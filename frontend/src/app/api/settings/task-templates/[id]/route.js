@@ -8,17 +8,17 @@ async function ensureAccess() {
   return session?.access || session?.token?.access || session?.user?.access || session?.accessToken || null;
 }
 
-function resolveId(req, params) {
+async function resolveId(req, context) {
+  const params = await context.params;
   if (params?.id && params.id !== "undefined") return params.id;
   const segments = req.nextUrl?.pathname?.split("/").filter(Boolean) || [];
-  // pathname: api/settings/task-templates/:id
   const idx = segments.indexOf("task-templates");
   if (idx !== -1 && segments.length > idx + 1) return segments[idx + 1];
   return null;
 }
 
-export async function GET(req, { params }) {
-  const id = resolveId(req, params);
+export async function GET(req, context) {
+  const id = await resolveId(req, context);
   if (!id) {
     return NextResponse.json(
       { success: false, message: "Invalid template id", data: null, errors: null, meta: null },
@@ -40,8 +40,8 @@ export async function GET(req, { params }) {
   return NextResponse.json(data, { status: upstream.status });
 }
 
-export async function PATCH(req, { params }) {
-  const id = resolveId(req, params);
+export async function PATCH(req, context) {
+  const id = await resolveId(req, context);
   if (!id) {
     return NextResponse.json(
       { success: false, message: "Invalid template id", data: null, errors: null, meta: null },
@@ -65,8 +65,8 @@ export async function PATCH(req, { params }) {
   return NextResponse.json(data, { status: upstream.status });
 }
 
-export async function DELETE(req, { params }) {
-  const id = resolveId(req, params);
+export async function DELETE(req, context) {
+  const id = await resolveId(req, context);
   if (!id) {
     return NextResponse.json(
       { success: false, message: "Invalid template id", data: null, errors: null, meta: null },

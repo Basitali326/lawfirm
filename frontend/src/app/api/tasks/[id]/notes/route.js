@@ -8,7 +8,7 @@ async function ensureAccess() {
   return session?.access || session?.token?.access || session?.user?.access || session?.accessToken || null;
 }
 
-export async function GET(req) {
+export async function POST(req, context) {
   const access = await ensureAccess();
   if (!access) {
     return NextResponse.json(
@@ -16,10 +16,12 @@ export async function GET(req) {
       { status: 401 }
     );
   }
-  const qs = new URL(req.url).searchParams.toString();
-  const upstream = await fetch(`${API_BASE_URL}/api/v1/tasks/${qs ? `?${qs}` : ""}`, {
-    headers: { Authorization: `Bearer ${access}` },
-    cache: "no-store",
+  const { id } = await context.params;
+  const payload = await req.json();
+  const upstream = await fetch(`${API_BASE_URL}/api/v1/tasks/${id}/notes/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${access}` },
+    body: JSON.stringify(payload),
   });
   const data = await upstream.json();
   return NextResponse.json(data, { status: upstream.status });
