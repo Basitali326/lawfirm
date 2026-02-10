@@ -8,7 +8,7 @@ async function ensureAccess() {
   return session?.access || session?.token?.access || session?.user?.access || session?.accessToken || null;
 }
 
-export async function POST(req, { params }) {
+export async function POST(req, context) {
   const access = await ensureAccess();
   if (!access) {
     return NextResponse.json(
@@ -16,7 +16,9 @@ export async function POST(req, { params }) {
       { status: 401 }
     );
   }
-  const id = params?.id;
+
+  const { id } = await context.params;
+
   const upstream = await fetch(`${API_BASE_URL}/api/v1/cases/${id}/generate-tasks/`, {
     method: "POST",
     headers: {
@@ -25,6 +27,13 @@ export async function POST(req, { params }) {
     },
     cache: "no-store",
   });
-  const data = await upstream.json();
+
+  let data;
+  try {
+    data = await upstream.json();
+  } catch {
+    data = { success: false, message: "Upstream error", data: null, errors: null, meta: null };
+  }
+
   return NextResponse.json(data, { status: upstream.status });
 }

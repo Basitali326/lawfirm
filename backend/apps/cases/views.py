@@ -238,10 +238,16 @@ class GenerateTasksAPIView(APIView):
         # prevent duplicates
         existing = None
         if case.tasks_generated_at and not request.query_params.get("force"):
-            return api_error(
+            return api_success(
                 "Tasks already generated for this case",
-                errors={"tasks": ["Already generated"]},
-                status_code=status.HTTP_409_CONFLICT,
+                data={
+                    "case_id": str(case.id),
+                    "template_id": None,
+                    "created_count": 0,
+                    "tasks_generated_at": case.tasks_generated_at,
+                    "reason": "already_generated",
+                },
+                status_code=status.HTTP_200_OK,
             )
 
         try:
