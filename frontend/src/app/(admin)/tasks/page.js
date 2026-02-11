@@ -26,39 +26,45 @@ export default function TasksPage() {
 
   const casesQuery = useQuery({
     queryKey: ["tasks-open-cases"],
-    queryFn: () => localFetch("/api/tasks/open-cases"),
-    onSuccess: (res) => {
-      const list = res?.data || [];
-      const normalized = list.map((item) => ({
-        id: item.case.id,
-        title: item.case.title,
-        case_type: item.case.case_type,
-        status: item.case.status,
-        tasks: (item.tasks || []).map((t) => ({
-          ...t,
-          case_id: item.case.id,
-          case: { id: item.case.id, title: item.case.title },
-          assigned_to: t.assigned_to,
-        })),
-      }));
-      dispatch({ type: actions.SET_DATA, payload: normalized });
+    queryFn: async () => {
+      const res = await localFetch("/api/v1/tasks/open-cases/");
+      return Array.isArray(res) ? res : res?.data || [];
     },
     onError: (err) => toast.error(err?.message || "Failed to load tasks"),
   });
 
+  // Normalize and store cases whenever the query data changes
+  useEffect(() => {
+    const list = casesQuery.data || [];
+    const normalized = list.map((item) => ({
+      id: item.case.id,
+      title: item.case.title,
+      case_type: item.case.case_type_detail || { name: "" },
+      status: item.case.status,
+      tasks: (item.tasks || []).map((t) => ({
+        ...t,
+        case_id: item.case.id,
+        case: { id: item.case.id, title: item.case.title },
+        assigned_to: t.assigned_to_detail || t.assigned_to,
+      })),
+    }));
+    dispatch({ type: actions.SET_DATA, payload: normalized });
+  }, [casesQuery.data]);
+
   const usersQuery = useQuery({
     queryKey: ["settings-users"],
-    queryFn: () => localFetch("/api/settings/users"),
-    select: (res) => res?.data || [],
+    queryFn: () => localFetch("/api/v1/settings/users"),
+    select: (res) => (Array.isArray(res) ? res : res?.data || []),
   });
 
   const filteredCases = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
-    return cases.filter(
-      (c) =>
-        c.status === "OPEN" &&
-        (q === "" || c.title.toLowerCase().includes(q) || c.case_type.name.toLowerCase().includes(q))
-    );
+    const result = cases.filter((c) => {
+      const matchesSearch =
+        q === "" || c.title.toLowerCase().includes(q) || (c.case_type?.name || "").toLowerCase().includes(q);
+      return matchesSearch;
+    });
+    return result;
   }, [cases, filters.search]);
 
   const handleCreateTask = (caseId, task, note) => {
@@ -73,6 +79,12 @@ export default function TasksPage() {
     addNoteMutation.mutate({ taskId, noteBody });
   };
 
+  const handleDeleteTask = (taskId) => {
+    if (!taskId) return;
+    const proceed = confirm("Delete this task?");
+    if (proceed) deleteTaskMutation.mutate(taskId);
+  };
+
   const createTaskMutation = useMutation({
     mutationFn: async ({ caseId, task, note }) => {
       const payload = {
@@ -85,7 +97,7 @@ export default function TasksPage() {
         note,
         from_template_item_id: task.generated_from_template_item || null,
       };
-      return localFetch(`/api/cases/${caseId}/tasks/`, { method: "POST", body: JSON.stringify(payload) });
+      return localFetch(`/api/v1/cases/${caseId}/tasks/`, { method: "POST", body: JSON.stringify(payload) });
     },
     onSuccess: () => {
       toast.success("Task created");
@@ -97,7 +109,7 @@ export default function TasksPage() {
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ taskId, status }) =>
-      localFetch(`/api/tasks/${taskId}/`, { method: "PATCH", body: JSON.stringify({ status }) }),
+      localFetch(`/api/v1/tasks/${taskId}/`, { method: "PATCH", body: JSON.stringify({ status }) }),
     onSuccess: () => {
       toast.success("Task updated");
       queryClient.invalidateQueries({ queryKey: ["tasks-open-cases"] });
@@ -107,12 +119,21 @@ export default function TasksPage() {
 
   const addNoteMutation = useMutation({
     mutationFn: ({ taskId, noteBody }) =>
-      localFetch(`/api/tasks/${taskId}/notes/`, { method: "POST", body: JSON.stringify({ body: noteBody }) }),
+      localFetch(`/api/v1/tasks/${taskId}/notes/`, { method: "POST", body: JSON.stringify({ body: noteBody }) }),
     onSuccess: () => {
       toast.success("Note added");
       queryClient.invalidateQueries({ queryKey: ["tasks-open-cases"] });
     },
     onError: (err) => toast.error(err?.message || "Failed to add note"),
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: (taskId) => localFetch(`/api/v1/tasks/${taskId}/`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("Task deleted");
+      queryClient.invalidateQueries({ queryKey: ["tasks-open-cases"] });
+    },
+    onError: (err) => toast.error(err?.message || "Failed to delete task"),
   });
 
   return (
@@ -141,6 +162,7 @@ export default function TasksPage() {
           onOpenAddTask={(id) => dispatch({ type: actions.OPEN_ADD_TASK, payload: id })}
           onOpenDetail={(taskId) => dispatch({ type: actions.OPEN_TASK_DETAIL, payload: taskId })}
           onStatusChange={handleUpdateStatus}
+          onDeleteTask={handleDeleteTask}
         />
       )}
 

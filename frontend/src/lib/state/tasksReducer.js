@@ -19,7 +19,7 @@ export const actions = {
 export const initialState = (cases) => ({
   cases: cases || [],
   filters: { search: "" },
-  openCaseIds: (cases || []).map((c) => c.id),
+  openCaseIds: cases && cases.length ? [cases[0].id] : [],
   addTaskForCaseId: null,
   showDetailTaskId: null,
   confirmDiscard: false,
@@ -30,10 +30,11 @@ export default function tasksReducer(state, action) {
   switch (action.type) {
     case actions.SET_DATA: {
       const newCases = action.payload || [];
+      console.log("tasksReducer SET_DATA newCases length", newCases.length);
       return {
         ...state,
         cases: newCases,
-        openCaseIds: newCases.map((c) => c.id),
+        openCaseIds: newCases.length ? [newCases[0].id] : [],
       };
     }
     case actions.SET_FILTERS:

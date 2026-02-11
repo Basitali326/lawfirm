@@ -7,6 +7,7 @@ export const navItems = [
   { label: "Calendar", href: "/calendar" },
   { label: "Billing", href: "/billing" },
   { label: "Reports", href: "/reports" },
+  { label: "Audit Logs", href: "/audit-logs", roles: ["SUPER_ADMIN", "FIRM_OWNER"] },
   { label: "Trash", href: "/trash" },
   { label: "Settings", href: "/settings" },
   { label: "Users", href: "/settings/users", parent: "/settings" },

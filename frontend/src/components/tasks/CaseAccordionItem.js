@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import TasksTable from "./TasksTable";
 import { StatusBadge } from "./TaskBadges";
 
-export default function CaseAccordionItem({ item, isOpen, onToggle, onOpenAddTask, onOpenDetail, onStatusChange }) {
+export default function CaseAccordionItem({ item, isOpen, onToggle, onOpenAddTask, onOpenDetail, onStatusChange, onDeleteTask }) {
   const stats = useMemo(() => {
     const openCount = item.tasks.filter((t) => t.status !== "DONE").length;
     const doneCount = item.tasks.filter((t) => t.status === "DONE").length;
@@ -41,7 +41,7 @@ export default function CaseAccordionItem({ item, isOpen, onToggle, onOpenAddTas
             tasks={item.tasks}
             onView={onOpenDetail}
             onStatusChange={onStatusChange}
-            onAddNote={(taskId, note) => onStatusChange(taskId, "TODO", note)}
+            onDelete={onDeleteTask}
             onOpenAddTask={onOpenAddTask}
           />
         </div>

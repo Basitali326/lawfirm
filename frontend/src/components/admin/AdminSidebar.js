@@ -19,6 +19,7 @@ import {
   BarChart3,
   Trash2,
   User2,
+  ShieldCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { toggleSidebar } from "@/store/uiSlice";
 import { navItems as baseNavItems } from "@/components/admin/navConfig";
+import { useSession } from "next-auth/react";
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
@@ -36,6 +38,7 @@ const iconMap = {
   "/calendar": CalendarDays,
   "/billing": CreditCard,
   "/reports": BarChart3,
+  "/audit-logs": ShieldCheck,
   "/trash": Trash2,
   "/settings": Settings,
   "/settings/users": User2,
@@ -46,15 +49,26 @@ const iconMap = {
 
 const navItems = baseNavItems
   .filter((item) => item.href !== "/profile") // keep profile out of sidebar
-  .map((item) => ({ ...item, icon: iconMap[item.href], roles: ["OWNER", "ADMIN", "STAFF"] }));
+  .map((item) => ({
+    ...item,
+    icon: iconMap[item.href],
+    roles: item.roles || ["SUPER_ADMIN", "FIRM_OWNER", "OWNER", "ADMIN", "STAFF"],
+  }));
 
 const accountItems = [{ label: "Logout", href: "/login", icon: LogOut }];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const dispatch = useAppDispatch();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
-  const userRole = "OWNER"; // placeholder; role-based filtering can use this value later
+  const userRole = (
+    session?.user?.role ||
+    session?.role ||
+    session?.profile?.role ||
+    (session?.user?.is_superuser ? "SUPER_ADMIN" : null) ||
+    "SUPER_ADMIN"
+  ).toUpperCase();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const rootItems = navItems.filter((i) => !i.parent);
@@ -89,7 +103,11 @@ export default function AdminSidebar() {
 
       <nav className="flex-1 space-y-1 px-3">
         {rootItems
-          .filter((item) => !item.roles || item.roles.includes(userRole))
+          .filter((item) => {
+            if (!item.roles || item.roles.includes(userRole)) return true;
+            if (session?.user?.is_superuser) return true;
+            return item.href === "/audit-logs" && session?.user?.is_superuser;
+          })
           .map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);

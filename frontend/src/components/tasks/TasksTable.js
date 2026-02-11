@@ -1,6 +1,6 @@
 import { PriorityBadge, StatusBadge, DueBadge } from "./TaskBadges";
 
-export default function TasksTable({ tasks, onView, onStatusChange, onAddNote, onOpenAddTask }) {
+export default function TasksTable({ tasks, onView, onStatusChange, onDelete, onOpenAddTask }) {
   const openTasks = tasks.filter((t) => t.status !== "DONE");
   const doneTasks = tasks.filter((t) => t.status === "DONE");
 
@@ -27,11 +27,11 @@ export default function TasksTable({ tasks, onView, onStatusChange, onAddNote, o
               Add Task
             </button>
           </div>
-          <TableSection tasks={openTasks} onView={onView} onStatusChange={onStatusChange} onAddNote={onAddNote} />
+          <TableSection tasks={openTasks} onView={onView} onStatusChange={onStatusChange} onDelete={onDelete} />
           {doneTasks.length > 0 && (
             <>
               <div className="text-sm font-semibold text-slate-700">Done</div>
-              <TableSection tasks={doneTasks} onView={onView} onStatusChange={onStatusChange} onAddNote={onAddNote} />
+              <TableSection tasks={doneTasks} onView={onView} onStatusChange={onStatusChange} onDelete={onDelete} />
             </>
           )}
         </>
@@ -40,7 +40,7 @@ export default function TasksTable({ tasks, onView, onStatusChange, onAddNote, o
   );
 }
 
-function TableSection({ tasks, onView, onStatusChange, onAddNote }) {
+function TableSection({ tasks, onView, onStatusChange, onDelete }) {
   if (!tasks.length) return <div className="text-xs text-slate-500">None</div>;
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -76,6 +76,12 @@ function TableSection({ tasks, onView, onStatusChange, onAddNote }) {
                 >
                   View
                 </button>
+                <button
+                  className="rounded-md border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                  onClick={() => onDelete && onDelete(t.id)}
+                >
+                  Delete
+                </button>
                 <select
                   className="rounded-md border border-slate-200 px-2 py-1 text-xs"
                   value={t.status}
@@ -87,12 +93,6 @@ function TableSection({ tasks, onView, onStatusChange, onAddNote }) {
                     </option>
                   ))}
                 </select>
-                <button
-                  className="rounded-md border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  onClick={() => onAddNote(t.id, "New note")}
-                >
-                  Add Note
-                </button>
               </td>
             </tr>
           ))}

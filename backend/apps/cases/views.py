@@ -15,6 +15,9 @@ from .filters import CaseFilter, CaseOrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.tasks.services import generate_tasks_for_case
 from apps.tasks.models import CaseTask
+from apps.audit.services import log_audit_event
+from apps.audit.models import EntityType, AuditAction
+from apps.task_templates.models import CaseTaskTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +112,19 @@ class CaseViewSet(
         return api_success("Case created successfully", data=serializer.data, status_code=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
-        serializer.save()
+        case = serializer.save()
+        # Audit: case created
+        try:
+            log_audit_event(
+                request=self.request,
+                entity_type=EntityType.CASE,
+                entity_id=case.id,
+                action=AuditAction.CREATED,
+                message=f"Case created: {case.title}",
+                metadata={"case_number": case.case_number, "status": case.status},
+            )
+        except Exception:  # pragma: no cover
+            logger.exception("audit log failed on case create")
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -117,11 +132,35 @@ class CaseViewSet(
         serializer = self.get_serializer(instance, data=request.data, partial=partial, context={"request": request})
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        old_status = instance.status
+        old_lead = instance.assigned_lead_id
         try:
             self.perform_update(serializer)
         except IntegrityError as exc:
             logger.warning("case update integrity error: %s", exc)
             return api_error("Case number must be unique within firm.", errors={"case_number": ["Already exists"]}, status_code=status.HTTP_409_CONFLICT)
+        try:
+            action = AuditAction.UPDATED
+            message = f"Case updated: {instance.title}"
+            meta = {"changes": serializer.validated_data}
+            if "status" in serializer.validated_data and serializer.validated_data["status"] != old_status:
+                action = AuditAction.STATUS_CHANGED
+                meta["from"] = old_status
+                meta["to"] = serializer.validated_data["status"]
+            if "assigned_lead" in serializer.validated_data and serializer.validated_data["assigned_lead"] != old_lead:
+                action = AuditAction.ASSIGNED
+                meta["from"] = old_lead
+                meta["to"] = serializer.validated_data["assigned_lead"]
+            log_audit_event(
+                request=request,
+                entity_type=EntityType.CASE,
+                entity_id=instance.id,
+                action=action,
+                message=message,
+                metadata=meta,
+            )
+        except Exception:  # pragma: no cover
+            logger.exception("audit log failed on case update")
         return api_success("Case updated successfully", data=serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -129,6 +168,16 @@ class CaseViewSet(
         instance.is_deleted = True
         instance.deleted_at = timezone.now()
         instance.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
+        try:
+            log_audit_event(
+                request=request,
+                entity_type=EntityType.CASE,
+                entity_id=instance.id,
+                action=AuditAction.DELETED,
+                message=f"Case deleted: {instance.title}",
+            )
+        except Exception:  # pragma: no cover
+            logger.exception("audit log failed on case delete")
         return api_success("Case deleted", data=None, status_code=status.HTTP_204_NO_CONTENT)
 
     def handle_exception(self, exc):
@@ -205,6 +254,48 @@ class TrashView(APIView):
         case.deleted_at = None
         case.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
         return api_success("Case restored", data={"id": str(case.id), "type": "case"})
+
+
+class TaskSuggestionsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, case_id):
+        try:
+            case = Case.objects.get(id=case_id, is_deleted=False)
+        except Case.DoesNotExist:
+            return api_error("Case not found", status_code=status.HTTP_404_NOT_FOUND)
+
+        if not case.case_type:
+            return api_success("Task suggestions", data=[])
+
+        template = (
+            CaseTaskTemplate.objects.filter(
+                firm=case.firm,
+                case_type=case.case_type,
+                is_default=True,
+                is_active=True,
+                is_deleted=False,
+            )
+            .order_by("-updated_at")
+            .first()
+        )
+        if not template:
+            return api_success("Task suggestions", data=[])
+
+        items = (
+            template.items.filter(is_deleted=False, is_active=True)
+            .order_by("sort_order", "created_at")
+            .values(
+                "id",
+                "title",
+                "description",
+                "priority",
+                "default_status",
+                "due_in_days",
+                "assign_to",
+            )
+        )
+        return api_success("Task suggestions", data=list(items))
 
 
 class GenerateTasksAPIView(APIView):

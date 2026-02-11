@@ -25,7 +25,7 @@ export default function AddTaskDrawer({
     queryKey: ["task-suggestions", caseId],
     queryFn: () => localFetch(`/api/cases/${caseId}/task-suggestions/`),
     enabled: !!caseId && open,
-    select: (res) => res?.data || [],
+    select: (res) => (Array.isArray(res) ? res : res?.data || []),
   });
 
   const suggestions = suggestionsQuery.data || [];

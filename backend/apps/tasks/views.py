@@ -1,10 +1,18 @@
+import uuid
 from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+
 from core.responses import api_success, api_error
-from apps.tasks.models import CaseTask, TaskStatus
-from apps.tasks.serializers import CaseTaskSerializer
+from apps.tasks.models import CaseTask, TaskStatus, TaskNote
+from apps.tasks.serializers import CaseTaskSerializer, TaskNoteSerializer
 from apps.tasks.permissions import TaskPermission
+from apps.cases.models import Case, CaseStatus
+from apps.cases.serializers import CaseSerializer
+from apps.audit.services import log_audit_event
+from apps.audit.models import EntityType, AuditAction
 
 
 class TaskPagination(PageNumberPagination):
@@ -30,7 +38,11 @@ class TaskViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         firm_id = self._get_firm_id(user)
-        qs = CaseTask.objects.filter(firm_id=firm_id, is_deleted=False).select_related("case", "case__case_type", "assigned_to")
+        qs = (
+            CaseTask.objects.filter(firm_id=firm_id, is_deleted=False)
+            .select_related("case", "case__case_type", "assigned_to")
+            .prefetch_related("notes")
+        )
         status_params = self.request.query_params.getlist("status")
         if status_params:
             qs = qs.filter(status__in=status_params)
@@ -82,14 +94,43 @@ class TaskViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         task = self.get_object()
         task.soft_delete()
+        try:
+            log_audit_event(
+                request=request,
+                entity_type=EntityType.TASK,
+                entity_id=task.id,
+                action=AuditAction.DELETED,
+                message=f"Task deleted: {task.title}",
+                metadata={"case_id": str(task.case_id)},
+            )
+        except Exception:  # pragma: no cover
+            pass
         return api_success("Task deleted", data={"id": str(task.id)})
 
     def partial_update(self, request, *args, **kwargs):
         task = self.get_object()
+        old_status = task.status
         serializer = self.get_serializer(task, data=request.data, partial=True, context={"request": request})
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         serializer.save()
+        try:
+            action = AuditAction.UPDATED
+            meta = {"changes": serializer.validated_data, "case_id": str(task.case_id)}
+            if "status" in serializer.validated_data and serializer.validated_data["status"] != old_status:
+                action = AuditAction.STATUS_CHANGED
+                meta["from"] = old_status
+                meta["to"] = serializer.validated_data["status"]
+            log_audit_event(
+                request=request,
+                entity_type=EntityType.TASK,
+                entity_id=task.id,
+                action=action,
+                message=f"Task updated: {task.title}",
+                metadata=meta,
+            )
+        except Exception:  # pragma: no cover
+            pass
         return api_success("Task updated", data=serializer.data)
 
     def update(self, request, *args, **kwargs):
@@ -106,3 +147,114 @@ class TaskViewSet(viewsets.ModelViewSet):
         if isinstance(exc, ValidationError):
             return api_error("Validation error", errors=exc.detail, status_code=status.HTTP_400_BAD_REQUEST)
         return super().handle_exception(exc)
+
+
+class OpenCasesTasksView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _firm_id(self, user):
+        firm_id = getattr(user, "firm_id", None)
+        profile = getattr(user, "profile", None)
+        if not firm_id and profile:
+            firm_id = getattr(profile, "firm_id", None)
+        if not firm_id and hasattr(user, "owned_firm"):
+            firm_id = getattr(user.owned_firm, "id", None)
+        return firm_id
+
+    def get(self, request):
+        firm_id = self._firm_id(request.user)
+        if not firm_id:
+            return api_error("User firm not set", status_code=status.HTTP_400_BAD_REQUEST)
+
+        cases = (
+            Case.objects.filter(firm_id=firm_id, status=CaseStatus.OPEN, is_deleted=False)
+            .select_related("case_type", "assigned_lead", "client")
+            .order_by("-created_at")
+        )
+        case_ids = [c.id for c in cases]
+        tasks = (
+            CaseTask.objects.filter(case_id__in=case_ids, is_deleted=False)
+            .select_related("assigned_to", "case")
+            .prefetch_related("notes")
+            .order_by("due_date")
+        )
+        tasks_by_case = {}
+        for t in tasks:
+            tasks_by_case.setdefault(t.case_id, []).append(t)
+
+        payload = []
+        case_serializer = CaseSerializer(cases, many=True)
+        for c_data in case_serializer.data:
+            cid = c_data["id"]
+            case_tasks = tasks_by_case.get(uuid.UUID(cid) if isinstance(cid, str) else cid, [])
+            t_ser = CaseTaskSerializer(case_tasks, many=True)
+            payload.append({"case": c_data, "tasks": t_ser.data})
+
+        return api_success("Open cases with tasks", data=payload)
+
+
+class TaskNoteCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, task_id):
+        try:
+            task = CaseTask.objects.select_related("case").get(id=task_id, is_deleted=False)
+        except CaseTask.DoesNotExist:
+            return api_error("Task not found", status_code=status.HTTP_404_NOT_FOUND)
+
+        # tenant enforcement
+        firm_id = getattr(request.user, "firm_id", None) or getattr(getattr(request.user, "profile", None), "firm_id", None)
+        if firm_id and task.firm_id != firm_id and not getattr(request.user, "is_superuser", False):
+            return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
+
+        body = request.data.get("body")
+        if not body or not str(body).strip():
+            return api_error("Body is required", errors={"body": ["This field is required."]}, status_code=status.HTTP_400_BAD_REQUEST)
+
+        note = TaskNote.objects.create(task=task, body=body.strip(), created_by=request.user)
+        serializer = TaskNoteSerializer(note)
+        try:
+            log_audit_event(
+                request=request,
+                entity_type=EntityType.TASK,
+                entity_id=task.id,
+                action=AuditAction.UPDATED,
+                message=f"Note added to task: {task.title}",
+                metadata={"note_id": str(note.id), "case_id": str(task.case_id)},
+            )
+        except Exception:  # pragma: no cover
+            pass
+        return api_success("Note added", data=serializer.data, status_code=status.HTTP_201_CREATED)
+
+
+class CaseTaskCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, case_id):
+        try:
+            case = Case.objects.get(id=case_id, is_deleted=False)
+        except Case.DoesNotExist:
+            return api_error("Case not found", status_code=status.HTTP_404_NOT_FOUND)
+
+        firm_id = getattr(request.user, "firm_id", None) or getattr(getattr(request.user, "profile", None), "firm_id", None)
+        if firm_id and case.firm_id != firm_id and not getattr(request.user, "is_superuser", False):
+            return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
+
+        data = request.data.copy()
+        data["case"] = str(case.id)
+        serializer = CaseTaskSerializer(data=data, context={"request": request})
+        if not serializer.is_valid():
+            return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        task = serializer.save(created_by=request.user, firm=case.firm, case=case)
+        try:
+            log_audit_event(
+                request=request,
+                entity_type=EntityType.TASK,
+                entity_id=task.id,
+                action=AuditAction.CREATED,
+                message=f"Task created: {task.title}",
+                metadata={"case_id": str(case.id), "priority": task.priority},
+            )
+        except Exception:  # pragma: no cover
+            pass
+        return api_success("Task created", data=serializer.data, status_code=status.HTTP_201_CREATED)

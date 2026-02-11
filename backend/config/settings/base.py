@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'apps.casetypes',
     'apps.task_templates',
     'apps.tasks',
+    'apps.audit',
 ]
 
 MIDDLEWARE = [
