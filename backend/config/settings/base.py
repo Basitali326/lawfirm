@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'apps.task_templates',
     'apps.tasks',
     'apps.audit',
+    'apps.intake',
 ]
 
 MIDDLEWARE = [
@@ -123,6 +124,12 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [],
+    'DEFAULT_THROTTLE_RATES': {
+        'intake_public_minute': '5/min',
+        'intake_public_hour': '30/hour',
+        'intake_phone_email_hour': '3/hour',
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -149,6 +156,12 @@ DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 FRONTEND_URL = env('FRONTEND_URL')
 OTP_EMAIL_ENABLED = env('OTP_EMAIL_ENABLED')
 INVITE_EXPIRE_HOURS = env('INVITE_EXPIRE_HOURS')
+
+RECAPTCHA_ENABLED = env.bool('RECAPTCHA_ENABLED', default=False)
+RECAPTCHA_SECRET_KEY = env('RECAPTCHA_SECRET_KEY', default='')
+RECAPTCHA_VERSION = env('RECAPTCHA_VERSION', default='v3')
+RECAPTCHA_V3_MIN_SCORE = env.float('RECAPTCHA_V3_MIN_SCORE', default=0.5)
+RECAPTCHA_V3_EXPECTED_ACTION = env('RECAPTCHA_V3_EXPECTED_ACTION', default='intake_submit')
 
 if EMAIL_BACKEND != 'django.core.mail.backends.console.EmailBackend':
     EMAIL_HOST = env('EMAIL_HOST')

@@ -46,34 +46,37 @@ function drainRefresh(err, access) {
 
 export async function apiFetch(path, options = {}, { retry = true } = {}) {
   const url = `${API_BASE_URL}${path}`;
+  const isPublic = path.startsWith("/public/");
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
   };
 
-  if (AUTH_MODE === "token") {
-    const token = tokenStore.getAccess();
-    if (token) headers.Authorization = `Bearer ${token}`;
-    if (!token) {
-      try {
-        const refreshed = await ensureAccessToken();
-        if (refreshed) headers.Authorization = `Bearer ${refreshed}`;
-      } catch (err) {
-        // ignore; 401 will be handled below
+  if (!isPublic) {
+    if (AUTH_MODE === "token") {
+      const token = tokenStore.getAccess();
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (!token) {
+        try {
+          const refreshed = await ensureAccessToken();
+          if (refreshed) headers.Authorization = `Bearer ${refreshed}`;
+        } catch (err) {
+          // ignore; 401 will be handled below
+        }
       }
     }
-  }
 
-  // NextAuth cookie mode: pull access token from session and attach as Bearer
-  if (AUTH_MODE === "cookie" && USE_NEXTAUTH) {
-    try {
-      const session = await getSession();
-      const sessionAccess = session?.access || session?.token?.access;
-      if (sessionAccess) {
-        headers.Authorization = `Bearer ${sessionAccess}`;
+    // NextAuth cookie mode: pull access token from session and attach as Bearer
+    if (AUTH_MODE === "cookie" && USE_NEXTAUTH) {
+      try {
+        const session = await getSession();
+        const sessionAccess = session?.access || session?.token?.access;
+        if (sessionAccess) {
+          headers.Authorization = `Bearer ${sessionAccess}`;
+        }
+      } catch (err) {
+        // ignore; may still succeed if endpoint allows cookie
       }
-    } catch (err) {
-      // ignore; may still succeed if endpoint allows cookie
     }
   }
 
@@ -82,8 +85,10 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
     headers,
   };
 
-  if (AUTH_MODE === "cookie") {
+  if (AUTH_MODE === "cookie" && !isPublic) {
     fetchOptions.credentials = "include";
+  } else if (isPublic) {
+    fetchOptions.credentials = "omit";
   }
 
   const response = await fetch(url, fetchOptions);
@@ -108,6 +113,7 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
   };
 
   const shouldRefresh =
+    !isPublic &&
     response.status === 401 &&
     retry &&
     ((AUTH_MODE === "token") || (AUTH_MODE === "cookie"));

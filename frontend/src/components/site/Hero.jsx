@@ -58,10 +58,10 @@ export default function Hero() {
               </li>
             </ul>
             <Link
-              href="/cases"
+              href="/login"
               className="mt-6 inline-flex items-center justify-center rounded-xl bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
             >
-              Go to case intake
+              Go to case intake (login)
             </Link>
           </div>
         </div>
