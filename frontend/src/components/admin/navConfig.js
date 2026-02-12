@@ -3,6 +3,7 @@ export const navItems = [
   { label: "Clients", href: "/clients" },
   { label: "Cases", href: "/cases" },
   { label: "Tasks", href: "/tasks" },
+  { label: "Requests", href: "/requests" },
   { label: "Documents", href: "/documents" },
   { label: "Calendar", href: "/calendar" },
   { label: "Billing", href: "/billing" },

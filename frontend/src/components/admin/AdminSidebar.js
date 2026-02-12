@@ -34,6 +34,7 @@ const iconMap = {
   "/clients": Users,
   "/cases": Briefcase,
   "/tasks": CheckSquare,
+  "/requests": FileText,
   "/documents": FileText,
   "/calendar": CalendarDays,
   "/billing": CreditCard,
