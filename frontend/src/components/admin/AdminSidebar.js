@@ -27,7 +27,7 @@ import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { toggleSidebar } from "@/store/uiSlice";
 import { navItems as baseNavItems } from "@/components/admin/navConfig";
-import { useSession } from "next-auth/react";
+import { useRBAC } from "@/lib/rbac";
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
@@ -45,6 +45,8 @@ const iconMap = {
   "/settings/users": User2,
   "/settings/case-types": Briefcase,
   "/settings/case-templates": FileText,
+  "/roles": ShieldCheck,
+  "/permissions": ShieldCheck,
   "/profile": Settings,
 };
 
@@ -53,23 +55,15 @@ const navItems = baseNavItems
   .map((item) => ({
     ...item,
     icon: iconMap[item.href],
-    roles: item.roles || ["SUPER_ADMIN", "FIRM_OWNER", "OWNER", "ADMIN", "STAFF"],
   }));
 
 const accountItems = [{ label: "Logout", href: "/login", icon: LogOut }];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { can } = useRBAC();
   const dispatch = useAppDispatch();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
-  const userRole = (
-    session?.user?.role ||
-    session?.role ||
-    session?.profile?.role ||
-    (session?.user?.is_superuser ? "SUPER_ADMIN" : null) ||
-    "SUPER_ADMIN"
-  ).toUpperCase();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const rootItems = navItems.filter((i) => !i.parent);
@@ -104,11 +98,7 @@ export default function AdminSidebar() {
 
       <nav className="flex-1 space-y-1 px-3">
         {rootItems
-          .filter((item) => {
-            if (!item.roles || item.roles.includes(userRole)) return true;
-            if (session?.user?.is_superuser) return true;
-            return item.href === "/audit-logs" && session?.user?.is_superuser;
-          })
+          .filter((item) => !item.perm || can(item.perm))
           .map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);

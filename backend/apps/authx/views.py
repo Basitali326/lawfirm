@@ -25,6 +25,8 @@ from datetime import timedelta
 from common.api_response import api_success, api_error
 from core.responses import api_success as envelope_success, api_error as envelope_error
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
+from apps.rbac.services import get_effective_permissions
+from apps.rbac.models import Role
 
 logger = logging.getLogger(__name__)
 
@@ -252,6 +254,11 @@ class MeView(APIView):
                 role_value = "FIRM_OWNER"
             else:
                 role_value = "CLIENT"
+        # Collect RBAC roles and permissions
+        role_names = list(
+            Role.objects.filter(user_roles__user=request.user, is_deleted=False, firm=firm).values_list("name", flat=True)
+        )
+        effective_perms = list(get_effective_permissions(request.user))
         return api_success(
             {
                 'user': {
@@ -269,6 +276,8 @@ class MeView(APIView):
                 if firm
                 else None,
                 'email_verified': profile.email_verified,
+                'roles': role_names,
+                'permissions': effective_perms,
             }
         )
 

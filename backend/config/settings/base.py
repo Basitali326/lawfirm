@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'apps.tasks',
     'apps.audit',
     'apps.intake',
+    'apps.rbac',
 ]
 
 MIDDLEWARE = [

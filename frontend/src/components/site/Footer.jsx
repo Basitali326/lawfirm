@@ -17,9 +17,9 @@ export default function Footer() {
             <p className="text-sm text-slate-400">Client-first intake, secure by design.</p>
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-slate-300">
-            <a href="/" className="hover:text-white">
+            <Link href="/" className="hover:text-white">
               Home
-            </a>
+            </Link>
             <a href="#case-types" className="hover:text-white">
               Case Types
             </a>

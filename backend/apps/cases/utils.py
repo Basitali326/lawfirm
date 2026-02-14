@@ -8,13 +8,14 @@ from apps.authx.models import Firm
 logger = logging.getLogger(__name__)
 
 
-def api_response(success: bool, message: str, data: Any = None, errors: Any = None, status: int = drf_status.HTTP_200_OK):
+def api_response(success: bool, message: str, data: Any = None, errors: Any = None, meta: Any = None, status: int = drf_status.HTTP_200_OK):
     """Return payload in the mandated envelope."""
     payload = {
         "success": success,
         "message": message,
         "data": data if data is not None else None,
         "errors": errors if errors is not None else None,
+        "meta": meta if meta is not None else None,
     }
     return Response(payload, status=status)
 
