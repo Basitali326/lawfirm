@@ -10,7 +10,9 @@ export function RBACProvider({ children }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["me"],
     queryFn: () => localFetch("/api/authx/me/"),
-    staleTime: 60_000,
+    staleTime: 0, // always refetch on mount to avoid showing old user's permissions
+    cacheTime: 5 * 60 * 1000,
+    refetchOnMount: "always",
   });
 
   const payload = data?.data ?? data;

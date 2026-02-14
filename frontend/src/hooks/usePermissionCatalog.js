@@ -27,6 +27,7 @@ export function useUpdateRolePermissions(roleId) {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["role-permissions", roleId] });
+      qc.invalidateQueries({ queryKey: ["me"] });
     },
   });
 }

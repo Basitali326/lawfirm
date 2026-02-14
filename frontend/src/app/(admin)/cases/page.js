@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useCasesQuery, useDeleteCaseMutation } from "@/features/cases/cases.hooks";
+import { useRBAC } from "@/lib/rbac";
 
 const statusChips = [
   { label: "All", value: "ALL" },
@@ -28,6 +30,11 @@ const priorityTone = {
 
 export default function CasesPage() {
   const router = useRouter();
+  const { can, meLoading } = useRBAC();
+  const canAdd = !meLoading && can("cases.add");
+  const canEdit = !meLoading && can("cases.update");
+  const canDelete = !meLoading && can("cases.delete");
+  const canView = !meLoading && can("cases.view");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
@@ -139,29 +146,34 @@ export default function CasesPage() {
         <div className="flex items-center gap-2 text-xs">
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-100 cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={() => router.push(`/cases/${row.id}`)}
+            disabled={!canView}
           >
             <Eye className="h-3.5 w-3.5" />
             View
           </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-100 cursor-pointer"
-            onClick={() => router.push(`/cases/${row.id}/edit`)}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded-md border border-rose-200 px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-            disabled={deleteMutation.isPending}
-            onClick={() => handleDelete(row)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-100 cursor-pointer"
+              onClick={() => router.push(`/cases/${row.id}/edit`)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-md border border-rose-200 px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              disabled={deleteMutation.isPending}
+              onClick={() => handleDelete(row)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </button>
+          )}
         </div>
       ),
     },
@@ -200,12 +212,14 @@ export default function CasesPage() {
               className="w-64"
             />
           </div>
-          <Link
-            href="/cases/add"
-            className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
-          >
-            Add Case
-          </Link>
+          {canAdd && (
+            <Link
+              href="/cases/add"
+              className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+            >
+              Add Case
+            </Link>
+          )}
         </div>
       </div>
       <div className="flex flex-wrap gap-2">

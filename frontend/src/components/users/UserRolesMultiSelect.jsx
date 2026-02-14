@@ -18,6 +18,7 @@ export default function UserRolesMultiSelect({ userId, onUpdated, initialRoleNam
 
   useEffect(() => {
     if (userRoles?.role_ids && userRoles.role_ids.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelected(new Set(userRoles.role_ids));
       return;
     }
@@ -27,6 +28,7 @@ export default function UserRolesMultiSelect({ userId, onUpdated, initialRoleNam
         (r) => r.name && r.name.toLowerCase() === String(initialRoleName).toLowerCase()
       );
       if (match) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelected(new Set([match.id]));
       }
     }
