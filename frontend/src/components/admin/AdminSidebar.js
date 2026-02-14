@@ -45,6 +45,8 @@ const iconMap = {
   "/settings/users": User2,
   "/settings/case-types": Briefcase,
   "/settings/case-templates": FileText,
+  "/settings/roles": ShieldCheck,
+  "/settings/permissions": ShieldCheck,
   "/roles": ShieldCheck,
   "/permissions": ShieldCheck,
   "/profile": Settings,

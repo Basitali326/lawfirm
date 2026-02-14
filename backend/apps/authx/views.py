@@ -258,7 +258,12 @@ class MeView(APIView):
         role_names = list(
             Role.objects.filter(user_roles__user=request.user, is_deleted=False, firm=firm).values_list("name", flat=True)
         )
-        effective_perms = list(get_effective_permissions(request.user))
+        effective_perms = list(get_effective_permissions(request.user, force=True))
+        # Fallback: include legacy profile role if no RBAC role assigned
+        if not role_names and profile.role:
+          role_names = [profile.role]
+        # Present a single primary role for backward compatibility: first RBAC role if present, else legacy role_value
+        primary_role = role_names[0] if role_names else role_value
         return api_success(
             {
                 'user': {
@@ -266,7 +271,7 @@ class MeView(APIView):
                     'email': request.user.email,
                     'first_name': request.user.first_name,
                     'last_name': request.user.last_name,
-                    'role': role_value,
+                    'role': primary_role,
                 },
                 'firm': {
                     'id': firm.id,

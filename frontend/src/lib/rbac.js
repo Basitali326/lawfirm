@@ -13,14 +13,16 @@ export function RBACProvider({ children }) {
     staleTime: 60_000,
   });
 
+  const payload = data?.data ?? data;
+
   const value = useMemo(
     () => ({
-      permissions: data?.permissions || [],
-      roles: data?.roles || [],
+      permissions: payload?.permissions || payload?.data?.permissions || [],
+      roles: payload?.roles || payload?.data?.roles || [],
       meLoading: isLoading,
       meError: isError,
     }),
-    [data, isLoading, isError]
+    [payload, isLoading, isError]
   );
 
   return <RBACContext.Provider value={value}>{children}</RBACContext.Provider>;

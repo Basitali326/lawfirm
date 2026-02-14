@@ -21,6 +21,11 @@ class RoleSerializer(serializers.ModelSerializer):
         read_only_fields = ["is_system", "created_at", "updated_at"]
 
     def validate_name(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Name is required.")
+        # normalize to Title Case for consistency
+        value = value.title()
         from apps.cases.utils import get_user_firm
 
         firm = get_user_firm(self.context["request"].user)

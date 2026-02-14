@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import DataTable from "@/components/datatable/DataTable";
 import { cn } from "@/lib/utils";
+import UserRolesMultiSelect from "@/components/users/UserRolesMultiSelect";
 
 const extractMessage = (payload, fallback = "Request failed") => {
   if (!payload) return fallback;
@@ -84,6 +85,7 @@ const formatDateTime = (value) => {
 };
 
 export default function UsersPage() {
+  const [selectedUser, setSelectedUser] = useState(null);
   const queryClient = useQueryClient();
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ["users-list"],
@@ -120,7 +122,8 @@ export default function UsersPage() {
           id: normalizeId(u.id),
           name: u.name || "—",
           email: u.email,
-          role: u.role || "—",
+          roles: u.roles || [],
+          role: u.role || (u.roles && u.roles[0]) || "—",
           status: "ACTIVE",
           created_at: u.created_at || u.date_joined,
         }))
@@ -153,7 +156,12 @@ export default function UsersPage() {
         </span>
       ),
     },
-    { key: "role", header: "Role" },
+    {
+      key: "roles",
+      header: "Roles",
+      render: (row) =>
+        row.roles && row.roles.length ? row.roles.join(", ") : row.role || "—",
+    },
     {
       key: "created_at",
       header: "Joined",
@@ -169,12 +177,19 @@ export default function UsersPage() {
           ) : (
             <button
               type="button"
-              className="inline-flex items-center rounded-md border border-rose-200 px-2 py-1 text-rose-700 hover:bg-rose-50"
+              className="inline-flex items-center rounded-md border border-rose-200 px-2 py-1 text-rose-700 hover:bg-rose-50 cursor-pointer"
               onClick={() => handleDelete(row.id, row.name || row.email)}
             >
               Delete
             </button>
           )}
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-50 cursor-pointer"
+            onClick={() => setSelectedUser(row)}
+          >
+            Roles
+          </button>
         </div>
       ),
     },
@@ -266,6 +281,38 @@ export default function UsersPage() {
           currentSort={null}
         />
       </div>
+
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setSelectedUser(null)} />
+          <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-500">Assign roles</p>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {selectedUser.name || selectedUser.email}
+                </h3>
+                <p className="text-sm text-slate-500">{selectedUser.email}</p>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-slate-500 hover:text-slate-800 cursor-pointer"
+                onClick={() => setSelectedUser(null)}
+              >
+                Close
+              </button>
+            </div>
+            <UserRolesMultiSelect
+              userId={selectedUser.id}
+              initialRoleName={selectedUser.roles?.[0] || selectedUser.role}
+              onUpdated={() => {
+                refetchAll();
+                setSelectedUser(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

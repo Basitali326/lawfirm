@@ -35,6 +35,23 @@ export function useDeleteRole() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id) => localFetch(`/api/v1/roles/${id}/`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["roles"] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["roles"] });
+      const previous = qc.getQueriesData({ queryKey: ["roles"] });
+      qc.setQueriesData({ queryKey: ["roles"] }, (old) => {
+        if (!old) return old;
+        const payload = old?.data || old?.results || old;
+        if (!Array.isArray(payload)) return old;
+        const filtered = payload.filter((r) => r.id !== id);
+        return { ...(old || {}), data: filtered, results: filtered };
+      });
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        context.previous.forEach(([key, data]) => qc.setQueryData(key, data));
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["roles"] }),
   });
 }

@@ -10,6 +10,8 @@ from apps.authx.models import Firm, UserProfile
 from .serializers import InviteCreateSerializer
 from .permissions import IsFirmOwner
 from .models import InviteToken
+from apps.rbac.models import Role, UserRole
+from django.db import transaction
 
 User = get_user_model()
 USER_LIMIT = 10
@@ -105,20 +107,28 @@ class UsersListView(APIView):
                 .select_related("profile")
                 .order_by("-date_joined")
             )
-        data = [
-            {
-                "id": u.id,
-                "name": f"{u.first_name} {u.last_name}".strip(),
-                "email": u.email,
-                "role": (
-                    "FIRM_OWNER"
-                    if getattr(firm, "owner_id", None) == u.id
-                    else getattr(getattr(u, "profile", None), "role", None)
-                ),
-                "created_at": u.date_joined,
-            }
-            for u in users
-        ]
+        data = []
+        for u in users:
+            user_roles = list(
+                Role.objects.filter(user_roles__user_id=u.id, is_deleted=False, firm=firm).values_list("name", flat=True)
+            )
+            primary_role = (
+                "FIRM_OWNER"
+                if getattr(firm, "owner_id", None) == u.id
+                else getattr(getattr(u, "profile", None), "role", None)
+            )
+            if primary_role and primary_role not in user_roles:
+                user_roles.insert(0, primary_role)
+            data.append(
+                {
+                    "id": u.id,
+                    "name": f"{u.first_name} {u.last_name}".strip(),
+                    "email": u.email,
+                    "roles": user_roles,
+                    "role": primary_role,
+                    "created_at": u.date_joined,
+                }
+            )
         total, remaining = firm_user_counts(firm)
         return api_success("Users retrieved", data=data, meta={"total": total, "limit": USER_LIMIT, "remaining": remaining})
 
@@ -148,13 +158,20 @@ class UsersListView(APIView):
         }
         if any(f.name == "firm" for f in User._meta.fields):
             user_kwargs["firm"] = firm
-        user = User.objects.create(**user_kwargs)
-        user.set_password("Abcd.@123456")
-        user.save(update_fields=["password"])
-        profile, _ = UserProfile.objects.get_or_create(user=user)
-        profile.role = data.get("role")
-        profile.firm = firm
-        profile.save(update_fields=["role", "firm"])
+        with transaction.atomic():
+            user = User.objects.create(**user_kwargs)
+            user.set_password("Abcd.@123456")
+            user.save(update_fields=["password"])
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile.role = data.get("role")
+            profile.firm = firm
+            profile.save(update_fields=["role", "firm"])
+            # Auto-link to RBAC role if a matching role name exists in this firm
+            role_name = data.get("role")
+            if role_name:
+                role_obj = Role.objects.filter(firm=firm, name=role_name, is_deleted=False).first()
+                if role_obj:
+                    UserRole.objects.get_or_create(user=user, role=role_obj)
         total, remaining = firm_user_counts(firm)
         return api_success(
             "User created",

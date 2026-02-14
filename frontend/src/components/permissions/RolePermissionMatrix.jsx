@@ -1,25 +1,29 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { usePermissionCatalog, useRolePermissions, useUpdateRolePermissions } from "@/hooks/usePermissionCatalog";
+import { useRolesList } from "@/hooks/useRolesList";
 
 export default function RolePermissionMatrix() {
   const [selectedRoleId, setSelectedRoleId] = useState("");
+  const { data: rolesData } = useRolesList({ page_size: 100 });
   const { data: catalogData } = usePermissionCatalog();
   const { data: rolePerms } = useRolePermissions(selectedRoleId);
   const updateMutation = useUpdateRolePermissions(selectedRoleId);
   const [checked, setChecked] = useState(new Set());
 
   useEffect(() => {
-    if (rolePerms?.permission_codes) {
-       
-      setChecked(new Set(rolePerms.permission_codes));
-    }
+    const codes =
+      rolePerms?.permission_codes ||
+      rolePerms?.data?.permission_codes ||
+      rolePerms?.data?.data?.permission_codes;
+    if (codes) setChecked(new Set(codes));
   }, [rolePerms]);
 
-  const modules = catalogData?.modules || [];
+  const modules = catalogData?.modules || catalogData?.data?.modules || [];
+  const roleOptions = Array.isArray(rolesData?.data) ? rolesData.data : rolesData?.results || rolesData || [];
 
   const toggle = (code) => {
     setChecked((prev) => {
@@ -67,27 +71,36 @@ export default function RolePermissionMatrix() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          className="w-72 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          placeholder="Enter role ID"
-          value={selectedRoleId}
-          onChange={(e) => setSelectedRoleId(e.target.value)}
-        />
+        <div className="w-72">
+          <label className="sr-only">Select role</label>
+          <select
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm cursor-pointer"
+            value={selectedRoleId}
+            onChange={(e) => setSelectedRoleId(e.target.value)}
+          >
+            <option value="">Select a role</option>
+            {roleOptions.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={selectAll}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
         >
           Select all
         </button>
         <button
           onClick={clearAll}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
         >
           Clear
         </button>
         <button
           onClick={save}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 cursor-pointer"
           disabled={!selectedRoleId || updateMutation.isLoading}
         >
           {updateMutation.isLoading ? "Saving..." : "Save"}

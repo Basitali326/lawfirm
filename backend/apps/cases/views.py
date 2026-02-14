@@ -18,6 +18,8 @@ from apps.tasks.models import CaseTask
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
 from apps.task_templates.models import CaseTaskTemplate
+from apps.rbac.services import user_has_perm
+from apps.cases.utils import get_user_firm
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,7 @@ class CaseViewSet(
     def get_queryset(self):
         qs = Case.objects.select_related("client", "assigned_lead", "firm").filter(is_deleted=False)
         user = self.request.user
+        firm = get_user_firm(user)
         profile = getattr(user, "profile", None)
         role = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
         if not role:
@@ -52,6 +55,26 @@ class CaseViewSet(
                 role = "SUPER_ADMIN"
             elif getattr(user, "owned_firm", None) or getattr(user, "firm_id", None):
                 role = "FIRM_OWNER"
+
+        # RBAC: if user has cases.view, return firm-scoped cases
+        if user_has_perm(user, "cases.view"):
+            # Owners/superadmins still see all firm cases
+            if role in {"SUPER_ADMIN", "FIRM_OWNER", "OWNER"} or getattr(user, "owned_firm", None):
+                base = qs
+                if firm:
+                    base = base.filter(firm_id=firm.id)
+                return base.order_by("-created_at")
+            # If a special permission exists to view all cases, honor it
+            if user_has_perm(user, "cases.view_all"):
+                base = qs
+                if firm:
+                    base = base.filter(firm_id=firm.id)
+                return base.order_by("-created_at")
+            # Otherwise limit to cases assigned to the user within their firm
+            base = qs.filter(assigned_lead=user)
+            if firm:
+                base = base.filter(firm_id=firm.id)
+            return base.order_by("-created_at")
         if role == "SUPER_ADMIN":
             return qs.order_by("-created_at")
         if role == "FIRM_OWNER" or role == "OWNER" or (not role and hasattr(user, "owned_firm")):

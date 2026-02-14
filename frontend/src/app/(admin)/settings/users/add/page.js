@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useRolesList } from "@/hooks/useRolesList";
 
 const extractMessage = (payload, fallback = "Request failed") => {
   if (!payload) return fallback;
@@ -30,18 +31,10 @@ async function localFetch(url, options) {
   return json;
 }
 
-const roles = [
-  { value: "FIRM_OWNER", label: "Firm Owner" },
-  { value: "LAWYER", label: "Lawyer" },
-  { value: "PARALEGAL", label: "Paralegal" },
-  { value: "VIEWER", label: "Viewer" },
-  { value: "CLIENT", label: "Client" },
-  { value: "SUPER_ADMIN", label: "Super Admin" },
-];
-
 export default function AddUserPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: rolesData, isLoading: rolesLoading } = useRolesList({ page_size: 100 });
   const {
     register,
     handleSubmit,
@@ -108,7 +101,14 @@ export default function AddUserPage() {
         <SelectField
           label="Role"
           error={errors.role?.message}
-          options={roles}
+          options={
+            rolesLoading
+              ? [{ value: "", label: "Loading roles..." }]
+              : (Array.isArray(rolesData?.data) ? rolesData.data : rolesData?.results || rolesData || []).map((r) => ({
+                  value: r.name,
+                  label: r.name,
+                }))
+          }
           registerProps={register("role", { required: "Required" })}
         />
         <button

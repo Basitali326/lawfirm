@@ -10,7 +10,8 @@ class InviteCreateSerializer(serializers.Serializer):
     first_name = serializers.CharField(min_length=2, max_length=150)
     last_name = serializers.CharField(min_length=2, max_length=150)
     email = serializers.EmailField()
-    role = serializers.ChoiceField(choices=[(r, r) for r in ALLOWED_INVITE_ROLES])
+    # Legacy static roles; allow free text to align with dynamic RBAC
+    role = serializers.CharField(required=False, allow_blank=True)
 
     def validate_email(self, value):
         return value.lower().strip()

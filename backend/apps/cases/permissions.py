@@ -1,4 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from apps.rbac.services import user_has_perm
+from apps.cases.utils import get_user_firm
 
 
 class CasePermission(BasePermission):
@@ -11,6 +13,18 @@ class CasePermission(BasePermission):
     """
 
     def has_permission(self, request, view):
+        # RBAC permission checks first
+        if request.method in SAFE_METHODS:
+            if user_has_perm(request.user, "cases.view"):
+                return True
+        else:
+            if request.method == "POST" and user_has_perm(request.user, "cases.add"):
+                return True
+            if request.method in {"PUT", "PATCH"} and user_has_perm(request.user, "cases.update"):
+                return True
+            if request.method == "DELETE" and user_has_perm(request.user, "cases.delete"):
+                return True
+
         profile = getattr(request.user, "profile", None)
         role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").upper()
         if role in {"SUPER_ADMIN", "FIRM_OWNER", "OWNER"}:
@@ -24,6 +38,16 @@ class CasePermission(BasePermission):
         return False
 
     def has_object_permission(self, request, view, obj):
+        # RBAC-aware object check: must be same firm and have proper permission
+        firm = get_user_firm(request.user)
+        if firm and getattr(obj, "firm_id", None) == getattr(firm, "id", None):
+            if request.method in SAFE_METHODS and user_has_perm(request.user, "cases.view"):
+                return True
+            if request.method in {"PUT", "PATCH"} and user_has_perm(request.user, "cases.update"):
+                return True
+            if request.method == "DELETE" and user_has_perm(request.user, "cases.delete"):
+                return True
+
         profile = getattr(request.user, "profile", None)
         role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").upper()
         if role == "SUPER_ADMIN":

@@ -14,8 +14,8 @@ export const navItems = [
   { label: "Users", href: "/settings/users", parent: "/settings", perm: "users.view" },
   { label: "Case Types", href: "/settings/case-types", parent: "/settings", perm: "cases.view" },
   { label: "Case Templates", href: "/settings/case-templates", parent: "/settings", perm: "cases.view" },
-  { label: "Roles", href: "/roles", perm: "roles.view" },
-  { label: "Permissions", href: "/permissions", perm: "permissions.view" },
+  { label: "Roles", href: "/settings/roles", parent: "/settings", perm: "roles.view" },
+  { label: "Permissions", href: "/settings/permissions", parent: "/settings", perm: "permissions.view" },
   { label: "Profile", href: "/profile", perm: null },
 ];
 

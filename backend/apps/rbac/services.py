@@ -19,26 +19,26 @@ def user_has_perm(user, code: str) -> bool:
     return code in get_effective_permissions(user)
 
 
-def get_effective_permissions(user) -> Set[str]:
+def get_effective_permissions(user, *, force=False) -> Set[str]:
     if not user or not user.is_authenticated:
         return set()
     firm = get_user_firm(user)
     firm_id = getattr(firm, "id", None)
     key = _cache_key(user.id)
-    cached = cache.get(key)
-    if cached is not None:
-        return cached
+    if not force:
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
 
-    qs = (
-        Permission.objects.filter(
-            permission_roles__role__user_roles__user=user,
-            permission_roles__role__firm_id=firm_id,
-            is_active=True,
-            permission_roles__role__is_deleted=False,
-        )
-        .values_list("code", flat=True)
-        .distinct()
-    )
+    base_filter = {
+        "permission_roles__role__user_roles__user": user,
+        "is_active": True,
+        "permission_roles__role__is_deleted": False,
+    }
+    if firm_id:
+        base_filter["permission_roles__role__firm_id"] = firm_id
+
+    qs = Permission.objects.filter(**base_filter).values_list("code", flat=True).distinct()
     perms = set(qs)
     cache.set(key, perms, CACHE_TTL)
     return perms

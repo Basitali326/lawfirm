@@ -94,7 +94,7 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
   const response = await fetch(url, fetchOptions);
   const contentType = response.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
-  const payload = isJson ? await response.json() : await response.text();
+  const payload = isJson ? await response.json().catch(() => ({})) : await response.text();
 
   const extractData = (body) => {
     if (body && typeof body === "object" && body !== null) {

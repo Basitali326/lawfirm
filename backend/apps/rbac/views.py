@@ -53,7 +53,7 @@ class PermissionCatalogView(APIView):
         grouped = defaultdict(list)
         for p in perms:
             grouped[p.module].append(p)
-        modules = [{"module": m, "permissions": PermissionModuleSerializer(grouped[m], many=True).data} for m in grouped]
+        modules = [{"module": m, "permissions": PermissionModuleSerializer({"module": m, "permissions": grouped[m]}).data["permissions"]} for m in grouped]
         return api_response(True, "OK", {"modules": modules})
 
 
@@ -106,8 +106,12 @@ class RoleViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return api_response(True, "OK", serializer.data, status=status.HTTP_201_CREATED)
+        role = serializer.save()
+        # Optional permission_codes payload; if omitted we leave the role empty.
+        codes = request.data.get("permission_codes", [])
+        if codes:
+            assign_permissions_to_role(role, codes)
+        return api_response(True, "OK", self.get_serializer(role).data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
@@ -137,7 +141,8 @@ class UserRoleView(APIView):
     permission_classes = [HasRBACPermission.with_perms(["users.update"])]
 
     def get(self, request, user_id):
-        roles = Role.objects.filter(user_roles__user_id=user_id, is_deleted=False, firm=request.user.firm)
+        firm = get_user_firm(request.user)
+        roles = Role.objects.filter(user_roles__user_id=user_id, is_deleted=False, firm=firm)
         return api_response(True, "OK", data={"role_ids": list(roles.values_list("id", flat=True))})
 
     def put(self, request, user_id):
@@ -148,6 +153,8 @@ class UserRoleView(APIView):
         target_user = get_object_or_404(request.user.__class__, id=user_id)
         target_firm = get_user_firm(target_user)
         request_firm = get_user_firm(request.user)
+        if target_firm is None:
+            target_firm = request_firm
         if getattr(target_firm, "id", None) != getattr(request_firm, "id", None):
             return api_response(False, "Validation error", errors={"detail": ["User not in your firm"]},
                                 status=status.HTTP_400_BAD_REQUEST)

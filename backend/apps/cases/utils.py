@@ -35,6 +35,9 @@ def get_user_firm(user: Any) -> Optional[Firm]:
             return Firm.objects.get(id=firm_id)
         except Firm.DoesNotExist:
             return None
+    profile = getattr(user, "profile", None)
+    if profile and getattr(profile, "firm", None):
+        return profile.firm
     owned = getattr(user, "owned_firm", None)
     if owned:
         return owned
