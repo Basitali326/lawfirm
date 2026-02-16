@@ -7,6 +7,7 @@ import { useCaseQuery, useDeleteCaseMutation, useGenerateCaseTasksMutation } fro
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useRBAC } from "@/lib/rbac";
 
 const formatDateTime = (value) => {
   if (!value) return "—";
@@ -21,6 +22,7 @@ export default function CaseDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id;
+  const { can, meLoading } = useRBAC();
   const { data, isLoading } = useCaseQuery(id);
   const deleteMutation = useDeleteCaseMutation({
     onSuccess: () => router.push("/cases"),
@@ -55,6 +57,9 @@ export default function CaseDetailPage() {
   }
 
   const caseItem = data;
+  const canEdit = !meLoading && can("cases.update");
+  const canDelete = !meLoading && can("cases.delete");
+  const canGenerate = !meLoading && can("tasks.add");
 
   return (
     <div className="space-y-5">
@@ -71,30 +76,40 @@ export default function CaseDetailPage() {
           <span>Case ID: {caseItem.id}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/cases/${id}/edit`}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
-          >
-            <Pencil className="h-4 w-4" />
-            Edit
-          </Link>
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={generateMutation.isPending || !!caseItem.tasks_generated_at}
-            className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-          >
-            {generateMutation.isPending ? "Generating..." : caseItem.tasks_generated_at ? "Tasks Generated" : "Generate Tasks"}
-          </button>
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleteMutation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete
-          </button>
+          {canEdit && (
+            <Link
+              href={`/cases/${id}/edit`}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 cursor-pointer"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Link>
+          )}
+          {canGenerate && (
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={generateMutation.isPending || !!caseItem.tasks_generated_at}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {generateMutation.isPending
+                ? "Generating..."
+                : caseItem.tasks_generated_at
+                ? "Tasks Generated"
+                : "Generate Tasks"}
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </button>
+          )}
         </div>
       </div>
 

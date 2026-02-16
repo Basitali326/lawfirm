@@ -174,8 +174,7 @@ class OpenCasesTasksView(APIView):
             qs = qs.filter(
                 Q(assigned_lead=request.user)
                 | Q(client__user=request.user)
-                | Q(cases_assigned__assigned_to=request.user)
-                | Q(cases_assigned__assigned_to__isnull=True)  # keep unassigned? optional
+                | Q(tasks__assigned_to=request.user)
             ).distinct()
 
         cases = qs.select_related("case_type", "assigned_lead", "client").order_by("-created_at")

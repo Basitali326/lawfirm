@@ -30,6 +30,7 @@ export default function EditCasePage() {
     onSuccess: () => router.push(`/cases/${id}`),
   });
   const [caseTypeSearch, setCaseTypeSearch] = useState("");
+  const [userSearch, setUserSearch] = useState("");
 
   const { data: usersData } = useQuery({
     queryKey: ["users-list"],
@@ -117,6 +118,34 @@ export default function EditCasePage() {
     }
   }, [caseItem, setValue]);
 
+  const caseTypeOptions = useMemo(() => {
+    const seen = new Set();
+    const search = caseTypeSearch.trim().toLowerCase();
+    return (caseTypesData || [])
+      .filter((ct) => {
+        if (!ct?.id || seen.has(ct.id)) return false;
+        seen.add(ct.id);
+        if (!search) return true;
+        const text = `${ct.name || ""} ${ct.code || ""}`.toLowerCase();
+        return text.includes(search);
+      })
+      .map((ct) => ({ value: ct.id, label: ct.name || ct.title || ct.code || ct.id }));
+  }, [caseTypesData, caseTypeSearch]);
+
+  const userOptions = useMemo(() => {
+    const search = userSearch.trim().toLowerCase();
+    return (usersData || [])
+      .filter((u) => {
+        if (!search) return true;
+        const text = `${u.email || ""} ${u.name || ""}`.toLowerCase();
+        return text.includes(search);
+      })
+      .map((u) => ({
+        value: u.id,
+        label: `${u.email || ""} ${u.name ? " | " + u.name : ""}`.trim(),
+      }));
+  }, [usersData, userSearch]);
+
   const onSubmit = (values) => {
     if (!id) return;
     const payload = { ...values };
@@ -160,36 +189,24 @@ export default function EditCasePage() {
               autoFocus: true,
             }}
           />
-         <Field
-            label="Case type"
-            error={errors.case_type?.message}
-          >
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={caseTypeSearch}
-                onChange={(e) => setCaseTypeSearch(e.target.value)}
-                placeholder="Search case type"
-                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-              />
-              <select
-                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-                {...register("case_type", { required: "Case type is required" })}
-                value={watch("case_type") || ""}
-                onChange={(e) => {
-                  setValue("case_type", e.target.value, { shouldValidate: true });
-                }}
-                >
-                  <option value="" disabled>
-                    {caseTypesLoading ? "Loading..." : "Select case type"}
-                  </option>
-                {(caseTypesData || []).map((ct) => (
-                  <option key={ct.id} value={ct.id}>
-                    {ct.name || ct.title || ct.code || ct.id}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <Field label="Case type" error={errors.case_type?.message}>
+            <select
+              className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+              {...register("case_type", { required: "Case type is required" })}
+              value={watch("case_type") || ""}
+              onChange={(e) => {
+                setValue("case_type", e.target.value, { shouldValidate: true });
+              }}
+            >
+              <option value="" disabled>
+                {caseTypesLoading ? "Loading..." : "Select case type"}
+              </option>
+              {caseTypeOptions.map((ct) => (
+                <option key={ct.value} value={ct.value}>
+                  {ct.label}
+                </option>
+              ))}
+            </select>
           </Field>
           <SelectField
             label="Status"
@@ -213,18 +230,21 @@ export default function EditCasePage() {
             error={errors.judge_name?.message}
             inputProps={{ ...register("judge_name"), placeholder: "Judge X" }}
           />
-          <SelectField
-            label="Assigned to"
-            error={errors.assigned_lead?.message}
-            options={[
-              { value: "", label: "Unassigned" },
-              ...(usersData || []).map((u) => ({
-                value: u.id,
-                label: u.name || u.email,
-              })),
-            ]}
-            registerProps={register("assigned_lead")}
-          />
+          <Field label="Assigned to" error={errors.assigned_lead?.message}>
+            <select
+              className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+              {...register("assigned_lead")}
+              value={watch("assigned_lead") || ""}
+              onChange={(e) => setValue("assigned_lead", e.target.value)}
+            >
+              <option value="">Unassigned</option>
+              {userOptions.map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field
             label="Open date"
             error={errors.open_date?.message}
