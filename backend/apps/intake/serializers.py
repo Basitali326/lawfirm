@@ -68,18 +68,8 @@ class IntakeUpdateSerializer(serializers.ModelSerializer):
         fields = ["status", "assigned_to", "internal_note", "is_spam"]
 
     def validate_status(self, value):
-        instance = self.instance
-        if not instance:
-            return value
-        allowed = {
-            IntakeStatus.NEW: {IntakeStatus.CONTACTED, IntakeStatus.REJECTED},
-            IntakeStatus.CONTACTED: {IntakeStatus.QUALIFIED, IntakeStatus.REJECTED},
-            IntakeStatus.QUALIFIED: {IntakeStatus.CONVERTED, IntakeStatus.REJECTED},
-            IntakeStatus.REJECTED: set(),
-            IntakeStatus.CONVERTED: set(),
-        }
-        if value == instance.status:
-            return value
-        if value not in allowed.get(instance.status, set()):
-            raise serializers.ValidationError("Invalid status transition.")
+        # Loosen transitions: allow moving to any valid status (idempotent included).
+        valid_values = {choice[0] for choice in IntakeStatus.choices}
+        if value not in valid_values:
+            raise serializers.ValidationError("Invalid status.")
         return value

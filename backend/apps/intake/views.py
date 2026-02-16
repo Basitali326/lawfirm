@@ -166,8 +166,63 @@ class IntakeConvertAPIView(APIView):
 
     def post(self, request, pk):
         instance = get_object_or_404(IntakeRequest, id=pk, is_deleted=False)
-        if instance.status != IntakeStatus.QUALIFIED:
-            return api_error("Validation error", errors={"status": ["Must be QUALIFIED to convert"]}, status_code=status.HTTP_400_BAD_REQUEST)
+        if instance.status not in {IntakeStatus.QUALIFIED, IntakeStatus.CONTACTED, IntakeStatus.NEW}:
+            return api_error("Validation error", errors={"status": ["Must be Approved/Qualified to convert"]}, status_code=status.HTTP_400_BAD_REQUEST)
+
+        full_name = request.data.get("full_name") or instance.full_name
+        email = request.data.get("email") or instance.email
+        phone = request.data.get("phone") or instance.phone
+
+        created_user_id = None
+        created_password = None
+        try:
+            from django.contrib.auth import get_user_model
+            from django.utils.crypto import get_random_string
+            from apps.authx.models import UserProfile
+            from apps.rbac.models import Role, UserRole
+
+            User = get_user_model()
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    "username": email or phone,
+                    "first_name": (full_name or "").split(" ")[0],
+                    "last_name": " ".join((full_name or "").split(" ")[1:]),
+                    "is_active": True,
+                },
+            )
+            if created:
+                # set a default login password for new clients
+                temp_password = "Abcd.@123456"
+                user.set_password(temp_password)
+                created_password = temp_password
+                user.save()
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile.role = profile.role or "CLIENT"
+            profile.firm = instance.firm
+            profile.save(update_fields=["role", "firm"])
+
+            # Ensure a CLIENT role exists in RBAC and assign it
+            client_role, _ = Role.objects.get_or_create(
+                firm=instance.firm,
+                name="Client",
+                defaults={"description": "Client role", "is_system": True},
+            )
+            UserRole.objects.get_or_create(user=user, role=client_role)
+
+            created_user_id = user.id
+        except Exception:
+            # fail silently; conversion still proceeds
+            created_user_id = None
+
         instance.status = IntakeStatus.CONVERTED
         instance.save(update_fields=["status", "updated_at"])
-        return api_success("Not implemented", data={"id": str(instance.id)}, status_code=status.HTTP_501_NOT_IMPLEMENTED)
+        return api_success(
+            "Converted",
+            data={
+                "id": str(instance.id),
+                "status": instance.status,
+                "user_id": created_user_id,
+                "temp_password": created_password,
+            },
+        )

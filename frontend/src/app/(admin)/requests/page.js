@@ -11,8 +11,6 @@ const STATUS_OPTIONS = [
   { label: "New", value: "NEW" },
   { label: "Approved", value: "QUALIFIED" },
   { label: "Rejected", value: "REJECTED" },
-  { label: "Contacted", value: "CONTACTED" },
-  { label: "Converted", value: "CONVERTED" },
 ];
 
 export default function RequestsPage() {
@@ -50,6 +48,25 @@ export default function RequestsPage() {
     } catch (err) {
       qc.invalidateQueries({ queryKey: ["intake-requests"] });
       toast.error(err?.message || "Update failed");
+    }
+  };
+
+  const handleConvert = async (row) => {
+    try {
+      await localFetch(`/api/v1/intake-requests/${row.id}/convert/`, {
+        method: "POST",
+        body: JSON.stringify({
+          full_name: row.full_name,
+          email: row.email,
+          phone: row.phone,
+        }),
+      });
+      toast.success("Converted to client");
+      updateCacheRow(row.id, { status: "CONVERTED" });
+      qc.invalidateQueries({ queryKey: ["intake-requests"] });
+      if (selected?.id === row.id) setSelected({ ...row, status: "CONVERTED" });
+    } catch (err) {
+      toast.error(err?.message || "Convert failed");
     }
   };
 
@@ -131,35 +148,42 @@ export default function RequestsPage() {
                     >
                       {row.status === "QUALIFIED" ? "APPROVED" : row.status}
                     </span>
-                    <select
-                      className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      value={row.status}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => handleUpdate(row.id, { status: e.target.value })}
-                    >
-                      {STATUS_OPTIONS.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
+                    {row.status === "QUALIFIED" && (
+                      <button
+                        className="rounded-md border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleConvert(row);
+                        }}
+                      >
+                        Convert to client
+                      </button>
+                    )}
+                    {row.status === "CONVERTED" && (
+                      <button
+                        className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 cursor-not-allowed"
+                        disabled
+                      >
+                        Converted
+                      </button>
+                    )}
                   </div>
                 </td>
                 <td className="px-3 py-2 space-x-2">
-                  <button
-                    className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelected(row);
-                    }}
-                  >
-                    View
-                  </button>
-                  <button
-                    className="rounded-md border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (!confirm("Delete this request?")) return;
+              <button
+                className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelected(row);
+                }}
+              >
+                View
+              </button>
+              <button
+                className="rounded-md border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!confirm("Delete this request?")) return;
                       try {
                         await localFetch(`/api/v1/intake-requests/${row.id}/`, { method: "DELETE" });
                         toast.success("Deleted");
@@ -230,6 +254,7 @@ export default function RequestsPage() {
                 <select
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                   value={selected.status}
+                  disabled={selected.status === "CONVERTED"}
                   onChange={(e) => {
                     const newStatus = e.target.value;
                     setSelected((s) => ({ ...s, status: newStatus }));
