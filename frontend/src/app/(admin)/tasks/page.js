@@ -11,9 +11,23 @@ import ConfirmModal from "@/components/ConfirmModal";
 import EmptyState from "@/components/EmptyState";
 import tasksReducer, { initialState, actions } from "@/lib/state/tasksReducer";
 import localFetch from "@/lib/api";
+import { useRBAC } from "@/lib/rbac";
+import useMe from "@/hooks/useMe";
 
 export default function TasksPage() {
-  const { status } = useSession();
+  const { status, data: session } = useSession();
+  const { can } = useRBAC();
+  const { data: meData } = useMe();
+  const currentUserId =
+    meData?.data?.user?.id ||
+    meData?.user?.id ||
+    session?.user?.id ||
+    session?.user?.sub ||
+    null;
+  const canAddTask = can("tasks.add");
+  const canUpdateTask = can("tasks.update");
+  const canDeleteTask = can("tasks.delete");
+  const canViewTask = can("tasks.view");
   const [state, dispatch] = useReducer(tasksReducer, initialState([]));
   const { filters, openCaseIds, addTaskForCaseId, showDetailTaskId, confirmDiscard, cases } = state;
   const queryClient = useQueryClient();
@@ -41,6 +55,16 @@ export default function TasksPage() {
       title: item.case.title,
       case_type: item.case.case_type_detail || { name: "" },
       status: item.case.status,
+      assigned_lead_id:
+        item.case.assigned_lead_detail?.id ||
+        item.case.assigned_lead?.id ||
+        item.case.assigned_lead ||
+        null,
+      client_user_id:
+        item.case.client_detail?.user_id ||
+        item.case.client_detail?.id ||
+        item.case.client ||
+        null,
       tasks: (item.tasks || []).map((t) => ({
         ...t,
         case_id: item.case.id,
@@ -55,6 +79,7 @@ export default function TasksPage() {
     queryKey: ["settings-users"],
     queryFn: () => localFetch("/api/v1/settings/users"),
     select: (res) => (Array.isArray(res) ? res : res?.data || []),
+    enabled: can("users.view"),
   });
 
   const filteredCases = useMemo(() => {
@@ -62,10 +87,20 @@ export default function TasksPage() {
     const result = cases.filter((c) => {
       const matchesSearch =
         q === "" || c.title.toLowerCase().includes(q) || (c.case_type?.name || "").toLowerCase().includes(q);
-      return matchesSearch;
+      const isMine =
+        !currentUserId ||
+        c.assigned_lead_id === currentUserId ||
+        c.tasks.some(
+          (t) =>
+            t.assigned_to?.id === currentUserId ||
+            t.assigned_to === currentUserId ||
+            t.assigned_to_detail?.id === currentUserId
+        );
+      const isClientOwner = c.client_user_id && currentUserId && String(c.client_user_id) === String(currentUserId);
+      return matchesSearch && (isMine || isClientOwner);
     });
     return result;
-  }, [cases, filters.search]);
+  }, [cases, filters.search, currentUserId]);
 
   const handleCreateTask = (caseId, task, note) => {
     createTaskMutation.mutate({ caseId, task, note });
@@ -163,6 +198,10 @@ export default function TasksPage() {
           onOpenDetail={(taskId) => dispatch({ type: actions.OPEN_TASK_DETAIL, payload: taskId })}
           onStatusChange={handleUpdateStatus}
           onDeleteTask={handleDeleteTask}
+          canAddTask={canAddTask}
+          canUpdateTask={canUpdateTask}
+          canDeleteTask={canDeleteTask}
+          canViewTask={canViewTask}
         />
       )}
 

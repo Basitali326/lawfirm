@@ -174,12 +174,15 @@ class IntakeConvertAPIView(APIView):
         phone = request.data.get("phone") or instance.phone
 
         created_user_id = None
+        created_case_id = None
         created_password = None
         try:
             from django.contrib.auth import get_user_model
             from django.utils.crypto import get_random_string
             from apps.authx.models import UserProfile
             from apps.rbac.models import Role, UserRole
+            from apps.cases.models import Case, ClientProfile, CasePriority, CaseStatus, FirmCaseCounter
+            from apps.casetypes.models import CaseType
 
             User = get_user_model()
             user, created = User.objects.get_or_create(
@@ -211,9 +214,50 @@ class IntakeConvertAPIView(APIView):
             UserRole.objects.get_or_create(user=user, role=client_role)
 
             created_user_id = user.id
+
+            # Create or fetch ClientProfile
+            client_profile, _ = ClientProfile.objects.get_or_create(
+                firm=instance.firm,
+                user=user,
+                defaults={"name": full_name or email or phone or "Client"},
+            )
+
+            # Determine case type if provided
+            case_type_obj = None
+            if instance.case_type:
+                case_type_obj = CaseType.objects.filter(code__iexact=instance.case_type).first()
+                if not case_type_obj:
+                    case_type_obj = CaseType.objects.filter(name__iexact=instance.case_type).first()
+
+            # Generate a case number per firm
+            counter, _ = FirmCaseCounter.objects.get_or_create(firm=instance.firm)
+            case_number = f"INT-{counter.next_number:04d}"
+            counter.next_number += 1
+            counter.save(update_fields=["next_number", "updated_at"])
+
+            created_by_user = request.user if request.user and request.user.is_authenticated else user
+            assigned_lead_user = instance.assigned_to or request.user if request.user.is_authenticated else None
+
+            case = Case.objects.create(
+                firm=instance.firm,
+                client=client_profile,
+                title=instance.case_type or instance.full_name or "New Intake Case",
+                case_type=case_type_obj,
+                case_number=case_number,
+                status=CaseStatus.OPEN,
+                priority=CasePriority.MEDIUM,
+                description=instance.message,
+                court_name="",
+                judge_name="",
+                open_date=instance.created_at.date(),
+                assigned_lead=assigned_lead_user,
+                created_by=created_by_user,
+            )
+            created_case_id = case.id
         except Exception:
             # fail silently; conversion still proceeds
             created_user_id = None
+            created_case_id = None
 
         instance.status = IntakeStatus.CONVERTED
         instance.save(update_fields=["status", "updated_at"])
@@ -223,6 +267,7 @@ class IntakeConvertAPIView(APIView):
                 "id": str(instance.id),
                 "status": instance.status,
                 "user_id": created_user_id,
+                "case_id": created_case_id,
                 "temp_password": created_password,
             },
         )

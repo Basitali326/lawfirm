@@ -28,6 +28,7 @@ import { useAppSelector } from "@/hooks/useAppSelector";
 import { toggleSidebar } from "@/store/uiSlice";
 import { navItems as baseNavItems } from "@/components/admin/navConfig";
 import { useRBAC } from "@/lib/rbac";
+import useMe from "@/hooks/useMe";
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
@@ -64,9 +65,18 @@ const accountItems = [{ label: "Logout", href: "/login", icon: LogOut }];
 export default function AdminSidebar() {
   const pathname = usePathname();
   const { can } = useRBAC();
+  const { data: meData } = useMe();
   const dispatch = useAppDispatch();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const primaryRole = meData?.data?.user?.role || meData?.user?.role || "";
+  const rbacRoles = meData?.data?.roles || meData?.roles || [];
+  const isOwnerOrSuper =
+    primaryRole === "FIRM_OWNER" ||
+    primaryRole === "OWNER" ||
+    primaryRole === "SUPER_ADMIN" ||
+    rbacRoles.some((r) => ["firm owner", "firm admin", "super admin"].includes(String(r).toLowerCase()));
 
   const rootItems = navItems.filter((i) => !i.parent);
   const settingsChildren = navItems.filter((i) => i.parent === "/settings");
@@ -100,7 +110,10 @@ export default function AdminSidebar() {
 
       <nav className="flex-1 space-y-1 px-3">
         {rootItems
-          .filter((item) => !item.perm || can(item.perm))
+          .filter((item) => {
+            if (item.href === "/trash") return isOwnerOrSuper;
+            return !item.perm || can(item.perm);
+          })
           .map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);

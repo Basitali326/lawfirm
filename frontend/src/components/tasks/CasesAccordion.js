@@ -8,6 +8,10 @@ export default function CasesAccordion({
   onOpenDetail,
   onStatusChange,
   onDeleteTask,
+  canAddTask,
+  canUpdateTask,
+  canDeleteTask,
+  canViewTask,
 }) {
   return (
     <div className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -21,6 +25,10 @@ export default function CasesAccordion({
           onOpenDetail={onOpenDetail}
           onStatusChange={onStatusChange}
           onDeleteTask={onDeleteTask}
+          canAddTask={canAddTask}
+          canUpdateTask={canUpdateTask}
+          canDeleteTask={canDeleteTask}
+          canViewTask={canViewTask}
         />
       ))}
     </div>

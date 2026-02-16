@@ -166,11 +166,19 @@ class OpenCasesTasksView(APIView):
         if not firm_id:
             return api_error("User firm not set", status_code=status.HTTP_400_BAD_REQUEST)
 
-        cases = (
-            Case.objects.filter(firm_id=firm_id, status=CaseStatus.OPEN, is_deleted=False)
-            .select_related("case_type", "assigned_lead", "client")
-            .order_by("-created_at")
-        )
+        qs = Case.objects.filter(firm_id=firm_id, status=CaseStatus.OPEN, is_deleted=False)
+        profile = getattr(request.user, "profile", None)
+        role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").upper()
+        # Non owners see only their cases/tasks
+        if role not in {"SUPER_ADMIN", "FIRM_OWNER", "OWNER"} and not getattr(request.user, "owned_firm", None):
+            qs = qs.filter(
+                Q(assigned_lead=request.user)
+                | Q(client__user=request.user)
+                | Q(cases_assigned__assigned_to=request.user)
+                | Q(cases_assigned__assigned_to__isnull=True)  # keep unassigned? optional
+            ).distinct()
+
+        cases = qs.select_related("case_type", "assigned_lead", "client").order_by("-created_at")
         case_ids = [c.id for c in cases]
         tasks = (
             CaseTask.objects.filter(case_id__in=case_ids, is_deleted=False)

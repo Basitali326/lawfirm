@@ -1,6 +1,16 @@
 import { PriorityBadge, StatusBadge, DueBadge } from "./TaskBadges";
 
-export default function TasksTable({ tasks, onView, onStatusChange, onDelete, onOpenAddTask }) {
+export default function TasksTable({
+  tasks,
+  onView,
+  onStatusChange,
+  onDelete,
+  onOpenAddTask,
+  canAddTask,
+  canUpdateTask,
+  canDeleteTask,
+  canViewTask,
+}) {
   const openTasks = tasks.filter((t) => t.status !== "DONE");
   const doneTasks = tasks.filter((t) => t.status === "DONE");
 
@@ -9,29 +19,49 @@ export default function TasksTable({ tasks, onView, onStatusChange, onDelete, on
       {tasks.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
           <p className="text-sm text-slate-600">No tasks for this case.</p>
-          <button
-            className="mt-3 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-            onClick={onOpenAddTask}
-          >
-            Add Task
-          </button>
+          {canAddTask && (
+            <button
+              className="mt-3 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+              onClick={onOpenAddTask}
+            >
+              Add Task
+            </button>
+          )}
         </div>
       ) : (
         <>
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-slate-700">Open Tasks</div>
-            <button
-              className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-              onClick={onOpenAddTask}
-            >
-              Add Task
-            </button>
+            {canAddTask && (
+              <button
+                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                onClick={onOpenAddTask}
+              >
+                Add Task
+              </button>
+            )}
           </div>
-          <TableSection tasks={openTasks} onView={onView} onStatusChange={onStatusChange} onDelete={onDelete} />
+          <TableSection
+            tasks={openTasks}
+            onView={onView}
+            onStatusChange={onStatusChange}
+            onDelete={onDelete}
+            canUpdateTask={canUpdateTask}
+            canDeleteTask={canDeleteTask}
+            canViewTask={canViewTask}
+          />
           {doneTasks.length > 0 && (
             <>
               <div className="text-sm font-semibold text-slate-700">Done</div>
-              <TableSection tasks={doneTasks} onView={onView} onStatusChange={onStatusChange} onDelete={onDelete} />
+              <TableSection
+                tasks={doneTasks}
+                onView={onView}
+                onStatusChange={onStatusChange}
+                onDelete={onDelete}
+                canUpdateTask={canUpdateTask}
+                canDeleteTask={canDeleteTask}
+                canViewTask={canViewTask}
+              />
             </>
           )}
         </>
@@ -40,7 +70,7 @@ export default function TasksTable({ tasks, onView, onStatusChange, onDelete, on
   );
 }
 
-function TableSection({ tasks, onView, onStatusChange, onDelete }) {
+function TableSection({ tasks, onView, onStatusChange, onDelete, canUpdateTask, canDeleteTask, canViewTask }) {
   if (!tasks.length) return <div className="text-xs text-slate-500">None</div>;
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -73,18 +103,22 @@ function TableSection({ tasks, onView, onStatusChange, onDelete }) {
                 <button
                   className="rounded-md border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   onClick={() => onView(t.id)}
+                  disabled={!canViewTask}
                 >
                   View
                 </button>
-                <button
-                  className="rounded-md border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-                  onClick={() => onDelete && onDelete(t.id)}
-                >
-                  Delete
-                </button>
+                {canDeleteTask && (
+                  <button
+                    className="rounded-md border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                    onClick={() => onDelete && onDelete(t.id)}
+                  >
+                    Delete
+                  </button>
+                )}
                 <select
                   className="rounded-md border border-slate-200 px-2 py-1 text-xs"
                   value={t.status}
+                  disabled={!canUpdateTask}
                   onChange={(e) => onStatusChange(t.id, e.target.value)}
                 >
                   {["TODO", "IN_PROGRESS", "DONE", "BLOCKED"].map((s) => (
