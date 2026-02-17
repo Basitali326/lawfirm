@@ -166,7 +166,11 @@ class OpenCasesTasksView(APIView):
         if not firm_id:
             return api_error("User firm not set", status_code=status.HTTP_400_BAD_REQUEST)
 
-        qs = Case.objects.filter(firm_id=firm_id, status=CaseStatus.OPEN, is_deleted=False)
+        qs = Case.objects.filter(
+            firm_id=firm_id,
+            status__in=[CaseStatus.OPEN, CaseStatus.PENDING_PAYMENT],
+            is_deleted=False,
+        )
         profile = getattr(request.user, "profile", None)
         role_raw = getattr(request.user, "role", "") or getattr(profile, "role", "") or ""
         role = role_raw.replace(" ", "_").replace("-", "_").upper()

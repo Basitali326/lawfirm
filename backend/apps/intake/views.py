@@ -1,4 +1,6 @@
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.db import transaction
 from rest_framework import status, mixins, viewsets
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -229,11 +231,20 @@ class IntakeConvertAPIView(APIView):
                 if not case_type_obj:
                     case_type_obj = CaseType.objects.filter(name__iexact=instance.case_type).first()
 
-            # Generate a case number per firm
-            counter, _ = FirmCaseCounter.objects.get_or_create(firm=instance.firm)
-            case_number = f"INT-{counter.next_number:04d}"
-            counter.next_number += 1
-            counter.save(update_fields=["next_number", "updated_at"])
+            # Generate a case number per firm using the standard sequence (CIA-YYYY-###)
+            prefix = f"CIA-{timezone.localdate().year}-"
+            with transaction.atomic():
+                counter, _ = FirmCaseCounter.objects.select_for_update().get_or_create(firm=instance.firm)
+                while True:
+                    num = counter.next_number
+                    candidate = f"{prefix}{num:03d}"
+                    if not Case.objects.filter(firm=instance.firm, case_number=candidate).exists():
+                        case_number = candidate
+                        counter.next_number = num + 1
+                        counter.save(update_fields=["next_number", "updated_at"])
+                        break
+                    counter.next_number = num + 1
+                    counter.save(update_fields=["next_number", "updated_at"])
 
             created_by_user = request.user if request.user and request.user.is_authenticated else user
             assigned_lead_user = instance.assigned_to or request.user if request.user.is_authenticated else None

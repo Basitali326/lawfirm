@@ -10,6 +10,7 @@ import { toast } from "sonner";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 const STATUS_OPTIONS = [
+  { value: "PENDING_PAYMENT", label: "Pending payment" },
   { value: "OPEN", label: "Open" },
   { value: "HOLD", label: "On hold" },
   { value: "CLOSED", label: "Closed" },
@@ -85,7 +86,7 @@ export default function AddCasePage() {
       () => ({
         title: "",
         case_type: "",
-        status: "OPEN",
+        status: "PENDING_PAYMENT",
         priority: "MEDIUM",
         description: "",
         court_name: "",

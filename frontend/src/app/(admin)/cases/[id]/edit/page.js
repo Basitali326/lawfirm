@@ -8,6 +8,7 @@ import { useCaseQuery, useUpdateCaseMutation } from "@/features/cases/cases.hook
 import { toast } from "sonner";
 
 const STATUS_OPTIONS = [
+  { value: "PENDING_PAYMENT", label: "Pending payment" },
   { value: "OPEN", label: "Open" },
   { value: "HOLD", label: "On hold" },
   { value: "CLOSED", label: "Closed" },

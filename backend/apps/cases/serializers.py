@@ -156,7 +156,7 @@ class CaseSerializer(serializers.ModelSerializer):
         attrs["client"] = self._resolve_client(firm, client_id)
         attrs["assigned_lead"] = self._resolve_assigned_lead(firm, lead_id)
 
-        status_val = attrs.get("status") or CaseStatus.OPEN
+        status_val = attrs.get("status") or CaseStatus.PENDING_PAYMENT
         if status_val == CaseStatus.CLOSED and not attrs.get("close_date"):
             attrs["close_date"] = timezone.localdate()
 

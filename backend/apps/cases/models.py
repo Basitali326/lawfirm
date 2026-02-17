@@ -22,6 +22,7 @@ class ClientProfile(models.Model):
 
 
 class CaseStatus(models.TextChoices):
+    PENDING_PAYMENT = "PENDING_PAYMENT", "Pending payment"
     OPEN = "OPEN", "Open"
     HOLD = "HOLD", "Hold"
     CLOSED = "CLOSED", "Closed"
@@ -47,7 +48,7 @@ class Case(models.Model):
         related_name="cases",
     )
     case_number = models.CharField(max_length=255, null=True, blank=True)
-    status = models.CharField(max_length=10, choices=CaseStatus.choices, default=CaseStatus.OPEN)
+    status = models.CharField(max_length=18, choices=CaseStatus.choices, default=CaseStatus.PENDING_PAYMENT)
     priority = models.CharField(max_length=10, choices=CasePriority.choices, default=CasePriority.MEDIUM)
     description = models.TextField(null=True, blank=True)
     court_name = models.CharField(max_length=255, null=True, blank=True)
