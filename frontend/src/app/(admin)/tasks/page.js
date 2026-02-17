@@ -16,7 +16,7 @@ import useMe from "@/hooks/useMe";
 
 export default function TasksPage() {
   const { status, data: session } = useSession();
-  const { can } = useRBAC();
+  const { can, roles } = useRBAC();
   const { data: meData } = useMe();
   const currentUserId =
     meData?.data?.user?.id ||
@@ -24,6 +24,10 @@ export default function TasksPage() {
     session?.user?.id ||
     session?.user?.sub ||
     null;
+  const isAdmin =
+    (roles || [])
+      .map((r) => (r || "").toString().toUpperCase().replace(/\s|-/g, "_"))
+      .some((r) => ["FIRM_ADMIN", "FIRM_OWNER", "OWNER", "SUPER_ADMIN"].includes(r)) || can("cases.export");
   const canAddTask = can("tasks.add");
   const canUpdateTask = can("tasks.update");
   const canDeleteTask = can("tasks.delete");
@@ -87,6 +91,7 @@ export default function TasksPage() {
     const result = cases.filter((c) => {
       const matchesSearch =
         q === "" || c.title.toLowerCase().includes(q) || (c.case_type?.name || "").toLowerCase().includes(q);
+      if (isAdmin) return matchesSearch;
       const isMine =
         !currentUserId ||
         c.assigned_lead_id === currentUserId ||
@@ -100,7 +105,7 @@ export default function TasksPage() {
       return matchesSearch && (isMine || isClientOwner);
     });
     return result;
-  }, [cases, filters.search, currentUserId]);
+  }, [cases, filters.search, currentUserId, isAdmin]);
 
   const handleCreateTask = (caseId, task, note) => {
     createTaskMutation.mutate({ caseId, task, note });

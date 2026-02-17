@@ -168,9 +168,21 @@ class OpenCasesTasksView(APIView):
 
         qs = Case.objects.filter(firm_id=firm_id, status=CaseStatus.OPEN, is_deleted=False)
         profile = getattr(request.user, "profile", None)
-        role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").upper()
-        # Non owners see only their cases/tasks
-        if role not in {"SUPER_ADMIN", "FIRM_OWNER", "OWNER"} and not getattr(request.user, "owned_firm", None):
+        role_raw = getattr(request.user, "role", "") or getattr(profile, "role", "") or ""
+        role = role_raw.replace(" ", "_").replace("-", "_").upper()
+        # consider m2m roles
+        roles_rel = getattr(request.user, "roles", None)
+        role_names = {role}
+        if roles_rel:
+            for r in roles_rel.all():
+                name = (getattr(r, "name", "") or "").replace(" ", "_").replace("-", "_").upper()
+                if name:
+                    role_names.add(name)
+
+        # Non admins see only their cases/tasks
+        if role_names.isdisjoint({"SUPER_ADMIN", "FIRM_OWNER", "OWNER", "FIRM_ADMIN"}) and not getattr(
+            request.user, "owned_firm", None
+        ):
             qs = qs.filter(
                 Q(assigned_lead=request.user)
                 | Q(client__user=request.user)

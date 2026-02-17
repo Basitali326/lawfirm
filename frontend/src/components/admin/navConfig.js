@@ -1,6 +1,5 @@
 export const navItems = [
   { label: "Dashboard", href: "/dashboard", perm: null },
-  { label: "Clients", href: "/clients", perm: "clients.view" },
   { label: "Cases", href: "/cases", perm: "cases.view" },
   { label: "Tasks", href: "/tasks", perm: "tasks.view" },
   { label: "Requests", href: "/requests", perm: "intake.view" },
