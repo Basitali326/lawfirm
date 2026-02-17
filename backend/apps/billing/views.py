@@ -26,7 +26,20 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         firm_id = getattr(user, "firm_id", None) or getattr(getattr(user, "profile", None), "firm_id", None)
-        qs = Invoice.objects.filter(firm_id=firm_id, is_deleted=False)
+        base_qs = Invoice.objects.filter(firm_id=firm_id, is_deleted=False)
+
+        role_upper = (getattr(user, "role", "") or "").upper()
+        is_admin = role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"} or getattr(user, "is_superuser", False)
+        client_profile = getattr(user, "client_profile", None)
+
+        if not is_admin:
+            # client or non-admin staff: limit strictly to their own client profile
+            if client_profile:
+                base_qs = base_qs.filter(client=client_profile)
+            else:
+                return Invoice.objects.none()
+
+        qs = base_qs
         status_val = self.request.query_params.get("status")
         if status_val:
             qs = qs.filter(status=status_val)
@@ -57,6 +70,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = get_object_or_404(self.get_queryset(), id=kwargs.get("pk"))
+        role_upper = (getattr(request.user, "role", "") or "").upper()
+        is_admin = role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"} or getattr(request.user, "is_superuser", False)
+        if not is_admin:
+            if not instance.client or getattr(instance.client, "user_id", None) != request.user.id:
+                return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
         serializer = InvoiceDetailSerializer(instance)
         return api_success("OK", data=serializer.data)
 

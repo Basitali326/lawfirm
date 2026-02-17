@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'apps.intake',
     'apps.rbac',
     'apps.billing',
+    'apps.sessionsx',
 ]
 
 MIDDLEWARE = [

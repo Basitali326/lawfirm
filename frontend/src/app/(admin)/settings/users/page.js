@@ -54,6 +54,22 @@ const normalizeId = (value) => {
   return str;
 };
 
+const dedupRoles = (roles = []) => {
+  const seen = new Set();
+  const clean = [];
+  roles.forEach((r) => {
+    if (!r) return;
+    const key = String(r).trim().toUpperCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    clean.push(key);
+  });
+  return clean;
+};
+
+const presentRoles = (roles = []) =>
+  roles.map((r) => r.charAt(0) + r.slice(1).toLowerCase());
+
 const confirmWithToast = (message, actionLabel = "Confirm") =>
   new Promise((resolve) => {
     const t = toast(message, {
@@ -122,8 +138,8 @@ export default function UsersPage() {
           id: normalizeId(u.id),
           name: u.name || "—",
           email: u.email,
-          roles: u.roles || [],
-          role: u.role || (u.roles && u.roles[0]) || "—",
+          roles: dedupRoles(u.roles || (u.role ? [u.role] : [])),
+          role: (u.role || (u.roles && u.roles[0]) || "—").toUpperCase(),
           status: "ACTIVE",
           created_at: u.created_at || u.date_joined,
         }))
@@ -160,7 +176,9 @@ export default function UsersPage() {
       key: "roles",
       header: "Roles",
       render: (row) =>
-        row.roles && row.roles.length ? row.roles.join(", ") : row.role || "—",
+        row.roles && row.roles.length
+          ? presentRoles(row.roles).join(", ")
+          : row.role || "—",
     },
     {
       key: "created_at",

@@ -13,10 +13,33 @@ import { loginSchema } from "@/lib/schemas/auth";
 import { login } from "@/lib/auth";
 import { USE_NEXTAUTH } from "@/lib/config";
 import { mapFieldErrors, normalizeError } from "@/lib/errors";
+import { ensureDeviceId } from "@/lib/device";
 import AppButton from "@/components/AppButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const parseErrorParam = (errorParam) => {
+  if (!errorParam) return "";
+  try {
+    const decoded = decodeURIComponent(errorParam);
+    const parsed = JSON.parse(decoded);
+    if (parsed.message) return parsed.message;
+    if (parsed.detail) return parsed.detail;
+    if (parsed.errors) {
+      const first = Object.values(parsed.errors)[0];
+      if (Array.isArray(first)) return first.join(" ");
+      return String(first);
+    }
+    return decoded;
+  } catch {
+    try {
+      return decodeURIComponent(errorParam);
+    } catch {
+      return errorParam;
+    }
+  }
+};
 
 export default function LoginForm() {
   const router = useRouter();
@@ -40,16 +63,16 @@ export default function LoginForm() {
   const errorMessage =
     errorParam === "CredentialsSignin"
       ? "Invalid email or password."
-      : errorParam
-        ? decodeURIComponent(errorParam)
-        : "";
+      : parseErrorParam(errorParam);
 
   const onSubmit = async (values) => {
     try {
       setFormError("");
       if (USE_NEXTAUTH) {
+        const deviceId = ensureDeviceId();
         const result = await signIn("credentials", {
           ...values,
+          device_id: deviceId,
           callbackUrl: "/admin",
           redirect: false,
         });

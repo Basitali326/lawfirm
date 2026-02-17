@@ -22,7 +22,10 @@ export const authOptions = {
       async authorize(credentials) {
         const response = await fetch(`${API_BASE_URL}${endpoints.login}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(credentials?.device_id ? { "X-Device-Id": credentials.device_id } : {}),
+          },
           body: JSON.stringify({
             email: credentials?.email,
             password: credentials?.password,
@@ -64,6 +67,7 @@ export const authOptions = {
           role: data?.role,
           firm: data?.firm,
           is_superadmin: user.is_superadmin || false,
+          device_id: credentials?.device_id || null,
         };
       },
     }),
@@ -78,6 +82,7 @@ export const authOptions = {
         token.role = user.role;
         token.firm = user.firm;
         token.is_superadmin = user.is_superadmin;
+        token.device_id = user.device_id || token.device_id || null;
         token.error = null;
         return token;
       }
@@ -121,7 +126,10 @@ async function refreshAccessToken(token) {
   try {
     const res = await fetch(`${API_BASE_URL}${endpoints.refresh}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token.device_id ? { "X-Device-Id": token.device_id } : {}),
+      },
       credentials: "include",
       body: JSON.stringify(token.refresh ? { refresh: token.refresh } : {}),
     });
