@@ -382,3 +382,25 @@ class GenerateTasksAPIView(APIView):
                 "reason": result.get("reason"),
             },
         )
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from core.responses import api_success
+from .models import ClientProfile
+
+
+class ClientListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        firm_id = getattr(request.user, "firm_id", None) or getattr(getattr(request.user, "profile", None), "firm_id", None)
+        qs = ClientProfile.objects.filter(firm_id=firm_id)
+        data = [
+            {
+                "id": str(c.id),
+                "name": c.name,
+                "email": getattr(getattr(c, "user", None), "email", None),
+            }
+            for c in qs
+        ]
+        return api_success("OK", data=data)

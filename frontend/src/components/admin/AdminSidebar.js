@@ -38,7 +38,7 @@ const iconMap = {
   "/requests": FileText,
   "/documents": FileText,
   "/calendar": CalendarDays,
-  "/billing": CreditCard,
+  "/invoices": CreditCard,
   "/reports": BarChart3,
   "/audit-logs": ShieldCheck,
   "/trash": Trash2,
