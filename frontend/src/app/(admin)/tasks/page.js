@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -107,6 +107,78 @@ export default function TasksPage() {
     return result;
   }, [cases, filters.search, currentUserId, isAdmin]);
 
+  // All tasks across filtered cases (for left list)
+  const allTasks = useMemo(() => {
+    const list = [];
+    filteredCases.forEach((c) => {
+      (c.tasks || []).forEach((t) => {
+        list.push({
+          ...t,
+          case_title: c.title,
+          case_id: c.id,
+          case_type: c.case_type?.name || "",
+        });
+      });
+    });
+    return list;
+  }, [filteredCases]);
+
+  const [selectedCaseId, setSelectedCaseId] = useState(null);
+
+  useEffect(() => {
+    if (!selectedCaseId && filteredCases.length > 0) {
+      setSelectedCaseId(filteredCases[0].id);
+    }
+    if (selectedCaseId && !filteredCases.find((c) => c.id === selectedCaseId)) {
+      setSelectedCaseId(filteredCases[0]?.id || null);
+    }
+  }, [filteredCases, selectedCaseId]);
+
+  const selectedCase = useMemo(
+    () => filteredCases.find((c) => c.id === selectedCaseId) || filteredCases[0],
+    [filteredCases, selectedCaseId]
+  );
+
+  const caseTasks = useMemo(() => {
+    if (!selectedCase) return [];
+    return (selectedCase.tasks || []).map((t) => ({
+      ...t,
+      case_title: selectedCase.title,
+      case_id: selectedCase.id,
+      case_type: selectedCase.case_type?.name || "",
+    }));
+  }, [selectedCase]);
+
+  const filteredTasks = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
+    return allTasks.filter(
+      (t) =>
+        q === "" ||
+        t.title?.toLowerCase().includes(q) ||
+        t.case_title?.toLowerCase().includes(q) ||
+        t.case_type?.toLowerCase().includes(q)
+    );
+  }, [allTasks, filters.search]);
+
+  const statusColumns = useMemo(() => {
+    const baseOrder = ["TODO", "IN_PROGRESS", "BLOCKED", "DONE"];
+    const extras = [...new Set((caseTasks || []).map((t) => t.status).filter(Boolean))]
+      .filter((s) => !baseOrder.includes(s));
+    return baseOrder.concat(extras);
+  }, [caseTasks]);
+
+  const onDragStart = (e, taskId) => {
+    e.dataTransfer.setData("text/plain", taskId);
+  };
+
+  const onDropStatus = (status) => (e) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("text/plain");
+    if (taskId) handleUpdateStatus(taskId, status);
+  };
+
+  const onDragOver = (e) => e.preventDefault();
+
   const handleCreateTask = (caseId, task, note) => {
     createTaskMutation.mutate({ caseId, task, note });
   };
@@ -117,6 +189,10 @@ export default function TasksPage() {
 
   const handleAddNote = (taskId, noteBody) => {
     addNoteMutation.mutate({ taskId, noteBody });
+  };
+
+  const handleSaveTask = (taskId, payload) => {
+    updateTaskMutation.mutate({ taskId, data: payload });
   };
 
   const handleDeleteTask = (taskId) => {
@@ -157,6 +233,17 @@ export default function TasksPage() {
     onError: (err) => toast.error(err?.message || "Failed to update task"),
   });
 
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ taskId, data }) =>
+      localFetch(`/api/v1/tasks/${taskId}/`, { method: "PATCH", body: JSON.stringify(data) }),
+    onSuccess: () => {
+      toast.success("Task updated");
+      queryClient.invalidateQueries({ queryKey: ["tasks-open-cases"] });
+    },
+    onError: (err) => toast.error(err?.message || "Failed to update task"),
+  });
+
+
   const addNoteMutation = useMutation({
     mutationFn: ({ taskId, noteBody }) =>
       localFetch(`/api/v1/tasks/${taskId}/notes/`, { method: "POST", body: JSON.stringify({ body: noteBody }) }),
@@ -176,38 +263,167 @@ export default function TasksPage() {
     onError: (err) => toast.error(err?.message || "Failed to delete task"),
   });
 
+  const statusTone = {
+    TODO: "bg-slate-100 text-slate-700",
+    IN_PROGRESS: "bg-amber-100 text-amber-800",
+    BLOCKED: "bg-rose-100 text-rose-800",
+    DONE: "bg-emerald-100 text-emerald-800",
+  };
+
+  const priorityTone = {
+    URGENT: "bg-rose-100 text-rose-700",
+    HIGH: "bg-amber-100 text-amber-800",
+    MEDIUM: "bg-blue-100 text-blue-700",
+    LOW: "bg-slate-100 text-slate-700",
+  };
+
   return (
     <div className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Open Cases Tasks</h1>
-        <p className="text-sm text-slate-500">Manage tasks per open case. Data is mocked for now.</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Tasks</h1>
+          <p className="text-sm text-slate-500">All tasks at a glance with Kanban.</p>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <input
-          className="w-64 rounded-md border border-slate-200 px-3 py-2 text-sm"
-          placeholder="Search cases"
+          className="w-72 rounded-md border border-slate-200 px-3 py-2 text-sm"
+          placeholder="Search tasks or cases"
           value={filters.search}
           onChange={(e) => dispatch({ type: actions.SET_FILTERS, payload: { search: e.target.value } })}
         />
+        <div className="text-sm text-slate-500">
+          {filteredTasks.length} tasks • {filteredCases.length} cases
+        </div>
       </div>
 
-      {filteredCases.length === 0 ? (
-        <EmptyState title="No open cases found" description="Adjust search or add cases." />
+      {filteredTasks.length === 0 ? (
+        <EmptyState title="No tasks found" description="Try adjusting search or create a new task." />
       ) : (
-        <CasesAccordion
-          cases={filteredCases}
-          openCaseIds={openCaseIds}
-          onToggle={(id) => dispatch({ type: actions.TOGGLE_CASE_OPEN, payload: id })}
-          onOpenAddTask={(id) => dispatch({ type: actions.OPEN_ADD_TASK, payload: id })}
-          onOpenDetail={(taskId) => dispatch({ type: actions.OPEN_TASK_DETAIL, payload: taskId })}
-          onStatusChange={handleUpdateStatus}
-          onDeleteTask={handleDeleteTask}
-          canAddTask={canAddTask}
-          canUpdateTask={canUpdateTask}
-          canDeleteTask={canDeleteTask}
-          canViewTask={canViewTask}
-        />
+        <div className="grid gap-4 lg:grid-cols-[20%_1fr] min-h-[70vh]">
+          {/* Left: cases list (select case to view tasks) */}
+          <div className="flex min-h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3 font-semibold text-slate-800">Open cases</div>
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+              {filteredCases.map((c) => {
+                const taskCount = c.tasks?.length || 0;
+                return (
+                  <button
+                    key={c.id}
+                    className={`group w-full text-left px-4 py-3 transition ${
+                      c.id === selectedCaseId
+                        ? "bg-slate-200 border-l-4 border-slate-900"
+                        : "hover:bg-slate-50"
+                    }`}
+                    onClick={() => setSelectedCaseId(c.id)}
+                  >
+                    <div className="font-semibold text-slate-900">{c.title}</div>
+                    <div className="text-xs text-slate-500 flex items-center justify-between">
+                      <span>{c.case_type?.name || "—"}</span>
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700">
+                        {taskCount} tasks
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right: Kanban fills remaining space */}
+          <div className="flex min-h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2">
+              <h3 className="font-semibold text-slate-900">
+                Board{selectedCase ? ` · ${selectedCase.title}` : ""}
+              </h3>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {statusColumns.map((col) => (
+                <div
+                  key={col}
+                  className="flex h-full flex-col rounded-lg border border-slate-200 bg-slate-50"
+                  onDragOver={onDragOver}
+                  onDrop={onDropStatus(col)}
+                >
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          col === "DONE"
+                            ? "bg-emerald-500"
+                            : col === "IN_PROGRESS"
+                              ? "bg-amber-500"
+                              : col === "BLOCKED"
+                                ? "bg-rose-500"
+                              : "bg-slate-400"
+                        }`}
+                      />
+                      <span className="text-sm font-semibold text-slate-800">
+                        {col} ({(caseTasks || []).filter((t) => t.status === col).length})
+                      </span>
+                    </div>
+                    {col === "TODO" && canAddTask && selectedCase && (
+                      <button
+                        onClick={() => dispatch({ type: actions.OPEN_ADD_TASK, payload: selectedCase.id })}
+                        className="rounded-md bg-slate-900 px-2 py-1 text-[11px] font-semibold text-white cursor-pointer"
+                      >
+                        + Task
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2 overflow-y-auto px-3 pb-3">
+                    {(caseTasks || []).filter((t) => t.status === col).length === 0 ? (
+                      <div className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-center text-xs text-slate-400">
+                        Drag here
+                      </div>
+                    ) : (
+                      (caseTasks || [])
+                        .filter((t) => t.status === col)
+                        .map((t) => (
+                          <div
+                            key={t.id}
+                            draggable
+                            onDragStart={(e) => onDragStart(e, t.id)}
+                            className="group relative cursor-move rounded-md border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                          >
+                            <button
+                              className="absolute right-2 top-2 inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm opacity-0 transition group-hover:opacity-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                dispatch({ type: actions.OPEN_TASK_DETAIL, payload: t.id });
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <div
+                              className="text-sm font-semibold text-slate-900"
+                              onDoubleClick={() => dispatch({ type: actions.OPEN_TASK_DETAIL, payload: t.id })}
+                            >
+                              {t.title}
+                            </div>
+                            <div className="text-xs text-slate-500">{t.case_title}</div>
+                            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                              <span
+                                className={`rounded-full px-2 py-1 ${
+                                  priorityTone[t.priority] || "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {t.priority || "—"}
+                              </span>
+                              <span className="font-semibold text-slate-600">
+                                {t.due_date || "—"}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       <AddTaskDrawer
@@ -230,6 +446,8 @@ export default function TasksPage() {
         onClose={() => dispatch({ type: actions.CLOSE_TASK_DETAIL })}
         onAddNote={handleAddNote}
         onStatusChange={handleUpdateStatus}
+        onSave={handleSaveTask}
+        saving={updateTaskMutation.isPending}
       />
 
       <ConfirmModal
