@@ -99,6 +99,10 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
   const extractData = (body) => {
     if (body && typeof body === "object" && body !== null) {
       if (Object.prototype.hasOwnProperty.call(body, "data")) {
+        // preserve meta when present
+        if (Object.prototype.hasOwnProperty.call(body, "meta")) {
+          return { data: body.data, meta: body.meta, success: body.success, message: body.message };
+        }
         return body.data;
       }
       if (Object.prototype.hasOwnProperty.call(body, "error")) {

@@ -20,6 +20,7 @@ import {
   Trash2,
   User2,
   ShieldCheck,
+  MessageSquare,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const iconMap = {
   "/clients": Users,
   "/cases": Briefcase,
   "/tasks": CheckSquare,
+  "/messages": MessageSquare,
   "/requests": FileText,
   "/documents": FileText,
   "/calendar": CalendarDays,

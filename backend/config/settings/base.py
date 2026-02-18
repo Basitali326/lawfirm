@@ -12,6 +12,7 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, []),
     # default SQLite stays in backend/ when you run manage.py from that folder
     DATABASE_URL=(str, 'sqlite:///db.sqlite3'),
+    REDIS_URL=(str, 'redis://127.0.0.1:6379/0'),
     CORS_ALLOWED_ORIGINS=(list, []),
     CSRF_TRUSTED_ORIGINS=(list, []),
     JWT_ACCESS_MINUTES=(int, 15),
@@ -39,6 +40,7 @@ DATABASES = {
 }
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -52,6 +54,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'core',
+    # realtime + notifications
+    'channels',
+    'apps.chatx',
+    'apps.notifx',
+    'apps.wsx',
     'apps.authx',
     'apps.firms',
     'apps.cases',
@@ -132,7 +139,10 @@ REST_FRAMEWORK = {
         'intake_public_minute': '5/min',
         'intake_public_hour': '30/hour',
         'intake_phone_email_hour': '3/hour',
+        'chat_send': '5/second',
     },
+    'DEFAULT_PAGINATION_CLASS': 'common.pagination.DefaultPageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -181,3 +191,23 @@ AUTHENTICATION_BACKENDS = [
     'apps.authx.backends.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+# Channels / Redis
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [env('REDIS_URL', default='redis://127.0.0.1:6379/0')],
+        },
+    },
+}
+
+# Celery
+CELERY_BROKER_URL = env('REDIS_URL', default='redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
+
+# File storage (local default; S3 via django-storages if configured)
+DEFAULT_FILE_STORAGE = env('DEFAULT_FILE_STORAGE', default='django.core.files.storage.FileSystemStorage')
+MEDIA_ROOT = env('MEDIA_ROOT', default=BASE_DIR / 'media')
+MEDIA_URL = '/media/'

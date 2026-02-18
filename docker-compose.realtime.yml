@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: legalsaas
+      POSTGRES_USER: legalsaas
+      POSTGRES_PASSWORD: legalsaas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+  web:
+    build: .
+    command: gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DATABASE_URL: postgres://legalsaas:legalsaas@postgres:5432/legalsaas
+      REDIS_URL: redis://redis:6379/0
+volumes:
+  pgdata:
