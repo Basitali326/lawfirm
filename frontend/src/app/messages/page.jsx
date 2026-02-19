@@ -106,6 +106,16 @@ export default function MessagesPage() {
 
   const token = useMemo(() => tokenStore.getAccess() || session?.access || session?.token?.access, [session]);
 
+  const updateRoomUnread = (roomId, unread) => {
+    queryClient.setQueryData(["chat-rooms", search], (old) => {
+      if (!old) return old;
+      const list = Array.isArray(old) ? old : old?.results || old?.data || [];
+      const nextList = list.map((r) => (String(r.id) === String(roomId) ? { ...r, unread_count: unread } : r));
+      if (Array.isArray(old)) return nextList;
+      return { ...old, results: nextList, data: nextList };
+    });
+  };
+
   const socket = useChatSocket({
     token,
     onMessage: (msg) => {
@@ -122,6 +132,21 @@ export default function MessagesPage() {
         );
         return { ...old, pages };
       });
+      // increment unread if not active
+      if (String(msg.room) !== String(activeRoomId)) {
+        queryClient.setQueryData(["chat-rooms", search], (old) => {
+          if (!old) return old;
+          const list = Array.isArray(old) ? old : old?.results || old?.data || [];
+          const nextList = list.map((r) =>
+            String(r.id) === String(msg.room) ? { ...r, unread_count: (r.unread_count || 0) + 1 } : r
+          );
+          if (Array.isArray(old)) return nextList;
+          return { ...old, results: nextList, data: nextList };
+        });
+      } else {
+        socket?.sendRead?.(activeRoomId, msg.id);
+        updateRoomUnread(msg.room, 0);
+      }
     },
   });
 
@@ -178,6 +203,7 @@ export default function MessagesPage() {
     const newest = messagesPages[0]?.results?.[0] || messagesPages[0]?.data?.[0];
     if (newest) {
       socket.sendRead(activeRoomId, newest.id);
+      updateRoomUnread(activeRoomId, 0);
       queryClient.setQueryData(["chat-messages", activeRoomId], (old) => {
         if (!old) return old;
         return old; // no-op cache; server state handles receipts

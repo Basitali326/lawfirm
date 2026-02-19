@@ -134,7 +134,7 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
     !isPublic &&
     response.status === 401 &&
     retry &&
-    ((AUTH_MODE === "token") || (AUTH_MODE === "cookie"));
+    AUTH_MODE === "cookie";
 
   if (shouldRefresh) {
     try {

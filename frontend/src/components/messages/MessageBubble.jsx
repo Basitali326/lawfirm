@@ -1,7 +1,20 @@
 import clsx from "clsx";
+import { CheckCheck, Check } from "lucide-react";
+
+function StatusIcon({ status, isMine }) {
+  if (!isMine) return null;
+  if (status === "READ") {
+    return <CheckCheck size={14} className="text-emerald-100" />;
+  }
+  if (status === "DELIVERED") {
+    return <Check size={14} className="text-emerald-100" />;
+  }
+  return null;
+}
 
 export default function MessageBubble({ message, isMine }) {
   const attachments = message.attachments || [];
+  const status = message.status || message.receipt_status || null;
   return (
     <div className={clsx("flex", isMine ? "justify-end" : "justify-start")}>
       <div
@@ -29,9 +42,14 @@ export default function MessageBubble({ message, isMine }) {
             ))}
           </div>
         )}
-        <div className={clsx("mt-1 text-[11px] uppercase tracking-wide flex items-center gap-2", isMine ? "text-emerald-100" : "text-slate-400")}>
+        <div
+          className={clsx(
+            "mt-1 text-[11px] uppercase tracking-wide flex items-center gap-2",
+            isMine ? "text-emerald-100" : "text-slate-400"
+          )}
+        >
           {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          {message.status && <span>{message.status}</span>}
+          <StatusIcon status={status} isMine={isMine} />
         </div>
       </div>
     </div>

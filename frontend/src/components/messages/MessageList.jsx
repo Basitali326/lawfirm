@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useEffect, useRef } from "react";
 import MessageBubble from "./MessageBubble";
 
 function DayLabel({ date }) {
@@ -20,6 +20,14 @@ export default function MessageList({ pages, currentUserId }) {
   }, [pages]);
 
   let lastDate = null;
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    // auto-scroll to bottom on new messages
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [messages.length]);
 
   return (
     <div className="flex flex-col gap-3 px-6 py-4 overflow-y-auto h-full bg-slate-50">
@@ -35,6 +43,7 @@ export default function MessageList({ pages, currentUserId }) {
           </Fragment>
         );
       })}
+      <div ref={bottomRef} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -184,8 +185,18 @@ if EMAIL_BACKEND != 'django.core.mail.backends.console.EmailBackend':
     EMAIL_USE_TLS = env('EMAIL_USE_TLS')
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = env('CORS_ALLOWED_ORIGINS')
-CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS')
+CORS_ALLOWED_ORIGINS = env('CORS_ALLOWED_ORIGINS') or [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS') or [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-device-id"]
+# Simplify local dev: allow all when DEBUG
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 AUTHENTICATION_BACKENDS = [
     'apps.authx.backends.EmailBackend',
