@@ -2,15 +2,17 @@
 
 import { createContext, useContext, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import localFetch from "@/lib/api";
+import localFetch, { tokenStore } from "@/lib/api";
 
 const RBACContext = createContext({ permissions: [], roles: [] });
 
 export function RBACProvider({ children }) {
+  const enabled = tokenStore.hasAccess();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["me"],
     queryFn: () => localFetch("/api/authx/me/"),
-    staleTime: 0, // always refetch on mount to avoid showing old user's permissions
+    enabled,
+    staleTime: 0,
     cacheTime: 5 * 60 * 1000,
     refetchOnMount: "always",
   });
@@ -21,10 +23,10 @@ export function RBACProvider({ children }) {
     () => ({
       permissions: payload?.permissions || payload?.data?.permissions || [],
       roles: payload?.roles || payload?.data?.roles || [],
-      meLoading: isLoading,
-      meError: isError,
+      meLoading: enabled ? isLoading : false,
+      meError: enabled ? isError : false,
     }),
-    [payload, isLoading, isError]
+    [payload, isLoading, isError, enabled]
   );
 
   return <RBACContext.Provider value={value}>{children}</RBACContext.Provider>;
