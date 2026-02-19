@@ -7,5 +7,6 @@ export function useRoomsQuery(search = "") {
     queryFn: () => fetchRooms(search),
     select: (res) => res?.data || res,
     staleTime: 15_000,
+    refetchOnMount: false,
   });
 }

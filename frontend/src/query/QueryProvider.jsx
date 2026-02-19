@@ -15,6 +15,8 @@ export default function QueryProvider({ children }) {
           queries: {
             retry: 1,
             staleTime: 30_000,
+            cacheTime: 5 * 60_000,
+            refetchOnMount: false,
             refetchOnWindowFocus: false,
             onError: (error) => {
               const { message } = normalizeError(shapeAxiosError(error));

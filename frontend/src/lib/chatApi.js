@@ -38,3 +38,11 @@ export async function uploadAttachment(messageId, file) {
 export async function fetchNotifications() {
   return localFetch(`/api/v1/notifications/`);
 }
+
+export async function createDirectRoom(userId) {
+  return localFetch(`/api/v1/chat/rooms/direct/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId }),
+  });
+}

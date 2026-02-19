@@ -38,6 +38,11 @@ def get_firm_for_user(user):
     return getattr(user, "owned_firm", None)
 
 
+@database_sync_to_async
+def serialize_message(msg):
+    return ChatMessageSerializer(msg).data
+
+
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         user = self.scope.get("user")
@@ -57,21 +62,25 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_discard(f"user_{self.user.id}", self.channel_name)
 
     async def receive_json(self, content, **kwargs):
-        msg_type = content.get("type")
-        if msg_type == "room.join":
-            await self.handle_room_join(content)
-        elif msg_type == "room.leave":
-            await self.handle_room_leave(content)
-        elif msg_type == "message.send":
-            await self.handle_message_send(content)
-        elif msg_type == "typing.start":
-            await self.broadcast_typing(content, True)
-        elif msg_type == "typing.stop":
-            await self.broadcast_typing(content, False)
-        elif msg_type == "room.read":
-            await self.handle_room_read(content)
-        else:
-            await self.send_json({"type": "error", "code": "unknown", "message": "Unknown event"})
+        try:
+            msg_type = content.get("type")
+            if msg_type == "room.join":
+                await self.handle_room_join(content)
+            elif msg_type == "room.leave":
+                await self.handle_room_leave(content)
+            elif msg_type == "message.send":
+                await self.handle_message_send(content)
+            elif msg_type == "typing.start":
+                await self.broadcast_typing(content, True)
+            elif msg_type == "typing.stop":
+                await self.broadcast_typing(content, False)
+            elif msg_type == "room.read":
+                await self.handle_room_read(content)
+            else:
+                await self.send_json({"type": "error", "code": "unknown", "message": "Unknown event"})
+        except Exception as exc:
+            # Prevent server-side crash -> 1011 close; surface error to client
+            await self.send_json({"type": "error", "code": "server_error", "message": str(exc)})
 
     async def handle_room_join(self, content):
         room_id = content.get("room_id")
@@ -109,7 +118,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         except PermissionDenied:
             await self.send_json({"type": "error", "code": "forbidden", "message": "Not allowed"})
             return
-        serialized = ChatMessageSerializer(msg).data
+        serialized = await serialize_message(msg)
         await self.channel_layer.group_send(
             f"room_{room_id}",
             {
