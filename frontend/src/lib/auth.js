@@ -1,6 +1,7 @@
 import { apiFetch, tokenStore } from "@/lib/api";
 import { endpoints } from "@/lib/endpoints";
 import { AUTH_MODE } from "@/lib/config";
+import { ensureDeviceId } from "@/lib/device";
 
 function setTokensFromResponse(data) {
   if (AUTH_MODE !== "token") return;
@@ -20,8 +21,13 @@ export async function register(payload) {
 }
 
 export async function login(payload) {
+  const headers = {};
+  if (AUTH_MODE === "token") {
+    headers["X-Device-Id"] = ensureDeviceId();
+  }
   const data = await apiFetch(endpoints.login, {
     method: "POST",
+    headers,
     body: JSON.stringify(payload),
   });
   setTokensFromResponse(data);

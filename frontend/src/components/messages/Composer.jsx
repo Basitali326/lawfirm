@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Paperclip, Send } from "lucide-react";
 import clsx from "clsx";
 
-export default function Composer({ onSend, disabled }) {
+export default function Composer({ onSend, onTypingStart, onTypingStop, disabled }) {
   const [value, setValue] = useState("");
+  const typingTimer = useRef(null);
+
+  const triggerTyping = () => {
+    if (onTypingStart) onTypingStart();
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => {
+      if (onTypingStop) onTypingStop();
+    }, 1500);
+  };
+
   const handleSend = () => {
     const text = value.trim();
     if (!text) return;
@@ -32,8 +42,14 @@ export default function Composer({ onSend, disabled }) {
           className="flex-1 resize-none bg-transparent focus:outline-none text-sm py-1"
           placeholder="Type a message"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={onKeyDown}
+          onChange={(e) => {
+            setValue(e.target.value);
+            triggerTyping();
+          }}
+          onKeyDown={(e) => {
+            triggerTyping();
+            onKeyDown(e);
+          }}
           disabled={disabled}
         />
         <button
@@ -51,4 +67,3 @@ export default function Composer({ onSend, disabled }) {
     </div>
   );
 }
-

@@ -12,6 +12,7 @@ import { sendMessageRest, createDirectRoom } from "@/lib/chatApi";
 import { toast } from "sonner";
 import { useFirmUsers } from "@/hooks/messages/useFirmUsers";
 import { useMutation } from "@tanstack/react-query";
+import useMe from "@/hooks/useMe";
 function StartChatModal({ open, onClose, users, onStart }) {
   const [search, setSearch] = useState("");
   if (!open) return null;
@@ -73,6 +74,7 @@ export default function MessagesPage() {
   const [search, setSearch] = useState("");
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const [showPicker, setShowPicker] = useState(false);
   const roomsQuery = useRoomsQuery(search);
   const roomsRaw = roomsQuery.data;
   const rooms = Array.isArray(roomsRaw)
@@ -82,11 +84,15 @@ export default function MessagesPage() {
   const [pendingRoom, setPendingRoom] = useState(null);
   const messagesQuery = useMessagesQuery(activeRoomId);
   const messagesPages = messagesQuery.data?.pages || [];
-  const currentUserId = session?.user?.id || session?.user?.sub;
+  const { data: meData } = useMe();
+  const currentUserId =
+    meData?.data?.user?.id ||
+    meData?.user?.id ||
+    session?.user?.id ||
+    session?.user?.sub;
   const [joinedRoomId, setJoinedRoomId] = useState(null);
-  const { data: usersData } = useFirmUsers();
+  const { data: usersData } = useFirmUsers(showPicker);
   const firmUsers = (usersData || []).filter((u) => String(u.id) !== String(currentUserId));
-  const [showPicker, setShowPicker] = useState(false);
   const currentRoom = rooms.find((r) => String(r.id) === String(activeRoomId)) || null;
 
   useEffect(() => {
@@ -124,7 +130,7 @@ export default function MessagesPage() {
     if (joinedRoomId && joinedRoomId !== activeRoomId) {
       socket.leaveRoom(joinedRoomId);
     }
-    if (activeRoomId) {
+    if (activeRoomId && socket.joinRoom) {
       socket.joinRoom(activeRoomId);
       setJoinedRoomId(activeRoomId);
       messagesQuery.refetch();
@@ -165,6 +171,20 @@ export default function MessagesPage() {
       toast.error(err.message || "Failed to send message");
     }
   };
+
+  // mark as read when messages change
+  useEffect(() => {
+    if (!activeRoomId || !messagesPages.length || !socket) return;
+    const newest = messagesPages[0]?.results?.[0] || messagesPages[0]?.data?.[0];
+    if (newest) {
+      socket.sendRead(activeRoomId, newest.id);
+      queryClient.setQueryData(["chat-messages", activeRoomId], (old) => {
+        if (!old) return old;
+        return old; // no-op cache; server state handles receipts
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRoomId, messagesPages]);
 
   const createRoomMutation = useMutation({
     mutationFn: (userId) => createDirectRoom(userId),
@@ -215,6 +235,8 @@ export default function MessagesPage() {
         messagesPages={messagesPages}
         currentUserId={currentUserId}
         onSend={handleSend}
+        onTypingStart={() => socket?.sendTyping?.(activeRoomId, true)}
+        onTypingStop={() => socket?.sendTyping?.(activeRoomId, false)}
         onOpenPicker={() => setShowPicker(true)}
         currentRoom={currentRoom}
       />

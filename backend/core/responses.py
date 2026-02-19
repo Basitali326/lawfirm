@@ -15,7 +15,7 @@ def api_success(message="OK", data=None, meta=None, status_code=drf_status.HTTP_
     )
 
 
-def api_error(message="Error", errors=None, status_code=drf_status.HTTP_400_BAD_REQUEST):
+def api_error(message="Error", errors=None, status_code=drf_status.HTTP_400_BAD_REQUEST, **kwargs):
     return Response(
         {
             "success": False,

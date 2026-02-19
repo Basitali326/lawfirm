@@ -45,18 +45,24 @@ def serialize_message(msg):
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
-        user = self.scope.get("user")
-        if not user or not user.is_authenticated:
-            await self.close(code=4001)
-            return
-        self.user = user
-        self.firm = await get_firm_for_user(user)
-        if not self.firm:
-            await self.close(code=4003)
-            return
-        await self.accept()
-        await self.channel_layer.group_add(f"user_{self.user.id}", self.channel_name)
-        self._send_timestamps = []
+        try:
+            user = self.scope.get("user")
+            if not user or not user.is_authenticated:
+                await self.close(code=4001)
+                return
+            self.user = user
+            self.firm = await get_firm_for_user(user)
+            if not self.firm:
+                await self.close(code=4003)
+                return
+            await self.accept()
+            await self.channel_layer.group_add(f"user_{self.user.id}", self.channel_name)
+            self._send_timestamps = []
+        except Exception as exc:
+            # log the error and close with a clear code
+            import logging
+            logging.exception("WS connect error: %s", exc)
+            await self.close(code=4005)
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(f"user_{self.user.id}", self.channel_name)
@@ -117,6 +123,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             msg = await db_send_message(self.firm, member.room, self.user, body, client_msg_id)
         except PermissionDenied:
             await self.send_json({"type": "error", "code": "forbidden", "message": "Not allowed"})
+            return
+        except Exception as exc:
+            import logging
+            logging.exception("WS message_send error: %s", exc)
+            await self.send_json({"type": "error", "code": "server_error", "message": str(exc)})
             return
         serialized = await serialize_message(msg)
         await self.channel_layer.group_send(

@@ -2,7 +2,11 @@ import { getSession } from "next-auth/react";
 
 import { API_BASE_URL, AUTH_MODE, USE_NEXTAUTH } from "@/lib/config";
 
-let tokens = { access: null };
+const ACCESS_KEY = "access_token";
+let tokens = {
+  access:
+    (typeof window !== "undefined" && window.localStorage.getItem(ACCESS_KEY)) || null,
+};
 
 export const tokenStore = {
   getAccess() {
@@ -13,9 +17,19 @@ export const tokenStore = {
   },
   setAccess(access) {
     tokens = { access: access || null };
+    if (typeof window !== "undefined") {
+      if (access) {
+        window.localStorage.setItem(ACCESS_KEY, access);
+      } else {
+        window.localStorage.removeItem(ACCESS_KEY);
+      }
+    }
   },
   clear() {
     tokens = { access: null };
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(ACCESS_KEY);
+    }
   },
 };
 

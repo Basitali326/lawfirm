@@ -1,22 +1,44 @@
-import { useEffect, useRef } from "react";
-import { API_BASE_URL } from "@/lib/config";
+import { useEffect, useRef, useMemo } from "react";
+import { getSession } from "next-auth/react";
+import { API_BASE_URL, USE_NEXTAUTH } from "@/lib/config";
 
 export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotification }) {
   const socketRef = useRef(null);
   const statusRef = useRef("idle");
+  const handlersRef = useRef({ onMessage, onTyping, onReceipt, onNotification });
+  const pendingJoinRef = useRef(null);
+
+  // keep latest handlers without recreating socket
+  useEffect(() => {
+    handlersRef.current = { onMessage, onTyping, onReceipt, onNotification };
+  }, [onMessage, onTyping, onReceipt, onNotification]);
 
   useEffect(() => {
-    if (!token) return;
-    const wsUrl = API_BASE_URL.replace(/^http/, "ws") + `/ws/chat/?token=${token}`;
-    const ws = new WebSocket(wsUrl);
-    console.log("[WS] connecting", wsUrl);
+    let cancelled = false;
+    const connect = async () => {
+      let wsToken = token;
+      if (!wsToken && USE_NEXTAUTH) {
+        try {
+          const session = await getSession();
+          wsToken = session?.access || session?.token?.access || null;
+        } catch (err) {
+          console.error("[WS] session fetch error", err);
+        }
+      }
+      if (!wsToken) return;
+      if (cancelled) return;
+      const wsUrl = API_BASE_URL.replace(/^http/, "ws") + `/ws/chat/?token=${wsToken}`;
+      const ws = new WebSocket(wsUrl);
+      statusRef.current = "connecting";
+      console.log("[WS] connecting", wsUrl);
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === "message.new" && onMessage) onMessage(data.message);
-        if (data.type === "typing" && onTyping) onTyping(data);
-        if (data.type === "receipt.updated" && onReceipt) onReceipt(data);
-        if (data.type === "notification.new" && onNotification) onNotification(data.notification);
+        const { onMessage: mH, onTyping: tH, onReceipt: rH, onNotification: nH } = handlersRef.current;
+        if (data.type === "message.new" && mH) mH(data.message);
+        if (data.type === "typing" && tH) tH(data);
+        if (data.type === "receipt.updated" && rH) rH(data);
+        if (data.type === "notification.new" && nH) nH(data.notification);
       } catch (err) {
         console.error("WS parse error", err);
       }
@@ -33,6 +55,11 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
     ws.onopen = () => {
       statusRef.current = "open";
       console.log("[WS] open");
+      // auto-join any pending room now that socket is open
+      if (pendingJoinRef.current) {
+        ws.send(JSON.stringify({ type: "room.join", room_id: pendingJoinRef.current }));
+        pendingJoinRef.current = null;
+      }
     };
     ws.onclose = (evt) => {
       statusRef.current = "closed";
@@ -41,16 +68,25 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
       }
       console.log("[WS] closed");
     };
-    socketRef.current = ws;
+      socketRef.current = ws;
+    };
+
+    connect();
     return () => {
-      ws.close();
+      cancelled = true;
+      try {
+        socketRef.current?.close();
+      } catch (_) {}
       socketRef.current = null;
       statusRef.current = "closed";
     };
-  }, [token, onMessage, onTyping, onReceipt, onNotification]);
+  }, [token]);
 
   const joinRoom = (roomId) => {
-    if (statusRef.current !== "open") return;
+    if (statusRef.current !== "open") {
+      pendingJoinRef.current = roomId;
+      return;
+    }
     socketRef.current?.send(JSON.stringify({ type: "room.join", room_id: roomId }));
   };
 
@@ -74,5 +110,8 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
     socketRef.current?.send(JSON.stringify({ type: "room.read", room_id: roomId, last_message_id: lastMessageId }));
   };
 
-  return { joinRoom, leaveRoom, sendMessage, sendTyping, sendRead };
+  return useMemo(
+    () => ({ joinRoom, leaveRoom, sendMessage, sendTyping, sendRead }),
+    []
+  );
 }

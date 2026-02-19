@@ -9,6 +9,11 @@ from .utils import get_user_firm
 EXEMPT_ROLES = {"SUPER_ADMIN", "FIRM_OWNER", "FIRM_ADMIN", "OWNER", "CLIENT"}
 
 def is_exempt(user):
+    # Superusers or firm owners bypass device/session approval
+    if getattr(user, "is_superuser", False):
+        return True
+    if getattr(user, "owned_firm", None):
+        return True
     raw = (getattr(user, "role", "") or "")
     normalized = raw.upper().replace("-", "_").replace(" ", "_")
     return normalized in EXEMPT_ROLES
