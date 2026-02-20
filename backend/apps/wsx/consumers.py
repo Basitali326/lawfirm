@@ -45,9 +45,14 @@ def serialize_message(msg):
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
+        self.user = None  # ensure attribute exists
         try:
             user = self.scope.get("user")
+            auth_err = self.scope.get("auth_error")
             if not user or not user.is_authenticated:
+                if auth_err:
+                    import logging
+                    logging.warning("WS auth failed in consumer: %s", auth_err)
                 await self.close(code=4001)
                 return
             self.user = user
@@ -65,7 +70,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4005)
 
     async def disconnect(self, code):
-        await self.channel_layer.group_discard(f"user_{self.user.id}", self.channel_name)
+        if getattr(self, "user", None):
+            await self.channel_layer.group_discard(f"user_{self.user.id}", self.channel_name)
 
     async def receive_json(self, content, **kwargs):
         try:

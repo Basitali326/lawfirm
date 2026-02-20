@@ -7,6 +7,8 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
   const statusRef = useRef("idle");
   const handlersRef = useRef({ onMessage, onTyping, onReceipt, onNotification });
   const pendingJoinRef = useRef(null);
+  const lastJoinRef = useRef(null);
+  const reconnectTimer = useRef(null);
 
   // keep latest handlers without recreating socket
   useEffect(() => {
@@ -15,8 +17,27 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
 
   useEffect(() => {
     let cancelled = false;
+    const cleanup = () => {
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      try {
+        socketRef.current?.close();
+      } catch (_) {}
+      socketRef.current = null;
+      statusRef.current = "closed";
+    };
+
     const connect = async () => {
       let wsToken = token;
+      if (!wsToken) {
+        try {
+          wsToken = await ensureAccessToken();
+        } catch (err) {
+          console.error("[WS] ensureAccessToken failed", err);
+        }
+      }
       if (!wsToken && USE_NEXTAUTH) {
         try {
           const session = await getSession();
@@ -27,62 +48,67 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
       }
       if (!wsToken) return;
       if (cancelled) return;
-      const wsUrl = API_BASE_URL.replace(/^http/, "ws") + `/ws/chat/?token=${wsToken}`;
+      const wsUrl = API_BASE_URL.replace(/^http/, "ws") + `/ws/chat/?token=${encodeURIComponent(wsToken)}`;
       const ws = new WebSocket(wsUrl);
       statusRef.current = "connecting";
       console.log("[WS] connecting", wsUrl);
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const { onMessage: mH, onTyping: tH, onReceipt: rH, onNotification: nH } = handlersRef.current;
-        if (data.type === "message.new" && mH) mH(data.message);
-        if (data.type === "typing" && tH) tH(data);
-        if (data.type === "receipt.updated" && rH) rH(data);
-        if (data.type === "notification.new" && nH) nH(data.notification);
-      } catch (err) {
-        console.error("WS parse error", err);
-      }
-    };
-    ws.onerror = (event) => {
-      statusRef.current = "error";
-      console.error("[WS] error", {
-        message: event?.message || "",
-        type: event?.type,
-        readyState: ws.readyState,
-        url: ws.url,
-      });
-    };
-    ws.onopen = () => {
-      statusRef.current = "open";
-      console.log("[WS] open");
-      // auto-join any pending room now that socket is open
-      if (pendingJoinRef.current) {
-        ws.send(JSON.stringify({ type: "room.join", room_id: pendingJoinRef.current }));
-        pendingJoinRef.current = null;
-      }
-    };
-    ws.onclose = (evt) => {
-      statusRef.current = "closed";
-      if (evt.code !== 1000) {
-        console.error(`[WS] closed code=${evt.code} reason=${evt.reason || "none"}`);
-      }
-      console.log("[WS] closed");
-    };
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const { onMessage: mH, onTyping: tH, onReceipt: rH, onNotification: nH } = handlersRef.current;
+          if (data.type === "message.new" && mH) mH(data.message);
+          if (data.type === "typing" && tH) tH(data);
+          if (data.type === "receipt.updated" && rH) rH(data);
+          if (data.type === "notification.new" && nH) nH(data.notification);
+        } catch (err) {
+          console.error("WS parse error", err);
+        }
+      };
+      ws.onerror = (event) => {
+        statusRef.current = "error";
+        console.error("[WS] error", {
+          message: event?.message || "",
+          type: event?.type,
+          readyState: ws.readyState,
+          url: ws.url,
+        });
+      };
+      ws.onopen = () => {
+        statusRef.current = "open";
+        console.log("[WS] open");
+        // auto-join last requested room
+        const targetRoom = pendingJoinRef.current || lastJoinRef.current;
+        if (targetRoom) {
+          ws.send(JSON.stringify({ type: "room.join", room_id: targetRoom }));
+          pendingJoinRef.current = null;
+        }
+      };
+      ws.onclose = (evt) => {
+        statusRef.current = "closed";
+        if (evt.code !== 1000) {
+          console.error(`[WS] closed code=${evt.code} reason=${evt.reason || "none"}`);
+          // retry with small backoff
+          if (!cancelled && !reconnectTimer.current) {
+            reconnectTimer.current = setTimeout(() => {
+              reconnectTimer.current = null;
+              connect();
+            }, 1500);
+          }
+        }
+        console.log("[WS] closed");
+      };
       socketRef.current = ws;
     };
 
     connect();
     return () => {
       cancelled = true;
-      try {
-        socketRef.current?.close();
-      } catch (_) {}
-      socketRef.current = null;
-      statusRef.current = "closed";
+      cleanup();
     };
   }, [token]);
 
   const joinRoom = (roomId) => {
+    lastJoinRef.current = roomId;
     if (statusRef.current !== "open") {
       pendingJoinRef.current = roomId;
       return;

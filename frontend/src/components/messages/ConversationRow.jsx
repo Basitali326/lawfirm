@@ -15,7 +15,8 @@ function avatarProps(name = "Chat") {
 }
 
 export default function ConversationRow({ room, isActive, onClick }) {
-  const { initials, color } = avatarProps(room.name || "Chat");
+  const title = room.displayName || room.name || "Chat";
+  const { initials, color } = avatarProps(title);
   const time = room.last_message_at ? new Date(room.last_message_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
   const unread = room.unread_count || 0;
   const isOnline = !!room.is_online;
@@ -34,7 +35,7 @@ export default function ConversationRow({ room, isActive, onClick }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <span className="font-semibold truncate flex items-center gap-2">
-              {room.name || "Direct chat"}
+              {title}
               {isOnline && <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" title="Online" />}
             </span>
             <div className="flex flex-col items-end gap-1 min-w-[48px]">

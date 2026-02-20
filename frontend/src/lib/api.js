@@ -3,32 +3,42 @@ import { getSession } from "next-auth/react";
 import { API_BASE_URL, AUTH_MODE, USE_NEXTAUTH } from "@/lib/config";
 
 const ACCESS_KEY = "access_token";
+const REFRESH_KEY = "refresh_token";
 let tokens = {
-  access:
-    (typeof window !== "undefined" && window.localStorage.getItem(ACCESS_KEY)) || null,
+  access: (typeof window !== "undefined" && window.localStorage.getItem(ACCESS_KEY)) || null,
+  refresh: (typeof window !== "undefined" && window.localStorage.getItem(REFRESH_KEY)) || null,
 };
 
 export const tokenStore = {
   getAccess() {
     return tokens.access;
   },
+  getRefresh() {
+    return tokens.refresh;
+  },
   hasAccess() {
     return !!tokens.access;
   },
-  setAccess(access) {
-    tokens = { access: access || null };
+  setTokens({ access, refresh }) {
+    tokens = { access: access || null, refresh: refresh || null };
     if (typeof window !== "undefined") {
       if (access) {
         window.localStorage.setItem(ACCESS_KEY, access);
       } else {
         window.localStorage.removeItem(ACCESS_KEY);
       }
+      if (refresh) {
+        window.localStorage.setItem(REFRESH_KEY, refresh);
+      } else {
+        window.localStorage.removeItem(REFRESH_KEY);
+      }
     }
   },
   clear() {
-    tokens = { access: null };
+    tokens = { access: null, refresh: null };
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(ACCESS_KEY);
+      window.localStorage.removeItem(REFRESH_KEY);
     }
   },
 };
@@ -176,8 +186,33 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
 
 async function refreshAccessToken() {
   if (AUTH_MODE === "token") {
-    // In pure token mode we don't have a refresh token cookie; let callers handle 401 directly.
-    throw new Error("Refresh not available in token mode");
+    const refresh = tokenStore.getRefresh();
+    if (!refresh) throw new Error("No refresh token");
+    if (isRefreshing) return queueRefresh();
+    isRefreshing = true;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/authx/token/refresh/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+      });
+      const data = await response.json();
+      const access = data?.access || data?.data?.access;
+      const newRefresh = data?.refresh || data?.data?.refresh || refresh;
+      if (!response.ok || !access) {
+        const err = new Error("Unable to refresh token");
+        drainRefresh(err);
+        throw err;
+      }
+      tokenStore.setTokens({ access, refresh: newRefresh });
+      drainRefresh(null, access);
+      return access;
+    } catch (err) {
+      drainRefresh(err);
+      throw err;
+    } finally {
+      isRefreshing = false;
+    }
   }
   if (isRefreshing) {
     return queueRefresh();

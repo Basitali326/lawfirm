@@ -42,11 +42,22 @@ def handle_login(user, firm, device_id, ip, ua):
         _log(sess, AuditAction.CREATED, "SESSION_CREATED")
         return "ALLOW", sess
 
+    # Same device_id -> allow
     if active.device_id == device_id:
         active.last_seen_at = timezone.now()
         active.save(update_fields=["last_seen_at"])
         return "ALLOW", active
 
+    # Different device_id but same IP -> treat as safe, swap to new device and allow
+    if ip and active.ip_address and ip == active.ip_address:
+        active.device_id = device_id
+        active.user_agent = ua
+        active.last_seen_at = timezone.now()
+        active.save(update_fields=["device_id", "user_agent", "last_seen_at"])
+        _log(active, AuditAction.STATUS_CHANGED, "SESSION_DEVICE_UPDATED_SAME_IP")
+        return "ALLOW", active
+
+    # Different device_id and different IP -> require approval
     pending = UserSession.objects.create(
         user=user,
         firm=firm,
@@ -55,7 +66,7 @@ def handle_login(user, firm, device_id, ip, ua):
         ip_address=ip,
         user_agent=ua,
         requested_at=timezone.now(),
-        reason="Device switch requested",
+        reason="Device switch requested from new IP",
     )
     _log(pending, AuditAction.CREATED, "SESSION_SWITCH_REQUESTED")
     return "PENDING", pending

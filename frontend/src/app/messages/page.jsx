@@ -77,7 +77,7 @@ export default function MessagesPage() {
   const [showPicker, setShowPicker] = useState(false);
   const roomsQuery = useRoomsQuery(search);
   const roomsRaw = roomsQuery.data;
-  const rooms = Array.isArray(roomsRaw)
+  const baseRooms = Array.isArray(roomsRaw)
     ? roomsRaw
     : roomsRaw?.results || roomsRaw?.data || [];
   const [activeRoomId, setActiveRoomId] = useState(null);
@@ -93,6 +93,35 @@ export default function MessagesPage() {
   const [joinedRoomId, setJoinedRoomId] = useState(null);
   const { data: usersData } = useFirmUsers(showPicker);
   const firmUsers = (usersData || []).filter((u) => String(u.id) !== String(currentUserId));
+
+  const decorateRoom = (room) => {
+    const members = room.members || [];
+    const others = members.filter((m) => String(m.user?.id || m.user_id) !== String(currentUserId));
+    const firstOther = others[0]?.user || others[0];
+    const nameFromOther =
+      firstOther?.first_name || firstOther?.last_name
+        ? `${firstOther?.first_name || ""} ${firstOther?.last_name || ""}`.trim()
+        : firstOther?.email || firstOther?.name;
+
+    // If still no name, label based on role
+    const roleLabel =
+      (firstOther?.role || firstOther?.profile?.role || "").toLowerCase() === "firm admin"
+        ? "CEO"
+        : null;
+    const displayName =
+      room.type === "DIRECT"
+        ? nameFromOther || roleLabel || room.name || "Admin"
+        : room.name || "Group chat";
+    const avatarInitials = (displayName || "Chat")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase())
+      .join("");
+    return { ...room, displayName, avatarInitials };
+  };
+
+  const rooms = baseRooms.map(decorateRoom);
   const currentRoom = rooms.find((r) => String(r.id) === String(activeRoomId)) || null;
 
   useEffect(() => {
@@ -116,9 +145,23 @@ export default function MessagesPage() {
     });
   };
 
+  const updateRoomLast = (roomId, body, isoTime) => {
+    queryClient.setQueryData(["chat-rooms", search], (old) => {
+      if (!old) return old;
+      const list = Array.isArray(old) ? old : old?.results || old?.data || [];
+      const nextList = list.map((r) =>
+        String(r.id) === String(roomId)
+          ? { ...r, last_message_preview: body, last_message_at: isoTime }
+          : r
+      );
+      return Array.isArray(old) ? nextList : { ...old, results: nextList, data: nextList };
+    });
+  };
+
   const socket = useChatSocket({
     token,
     onMessage: (msg) => {
+      const isMine = String(msg.sender?.id) === String(currentUserId);
       queryClient.setQueryData(["chat-messages", msg.room], (old) => {
         // if no cache yet, seed with a single page
         if (!old) {
@@ -132,8 +175,8 @@ export default function MessagesPage() {
         );
         return { ...old, pages };
       });
-      // increment unread if not active
-      if (String(msg.room) !== String(activeRoomId)) {
+      // increment unread if not active and message is from someone else
+      if (String(msg.room) !== String(activeRoomId) && !isMine) {
         queryClient.setQueryData(["chat-rooms", search], (old) => {
           if (!old) return old;
           const list = Array.isArray(old) ? old : old?.results || old?.data || [];
@@ -147,6 +190,7 @@ export default function MessagesPage() {
         socket?.sendRead?.(activeRoomId, msg.id);
         updateRoomUnread(msg.room, 0);
       }
+      updateRoomLast(msg.room, msg.body, msg.created_at);
     },
   });
 
@@ -188,6 +232,8 @@ export default function MessagesPage() {
           );
           return { ...old, pages };
         });
+        const nowIso = new Date().toISOString();
+        updateRoomLast(activeRoomId, body, nowIso);
       } else {
         await sendMessageRest(activeRoomId, { body, client_msg_id: clientId });
         await messagesQuery.refetch();
@@ -196,6 +242,15 @@ export default function MessagesPage() {
       toast.error(err.message || "Failed to send message");
     }
   };
+
+  // Update browser tab title with unread count
+  useEffect(() => {
+    const totalUnread = rooms.reduce((sum, r) => sum + (r.unread_count || 0), 0);
+    const base = "Messages";
+    if (typeof document !== "undefined") {
+      document.title = totalUnread > 0 ? `(${totalUnread}) ${base}` : base;
+    }
+  }, [rooms]);
 
   // mark as read when messages change
   useEffect(() => {

@@ -122,9 +122,14 @@ class RefreshTokenLogoutSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         refresh_token = self.validated_data['refresh']
-        if refresh_token:
+        if not refresh_token:
+            return {}
+        try:
             token = RefreshToken(refresh_token)
             token.blacklist()
+        except Exception:
+            # If blacklist app isn't available or token already blacklisted, ignore
+            pass
         return {}
 
 

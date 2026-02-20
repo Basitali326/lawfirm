@@ -23,8 +23,12 @@ class LoginView(APIView):
         if decision == "ALLOW":
             return api_success("OK", data={"session_id": str(session_obj.id) if session_obj else None})
         return api_error(
-            "Admin approval required",
-            data={"pending_session_id": str(session_obj.id)},
+            f"Admin approval required for new device from IP {ip}",
+            data={
+                "pending_session_id": str(session_obj.id),
+                "reason": getattr(session_obj, "reason", None),
+                "ip": ip,
+            },
             status_code=status.HTTP_403_FORBIDDEN,
         )
 

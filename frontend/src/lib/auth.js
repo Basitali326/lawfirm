@@ -6,8 +6,9 @@ import { ensureDeviceId } from "@/lib/device";
 function setTokensFromResponse(data) {
   if (AUTH_MODE !== "token") return;
   const access = data?.tokens?.access || data?.access;
+  const refresh = data?.tokens?.refresh || data?.refresh;
   if (access) {
-    tokenStore.setAccess(access);
+    tokenStore.setTokens({ access, refresh });
   }
 }
 

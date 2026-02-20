@@ -5,7 +5,7 @@ export default function ChatHeader({ room, onCall, onView }) {
     </div>
   );
 
-  const title = room.name || "Direct chat";
+  const title = room.displayName || room.name || "Direct chat";
   const isOnline = room.is_online;
 
   return (
