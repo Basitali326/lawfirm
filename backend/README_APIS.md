@@ -35,6 +35,26 @@ Base: `/api/v1/cases/`
 - **PATCH** `/api/v1/cases/{id}/` (same fields as POST)
 - **DELETE** `/api/v1/cases/{id}/` (soft delete: sets `is_deleted`, `deleted_at`)
 
+## Hearings (new)
+- **POST** `/api/v1/cases/{case_id}/hearings/`
+- **GET** `/api/v1/cases/{case_id}/hearings/` (query: `status`, `from`, `to`, `page`, `page_size`; default sort `start_at` desc)
+- **GET** `/api/v1/hearings/{hearing_id}/`
+- **PATCH** `/api/v1/hearings/{hearing_id}/`
+- **DELETE** `/api/v1/hearings/{hearing_id}/`
+
+Example create payload:
+```json
+{
+  "title": "Motion hearing",
+  "hearing_type": "MOTION",
+  "start_at": "2026-03-01T15:00:00Z",
+  "end_at": "2026-03-01T16:00:00Z",
+  "status": "SCHEDULED",
+  "court_name": "Superior Court",
+  "location": "123 Main St"
+}
+```
+
 ### Permissions
 - SUPER_ADMIN: full access; may target any firm via header `X-FIRM-ID: <firm_uuid>`.
 - FIRM_OWNER/OWNER: CRUD within their firm.

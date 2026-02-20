@@ -69,6 +69,7 @@ export default function LoginForm() {
     try {
       setFormError("");
       if (USE_NEXTAUTH) {
+        tokenStore.clear();
         const deviceId = ensureDeviceId();
         const result = await signIn("credentials", {
           ...values,

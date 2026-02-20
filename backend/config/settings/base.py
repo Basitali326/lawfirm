@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'apps.rbac',
     'apps.billing',
     'apps.sessionsx',
+    'apps.hearings',
 ]
 
 MIDDLEWARE = [

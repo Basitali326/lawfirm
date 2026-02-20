@@ -12,7 +12,8 @@ export function middleware(request) {
 
   if (!requiresAuth) return NextResponse.next();
 
-  if (USE_NEXTAUTH) {
+  // NextAuth guard only applies when we're using cookie-based auth
+  if (USE_NEXTAUTH && AUTH_MODE === "cookie") {
     const hasSession =
       request.cookies.get("__Secure-next-auth.session-token") ||
       request.cookies.get("next-auth.session-token");
@@ -24,17 +25,18 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  if (AUTH_MODE === "token") {
-    // Token mode: rely on client-side guard (/me) since access token lives in memory.
+  if (AUTH_MODE === "cookie") {
+    const hasSession = request.cookies.get(SESSION_COOKIE_NAME);
+    if (!hasSession) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/session-expired";
+      return NextResponse.redirect(url);
+    }
     return NextResponse.next();
   }
 
-  const hasSession = request.cookies.get(SESSION_COOKIE_NAME);
-  if (!hasSession) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/session-expired";
-    return NextResponse.redirect(url);
-  }
+  // Token mode: rely on client-side guard (/me) since access token lives in memory.
+  return NextResponse.next();
 
   return NextResponse.next();
 }

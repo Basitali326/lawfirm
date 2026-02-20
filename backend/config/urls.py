@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/v1/', include('apps.sessionsx.urls')),
     path('api/v1/', include('apps.chatx.urls')),
     path('api/v1/', include('apps.notifx.urls')),
+    path('api/v1/', include('apps.hearings.urls')),
     path('public/', include('apps.intake.urls_public')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='docs'),

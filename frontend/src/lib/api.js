@@ -78,9 +78,18 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
 
   if (!isPublic) {
     if (AUTH_MODE === "token") {
-      const token = tokenStore.getAccess();
-      if (token) headers.Authorization = `Bearer ${token}`;
-      if (!token) {
+      let token = tokenStore.getAccess();
+      if (!token && USE_NEXTAUTH) {
+        try {
+          const session = await getSession();
+          token = session?.access || session?.token?.access || null;
+        } catch (err) {
+          token = null;
+        }
+      }
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      } else {
         try {
           const refreshed = await ensureAccessToken();
           if (refreshed) headers.Authorization = `Bearer ${refreshed}`;
