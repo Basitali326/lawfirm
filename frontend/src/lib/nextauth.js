@@ -18,6 +18,7 @@ export const authOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        device_id: { label: "Device ID", type: "text" },
       },
       async authorize(credentials) {
         const response = await fetch(`${API_BASE_URL}${endpoints.login}`, {
