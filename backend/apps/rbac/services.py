@@ -22,6 +22,10 @@ def user_has_perm(user, code: str) -> bool:
 def get_effective_permissions(user, *, force=False) -> Set[str]:
     if not user or not user.is_authenticated:
         return set()
+    # Superusers / SUPER_ADMIN should have all permissions
+    role = (getattr(user, "role", "") or getattr(getattr(user, "profile", None), "role", "") or "").upper()
+    if getattr(user, "is_superuser", False) or role == "SUPER_ADMIN":
+        return set(Permission.objects.filter(is_active=True).values_list("code", flat=True))
     firm = get_user_firm(user)
     firm_id = getattr(firm, "id", None)
     key = _cache_key(user.id)
