@@ -1,22 +1,14 @@
 "use client";
 
 import { createContext, useContext, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import localFetch, { tokenStore } from "@/lib/api";
+import { tokenStore } from "@/lib/api";
+import useMe from "@/hooks/useMe";
 
 const RBACContext = createContext({ permissions: [], roles: [] });
 
 export function RBACProvider({ children }) {
   const enabled = tokenStore.hasAccess();
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["me"],
-    queryFn: () => localFetch("/api/authx/me/"),
-    enabled,
-    staleTime: 0,
-    cacheTime: 5 * 60 * 1000,
-    refetchOnMount: "always",
-  });
-
+  const { data, isLoading, isError } = useMe();
   const payload = data?.data ?? data;
 
   const value = useMemo(

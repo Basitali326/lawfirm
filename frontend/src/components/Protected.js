@@ -28,8 +28,9 @@ export default function Protected({ children }) {
         try {
           const token = access || (await ensureAccessToken());
           if (!token) throw new Error("no token");
-          await apiFetch("/api/authx/me/", { method: "GET", credentials: "include" });
+          // token is present; actual validation happens in useMe/query layer
           setTokenChecked(true);
+          setMeChecked(true); // allow render; react-query will redirect on 401
         } catch (e) {
           tokenStore.clear();
           router.replace("/session-expired");
@@ -58,11 +59,6 @@ export default function Protected({ children }) {
     // Only check when authenticated
     if (USE_NEXTAUTH) {
       if (status === "authenticated") checkVerification();
-      return;
-    }
-
-    if (AUTH_MODE === "token" && tokenChecked) {
-      checkVerification();
       return;
     }
 

@@ -87,6 +87,8 @@ class RevokeSessionsView(APIView):
         firm = get_user_firm(request.user)
         if not firm and not is_exempt(request.user):
             return api_error("User firm not set", status_code=status.HTTP_403_FORBIDDEN)
-        qs = UserSession.objects.filter(firm=firm, user_id=user_id, status__in=[SessionStatus.ACTIVE, SessionStatus.PENDING])
+        qs = UserSession.objects.filter(
+            firm=firm, user_id=user_id, status__in=[SessionStatus.ACTIVE, SessionStatus.PENDING]
+        )
         count = qs.update(status=SessionStatus.REVOKED, revoked_at=timezone.now(), approved_by=request.user)
         return api_success("OK", data={"revoked": count})

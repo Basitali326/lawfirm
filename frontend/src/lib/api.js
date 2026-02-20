@@ -175,6 +175,10 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
 }
 
 async function refreshAccessToken() {
+  if (AUTH_MODE === "token") {
+    // In pure token mode we don't have a refresh token cookie; let callers handle 401 directly.
+    throw new Error("Refresh not available in token mode");
+  }
   if (isRefreshing) {
     return queueRefresh();
   }

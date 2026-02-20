@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster, toast } from "sonner";
 
 import { normalizeError, shapeAxiosError } from "@/lib/errors";
+import { tokenStore } from "@/lib/api";
 
 export default function QueryProvider({ children }) {
   const [client] = useState(
@@ -19,12 +20,22 @@ export default function QueryProvider({ children }) {
             refetchOnMount: false,
             refetchOnWindowFocus: false,
             onError: (error) => {
+              if (error?.status === 401) {
+                tokenStore.clear();
+                if (typeof window !== "undefined") window.location.assign("/login");
+                return;
+              }
               const { message } = normalizeError(shapeAxiosError(error));
               toast.error(message);
             },
           },
           mutations: {
             onError: (error) => {
+              if (error?.status === 401) {
+                tokenStore.clear();
+                if (typeof window !== "undefined") window.location.assign("/login");
+                return;
+              }
               const { message } = normalizeError(shapeAxiosError(error));
               toast.error(message);
             },

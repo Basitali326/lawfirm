@@ -42,9 +42,19 @@ export async function refreshToken() {
 export async function logout() {
   const access = tokenStore.getAccess();
   tokenStore.clear();
-  return apiFetch(endpoints.logout, {
-    method: "POST",
-    headers: access ? { Authorization: `Bearer ${access}` } : undefined,
-    body: JSON.stringify({}), // refresh token will be taken from httpOnly cookie server-side
-  });
+  // If we have no access token in token mode, just resolve without calling API
+  if (!access) {
+    return {};
+  }
+  try {
+    return await apiFetch(endpoints.logout, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${access}` },
+      body: JSON.stringify({}), // refresh token will be taken from httpOnly cookie server-side
+    });
+  } catch (err) {
+    // Ignore auth errors on logout
+    if (err?.status === 401 || err?.status === 403) return {};
+    throw err;
+  }
 }
