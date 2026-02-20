@@ -48,7 +48,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 .first()
             )
         if not firm_id and getattr(user, "is_superuser", False):
-            from apps.firms.models import Firm
+            from apps.authx.models import Firm
 
             firm_id = Firm.objects.values_list("id", flat=True).first()
         return firm_id
@@ -187,7 +187,7 @@ class OpenCasesTasksView(APIView):
                 .first()
             )
         if not firm_id and getattr(user, "is_superuser", False):
-            from apps.firms.models import Firm
+            from apps.authx.models import Firm
 
             firm_id = Firm.objects.values_list("id", flat=True).first()
         return firm_id
