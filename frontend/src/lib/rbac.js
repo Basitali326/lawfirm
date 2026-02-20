@@ -26,7 +26,11 @@ export function RBACProvider({ children }) {
 
 export function useRBAC() {
   const ctx = useContext(RBACContext);
-  const can = (code) => (code ? ctx.permissions?.includes(code) : true);
+  const can = (code) => {
+    if (!code) return true;
+    if (ctx.permissions?.includes("*")) return true;
+    return ctx.permissions?.includes(code);
+  };
   return { ...ctx, can };
 }
 
