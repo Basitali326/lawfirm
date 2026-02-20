@@ -19,6 +19,16 @@ export const tokenStore = {
   hasAccess() {
     return !!tokens.access;
   },
+  setAccess(access) {
+    tokens.access = access || null;
+    if (typeof window !== "undefined") {
+      if (access) {
+        window.localStorage.setItem(ACCESS_KEY, access);
+      } else {
+        window.localStorage.removeItem(ACCESS_KEY);
+      }
+    }
+  },
   setTokens({ access, refresh }) {
     tokens = { access: access || null, refresh: refresh || null };
     if (typeof window !== "undefined") {
@@ -153,22 +163,17 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
     !isPublic &&
     response.status === 401 &&
     retry &&
-    AUTH_MODE === "cookie";
+    (AUTH_MODE === "cookie" || AUTH_MODE === "token");
 
   if (shouldRefresh) {
     try {
       const newAccess = await refreshAccessToken();
       if (newAccess) {
-        // Attach fresh token for retry
-        if (AUTH_MODE === "token") {
-          tokenStore.setAccess(newAccess);
-        } else {
-          // cookie mode: retry with Authorization header
-          options.headers = {
-            ...(options.headers || {}),
-            Authorization: `Bearer ${newAccess}`,
-          };
-        }
+        // Attach fresh token for retry; always send Authorization header to be explicit
+        options.headers = {
+          ...(options.headers || {}),
+          Authorization: `Bearer ${newAccess}`,
+        };
         return apiFetch(path, options, { retry: false });
       }
     } catch (err) {

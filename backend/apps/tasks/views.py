@@ -27,12 +27,30 @@ class TaskViewSet(viewsets.ModelViewSet):
     pagination_class = TaskPagination
 
     def _get_firm_id(self, user):
+        """
+        Resolve the user's firm id with sensible fallbacks so we don't
+        fail with 'User firm not set' for superadmins or users linked to
+        cases but missing firm on their profile.
+        """
         firm_id = getattr(user, "firm_id", None)
         profile = getattr(user, "profile", None)
         if not firm_id and profile:
             firm_id = getattr(profile, "firm_id", None)
         if not firm_id and hasattr(user, "owned_firm"):
             firm_id = getattr(user.owned_firm, "id", None)
+        if not firm_id:
+            firm_id = (
+                Case.objects.filter(
+                    Q(assigned_lead=user) | Q(client__user=user) | Q(tasks__assigned_to=user),
+                    is_deleted=False,
+                )
+                .values_list("firm_id", flat=True)
+                .first()
+            )
+        if not firm_id and getattr(user, "is_superuser", False):
+            from apps.firms.models import Firm
+
+            firm_id = Firm.objects.values_list("id", flat=True).first()
         return firm_id
 
     def get_queryset(self):
@@ -159,6 +177,19 @@ class OpenCasesTasksView(APIView):
             firm_id = getattr(profile, "firm_id", None)
         if not firm_id and hasattr(user, "owned_firm"):
             firm_id = getattr(user.owned_firm, "id", None)
+        if not firm_id:
+            firm_id = (
+                Case.objects.filter(
+                    Q(assigned_lead=user) | Q(client__user=user) | Q(tasks__assigned_to=user),
+                    is_deleted=False,
+                )
+                .values_list("firm_id", flat=True)
+                .first()
+            )
+        if not firm_id and getattr(user, "is_superuser", False):
+            from apps.firms.models import Firm
+
+            firm_id = Firm.objects.values_list("id", flat=True).first()
         return firm_id
 
     def get(self, request):
