@@ -5,12 +5,17 @@ import { authOptions } from "@/lib/nextauth";
 import { API_BASE_URL } from "@/lib/config";
 
 export async function POST(req) {
-  const session = await getServerSession(authOptions);
-  const access =
-    session?.access ||
-    session?.token?.access ||
-    session?.user?.access ||
-    session?.accessToken;
+  const headerAuth = req.headers.get("authorization");
+  const headerToken = headerAuth ? headerAuth.replace(/^Bearer\\s+/i, "") : null;
+  let access = headerToken;
+  if (!access) {
+    const session = await getServerSession(authOptions);
+    access =
+      session?.access ||
+      session?.token?.access ||
+      session?.user?.access ||
+      session?.accessToken;
+  }
 
   if (!access) {
     return NextResponse.json(

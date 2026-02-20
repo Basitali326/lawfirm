@@ -3,7 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 import { API_BASE_URL } from "@/lib/config";
 
-async function ensureAccess() {
+async function ensureAccess(req) {
+  const headerAuth = req?.headers?.get("authorization");
+  if (headerAuth) {
+    const token = headerAuth.replace(/^Bearer\\s+/i, "");
+    if (token) return token;
+  }
   const session = await getServerSession(authOptions);
   return session?.access || session?.token?.access || session?.user?.access || session?.accessToken || null;
 }
@@ -25,7 +30,7 @@ export async function GET(req, context) {
       { status: 400 }
     );
   }
-  const access = await ensureAccess();
+  const access = await ensureAccess(req);
   if (!access) {
     return NextResponse.json(
       { success: false, message: "Unauthorized", data: null, errors: null, meta: null },
@@ -48,7 +53,7 @@ export async function PATCH(req, context) {
       { status: 400 }
     );
   }
-  const access = await ensureAccess();
+  const access = await ensureAccess(req);
   if (!access) {
     return NextResponse.json(
       { success: false, message: "Unauthorized", data: null, errors: null, meta: null },
@@ -73,7 +78,7 @@ export async function DELETE(req, context) {
       { status: 400 }
     );
   }
-  const access = await ensureAccess();
+  const access = await ensureAccess(req);
   if (!access) {
     return NextResponse.json(
       { success: false, message: "Unauthorized", data: null, errors: null, meta: null },

@@ -2,14 +2,24 @@ import { apiFetch } from "@/lib/api";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 
-export async function GET() {
+async function getAccess(req) {
+  const headerAuth = req?.headers?.get("authorization");
+  if (headerAuth) {
+    const token = headerAuth.replace(/^Bearer\s+/i, "");
+    if (token) return token;
+  }
   const session = await getServerSession(authOptions);
-  if (!session?.access) {
+  return session?.access || session?.token?.access || session?.user?.access || session?.accessToken || null;
+}
+
+export async function GET(req) {
+  const access = await getAccess(req);
+  if (!access) {
     return Response.json({ success: false, message: "Unauthorized", data: null, errors: null, meta: null }, { status: 401 });
   }
   try {
     const res = await apiFetch(`/api/v1/settings/users/summary`, {
-      headers: { Authorization: `Bearer ${session.access}` },
+      headers: { Authorization: `Bearer ${access}` },
       cache: "no-store",
     });
     return Response.json(res, { status: 200 });

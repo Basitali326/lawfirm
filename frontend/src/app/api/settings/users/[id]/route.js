@@ -2,9 +2,19 @@ import { apiFetch } from "@/lib/api";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextauth";
 
-export async function DELETE(_request, { params }) {
+async function getAccess(req) {
+  const headerAuth = req?.headers?.get("authorization");
+  if (headerAuth) {
+    const token = headerAuth.replace(/^Bearer\s+/i, "");
+    if (token) return token;
+  }
   const session = await getServerSession(authOptions);
-  if (!session?.access) {
+  return session?.access || session?.token?.access || session?.user?.access || session?.accessToken || null;
+}
+
+export async function DELETE(_request, { params }) {
+  const access = await getAccess(_request);
+  if (!access) {
     return Response.json({ success: false, message: "Unauthorized", data: null, errors: null, meta: null }, { status: 401 });
   }
   const id =
@@ -29,7 +39,7 @@ export async function DELETE(_request, { params }) {
   try {
     const res = await apiFetch(`/api/v1/settings/users/${id}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${session.access}` },
+      headers: { Authorization: `Bearer ${access}` },
     });
     return Response.json(res, { status: 200 });
   } catch (err) {
