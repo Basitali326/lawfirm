@@ -175,6 +175,30 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
     retry &&
     ((AUTH_MODE === "cookie") || (AUTH_MODE === "token" && hasRefresh));
 
+  const handleAuthFail = (statusCode, payload) => {
+    if (statusCode !== 401) return;
+    const detail = payload?.detail || payload?.errors?.detail || "";
+    const code = payload?.code || payload?.errors?.code || "";
+    const msg = payload?.message || "";
+    const tokenInvalid =
+      /token_not_valid/i.test(code) ||
+      /token_not_valid/i.test(detail) ||
+      /token is invalid or expired/i.test(detail) ||
+      /token is invalid or expired/i.test(msg);
+    if (!tokenInvalid) return;
+    try {
+      tokenStore.clear();
+    } catch (_) {
+      /* ignore */
+    }
+    if (typeof window !== "undefined") {
+      const current = window.location.pathname;
+      if (!current.startsWith("/login") && !current.startsWith("/session-expired")) {
+        window.location.href = "/session-expired";
+      }
+    }
+  };
+
   if (shouldRefresh) {
     try {
       const newAccess = await refreshAccessToken();
@@ -202,21 +226,7 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
     if (payload?.errors) {
       error.errors = payload.errors;
     }
-     // If token is invalid/expired and refresh failed, clear stored tokens so the UI can re-auth
-    const detail = payload?.detail || payload?.errors?.detail || "";
-    const code = payload?.code || errInfo.code || "";
-    const tokenInvalid =
-      response.status === 401 &&
-      (code === "token_not_valid" ||
-        /token_not_valid/i.test(detail) ||
-        /token is invalid or expired/i.test(detail));
-    if (tokenInvalid) {
-      try {
-        tokenStore.clear();
-      } catch (_) {
-        // ignore
-      }
-    }
+    handleAuthFail(response.status, payload);
     throw error;
   }
 
