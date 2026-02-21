@@ -9,7 +9,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import Loader from "@/components/Loader";
-import localFetch, { tokenStore } from "@/lib/api";
+import { tokenStore } from "@/lib/api";
 
 const ALLOWED_ROLES = ["FIRM_OWNER", "SUPER_ADMIN"];
 
@@ -23,24 +23,8 @@ const extractMessage = (payload, fallback = "Request failed") => {
   return fallback;
 };
 
-async function localFetch(url, options = {}) {
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  const contentType = res.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-  const body = isJson ? await res.json().catch(() => ({})) : await res.text().catch(() => "");
-  const payload = isJson ? body : { message: "Request failed", detail: typeof body === "string" ? body : undefined };
-  if (!res.ok || payload?.success === false) {
-    const err = new Error(extractMessage(payload));
-    err.body = payload;
-    err.status = res.status;
-    throw err;
-  }
-  return payload;
-}
+// use shared fetcher to avoid duplicate definition
+import localFetch from "@/lib/api";
 
 const defaultItem = () => ({
   title: "",

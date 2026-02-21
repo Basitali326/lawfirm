@@ -94,7 +94,7 @@ export default function CaseTemplatesPage() {
       if (activeOnly) params.set("is_active", "true");
       if (defaultOnly) params.set("is_default", "true");
       if (sort) params.set("sort", sort);
-      return localFetch(`/api/v1/settings/task-templates?${params.toString()}`);
+      return localFetch(`/api/v1/settings/task-templates/?${params.toString()}`);
     },
     onError: (err) => toast.error(extractMessage(err?.body, err.message)),
     keepPreviousData: true,
@@ -102,7 +102,7 @@ export default function CaseTemplatesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => localFetch(`/api/v1/settings/task-templates/${id}`, { method: "DELETE" }),
+    mutationFn: (id) => localFetch(`/api/v1/settings/task-templates/${id}/`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success("Template deleted");
       queryClient.invalidateQueries({ queryKey: ["task-templates"] });
