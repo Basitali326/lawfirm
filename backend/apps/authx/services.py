@@ -23,6 +23,11 @@ def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None, 
     profile = _get_profile(user)
     firm = firm or profile.firm or Firm.objects.filter(owner=user).first()
 
+    def _normalize(role_value: Optional[str]) -> Optional[str]:
+        if not role_value:
+            return role_value
+        return str(role_value).replace(" ", "_").replace("-", "_").upper()
+
     role_value = profile.role or getattr(user, "role", None)
     if not role_value:
         if getattr(user, "is_superuser", False):
@@ -31,6 +36,7 @@ def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None, 
             role_value = "FIRM_OWNER"
         else:
             role_value = "CLIENT"
+    role_value = _normalize(role_value)
     return {
         'user': {
             'id': user.id,

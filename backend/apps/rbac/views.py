@@ -91,6 +91,13 @@ class RoleViewSet(viewsets.ModelViewSet):
         if role.is_system:
             return api_response(False, "Validation error", errors={"detail": ["Cannot delete system role"]},
                                 status=status.HTTP_400_BAD_REQUEST)
+        if role.user_roles.exists():
+            return api_response(
+                False,
+                "Validation error",
+                errors={"detail": ["Role is assigned to users. Remove assignments before deleting."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         role.is_deleted = True
         role.save(update_fields=["is_deleted"])
         return api_response(True, "OK", data=None, status=status.HTTP_204_NO_CONTENT)

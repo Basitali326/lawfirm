@@ -10,12 +10,13 @@ import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 import ConfirmModal from "@/components/ConfirmModal";
 import EmptyState from "@/components/EmptyState";
 import tasksReducer, { initialState, actions } from "@/lib/state/tasksReducer";
-import localFetch from "@/lib/api";
+import localFetch, { tokenStore } from "@/lib/api";
 import { useRBAC } from "@/lib/rbac";
 import useMe from "@/hooks/useMe";
 
 export default function TasksPage() {
   const { status, data: session } = useSession();
+   const hasToken = tokenStore.getAccess();
   const { can, roles } = useRBAC();
   const { data: meData } = useMe();
   const currentUserId =
@@ -37,10 +38,10 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (status === "unauthenticated" && !hasToken) {
       toast.error("Please sign in");
     }
-  }, [status]);
+  }, [status, hasToken]);
 
   const casesQuery = useQuery({
     queryKey: ["tasks-open-cases"],
@@ -49,6 +50,7 @@ export default function TasksPage() {
       return Array.isArray(res) ? res : res?.data || [];
     },
     onError: (err) => toast.error(err?.message || "Failed to load tasks"),
+    enabled: hasToken || status === "authenticated",
   });
 
   // Normalize and store cases whenever the query data changes
@@ -83,7 +85,7 @@ export default function TasksPage() {
     queryKey: ["settings-users"],
     queryFn: () => localFetch("/api/v1/settings/users"),
     select: (res) => (Array.isArray(res) ? res : res?.data || []),
-    enabled: can("users.view"),
+    enabled: can("users.view") && (hasToken || status === "authenticated"),
   });
 
   const filteredCases = useMemo(() => {

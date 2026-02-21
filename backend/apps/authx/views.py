@@ -283,14 +283,20 @@ class MeView(APIView):
                 role_value = "FIRM_OWNER"
             else:
                 role_value = "CLIENT"
+        role_value = role_value.replace(" ", "_").replace("-", "_").upper()
         # Collect RBAC roles and permissions
         role_names = list(
             Role.objects.filter(user_roles__user=request.user, is_deleted=False, firm=firm).values_list("name", flat=True)
         )
+        role_names = [
+            (r or "").replace(" ", "_").replace("-", "_").upper()
+            for r in role_names
+            if r
+        ]
         effective_perms = list(get_effective_permissions(request.user, force=True))
         # Fallback: include legacy profile role if no RBAC role assigned
         if not role_names and profile.role:
-          role_names = [profile.role]
+          role_names = [profile.role.replace(" ", "_").replace("-", "_").upper()]
         # Present a single primary role for backward compatibility: first RBAC role if present, else legacy role_value
         primary_role = role_names[0] if role_names else role_value
         return api_success(
