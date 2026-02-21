@@ -170,13 +170,18 @@ class TaskViewSet(viewsets.ModelViewSet):
 class OpenCasesTasksView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def _firm_id(self, user):
+    def _firm_id(self, user, request=None):
         firm_id = getattr(user, "firm_id", None)
         profile = getattr(user, "profile", None)
         if not firm_id and profile:
             firm_id = getattr(profile, "firm_id", None)
         if not firm_id and hasattr(user, "owned_firm"):
             firm_id = getattr(user.owned_firm, "id", None)
+        # Superusers must provide firm_id explicitly to scope the query
+        if not firm_id and getattr(user, "is_superuser", False) and request is not None:
+            firm_id = request.query_params.get("firm_id") or None
+            if not firm_id:
+                return None
         if not firm_id:
             firm_id = (
                 Case.objects.filter(
@@ -193,7 +198,7 @@ class OpenCasesTasksView(APIView):
         return firm_id
 
     def get(self, request):
-        firm_id = self._firm_id(request.user)
+        firm_id = self._firm_id(request.user, request=request)
         if not firm_id:
             return api_error("User firm not set", status_code=status.HTTP_400_BAD_REQUEST)
 

@@ -11,7 +11,6 @@ import localFetch, { ensureAccessToken, tokenStore } from "@/lib/api";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 const STATUS_OPTIONS = [
-  { value: "PENDING_PAYMENT", label: "Pending payment" },
   { value: "OPEN", label: "Open" },
   { value: "HOLD", label: "On hold" },
   { value: "CLOSED", label: "Closed" },
@@ -80,7 +79,7 @@ export default function AddCasePage() {
       () => ({
         title: "",
         case_type: "",
-        status: "PENDING_PAYMENT",
+        status: "OPEN",
         priority: "MEDIUM",
         description: "",
         court_name: "",
