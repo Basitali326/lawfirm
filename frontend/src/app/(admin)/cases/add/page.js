@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import localFetch from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
@@ -26,21 +27,13 @@ const PRIORITY_OPTIONS = [
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 async function fetchUsers() {
-  const res = await fetch("/api/settings/users", { cache: "no-store" });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || json?.success === false) {
-    throw new Error(json?.message || "Failed to load users");
-  }
+  const json = await localFetch("/api/v1/settings/users", { cache: "no-store" });
   return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
 }
 
 async function fetchCaseTypes() {
   const params = new URLSearchParams({ is_active: "true", page: "1", page_size: "100", sort: "name" });
-  const res = await fetch(`/api/settings/case-types?${params.toString()}`, { cache: "no-store" });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || json?.success === false) {
-    throw new Error(json?.message || "Failed to load case types");
-  }
+  const json = await localFetch(`/api/v1/settings/case-types?${params.toString()}`, { cache: "no-store" });
   return json?.data || [];
 }
 

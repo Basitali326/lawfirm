@@ -105,7 +105,7 @@ export default function UsersPage() {
   const queryClient = useQueryClient();
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ["users-list"],
-    queryFn: () => localFetch("/api/settings/users"),
+    queryFn: () => localFetch("/api/v1/settings/users"),
     onError: (err) => toast.error(extractMessage(err?.body, "Failed to load users")),
   });
 
@@ -122,7 +122,7 @@ export default function UsersPage() {
     const ok = await confirmWithToast(`Delete user ${label || ""}? This cannot be undone.`, "Delete");
     if (!ok) return;
     try {
-      const res = await localFetch(`/api/settings/users/${safeId}`, { method: "DELETE" });
+      const res = await localFetch(`/api/v1/settings/users/${safeId}`, { method: "DELETE" });
       if (res?.success === false) throw new Error(res?.message || "Delete failed");
       toast.success("User deleted");
       refetchAll();

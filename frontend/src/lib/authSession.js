@@ -1,6 +1,7 @@
 "use client";
 
 import { getSession } from "next-auth/react";
+import { tokenStore } from "@/lib/api";
 
 /**
  * Returns the access token from the active NextAuth session.
@@ -14,8 +15,17 @@ export async function getAccessToken() {
       session?.token?.access ||
       session?.user?.access ||
       null;
-    return token || null;
+    if (token) return token;
+    try {
+      return tokenStore.getAccess();
+    } catch (e) {
+      return null;
+    }
   } catch (err) {
-    return null;
+    try {
+      return tokenStore.getAccess();
+    } catch (e) {
+      return null;
+    }
   }
 }

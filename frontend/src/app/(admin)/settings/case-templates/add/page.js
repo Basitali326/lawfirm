@@ -90,14 +90,14 @@ export default function CaseTemplateAddPage() {
 
   const { data: caseTypesData, isLoading: caseTypesLoading } = useQuery({
     queryKey: ["case-types-options"],
-    queryFn: () => localFetch("/api/settings/case-types?is_active=true&page=1&page_size=100&sort=name"),
+    queryFn: () => localFetch("/api/v1/settings/case-types?is_active=true&page=1&page_size=100&sort=name"),
     staleTime: 5 * 60 * 1000,
     enabled: status === "authenticated",
   });
 
   const mutation = useMutation({
     mutationFn: (payload) =>
-      localFetch("/api/settings/task-templates", {
+      localFetch("/api/v1/settings/task-templates", {
         method: "POST",
         body: JSON.stringify(payload),
       }),

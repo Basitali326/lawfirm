@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
+import { tokenStore } from "@/lib/api";
 
 import {
   createCase,
@@ -32,7 +33,7 @@ export function useCreateCaseMutation(options = {}) {
 
 export function useCasesQuery(params = {}, options = {}) {
   const { data: session } = useSession();
-  const token = session?.access || session?.token?.access;
+  const token = session?.access || session?.token?.access || tokenStore.getAccess();
 
   return useQuery({
     queryKey: ["cases", params, token],
@@ -44,7 +45,7 @@ export function useCasesQuery(params = {}, options = {}) {
 
 export function useCaseQuery(id, options = {}) {
   const { data: session } = useSession();
-  const token = session?.access || session?.token?.access;
+  const token = session?.access || session?.token?.access || tokenStore.getAccess();
 
   return useQuery({
     queryKey: ["case", id, token],
@@ -57,7 +58,7 @@ export function useCaseQuery(id, options = {}) {
 export function useUpdateCaseMutation(options = {}) {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-  const token = session?.access || session?.token?.access;
+  const token = session?.access || session?.token?.access || tokenStore.getAccess();
 
   return useMutation({
     mutationFn: ({ id, payload }) => updateCase(id, payload, token),
@@ -80,7 +81,7 @@ export function useUpdateCaseMutation(options = {}) {
 export function useDeleteCaseMutation(options = {}) {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-  const token = session?.access || session?.token?.access;
+  const token = session?.access || session?.token?.access || tokenStore.getAccess();
 
   return useMutation({
     mutationFn: (id) => deleteCase(id, token),
@@ -103,7 +104,7 @@ export function useDeleteCaseMutation(options = {}) {
 export function useGenerateCaseTasksMutation(options = {}) {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-  const token = session?.access || session?.token?.access;
+  const token = session?.access || session?.token?.access || tokenStore.getAccess();
 
   return useMutation({
     mutationFn: (id) => generateCaseTasks(id, token),

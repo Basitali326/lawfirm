@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import localFetch from "@/lib/api";
 
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import EmptyState from "@/components/admin/EmptyState";
@@ -12,13 +13,7 @@ import Pagination from "@/components/admin/Pagination";
 const fetchCaseTypes = async ({ page, pageSize, search }) => {
   const params = new URLSearchParams({ page, page_size: pageSize, sort: "name" });
   if (search) params.set("search", search);
-  const res = await fetch(`/api/settings/case-types?${params.toString()}`, { cache: "no-store" });
-  const body = await res.json();
-  if (!res.ok || body?.success === false) {
-    const err = new Error(body?.message || "Failed to load");
-    err.body = body;
-    throw err;
-  }
+  const body = await localFetch(`/api/v1/settings/case-types?${params.toString()}`, { cache: "no-store" });
   return body;
 };
 
@@ -28,15 +23,14 @@ const deleteCaseType = async (id) => {
     err.body = { errors: { detail: "Missing id" } };
     throw err;
   }
-  const res = await fetch(`/api/settings/case-types/${id}`, { method: "DELETE" });
-  const body = await res.json();
-  if (res.status === 404) {
+  const body = await localFetch(`/api/v1/settings/case-types/${id}`, { method: "DELETE" });
+  if (body?.status === 404 || body?._deletedId) {
     return { success: true, message: null, data: { id }, errors: null, meta: null, _deletedId: id };
   }
-  if (!res.ok || body?.success === false) {
+  if (body?.success === false) {
     const err = new Error(body?.errors?.detail || body?.message || "Delete failed");
     err.body = body;
-    err.status = res.status;
+    err.status = body?.status;
     throw err;
   }
   return body;

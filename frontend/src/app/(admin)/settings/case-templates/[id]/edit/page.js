@@ -103,14 +103,14 @@ export default function CaseTemplateEditPage() {
 
   const { data: caseTypesData, isLoading: caseTypesLoading } = useQuery({
     queryKey: ["case-types-options"],
-    queryFn: () => localFetch("/api/settings/case-types?is_active=true&page=1&page_size=100&sort=name"),
+    queryFn: () => localFetch("/api/v1/settings/case-types?is_active=true&page=1&page_size=100&sort=name"),
     staleTime: 5 * 60 * 1000,
     enabled: status === "authenticated",
   });
 
   const { data: detailData, isLoading: detailLoading } = useQuery({
     queryKey: ["task-template-detail", templateId],
-    queryFn: () => localFetch(`/api/settings/task-templates/${templateId}`),
+    queryFn: () => localFetch(`/api/v1/settings/task-templates/${templateId}`),
     enabled: !!templateId && status === "authenticated",
     onError: (err) => toast.error(extractMessage(err?.body, err.message)),
   });

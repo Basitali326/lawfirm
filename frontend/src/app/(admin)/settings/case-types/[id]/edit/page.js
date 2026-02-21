@@ -5,11 +5,11 @@ import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import localFetch from "@/lib/api";
 
 async function fetchCaseType(id) {
-  const res = await fetch(`/api/settings/case-types/${id}`);
-  const body = await res.json();
-  if (!res.ok || body?.success === false) {
+  const body = await localFetch(`/api/v1/settings/case-types/${id}/`);
+  if (body?.success === false) {
     const err = new Error(body?.message || "Failed to load case type");
     err.body = body;
     throw err;
@@ -68,13 +68,12 @@ export default function CaseTypeEditPage() {
 
   const mutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await fetch(`/api/settings/case-types/${resolvedId}`, {
+      const body = await localFetch(`/api/v1/settings/case-types/${resolvedId}/`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const body = await res.json();
-      if (!res.ok || body?.success === false) {
+      if (body?.success === false) {
         const err = new Error(body?.message || "Failed to update");
         err.body = body;
         throw err;

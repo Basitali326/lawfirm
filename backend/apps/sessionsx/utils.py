@@ -1,3 +1,4 @@
+import hashlib
 from rest_framework import exceptions
 
 def get_client_ip(request):
@@ -12,10 +13,18 @@ def get_user_agent(request):
 
 
 def require_device_id(request):
-    device_id = request.META.get("HTTP_X_DEVICE_ID")
-    if not device_id:
-        raise exceptions.ValidationError({"device_id": ["X-Device-Id header required"]})
-    return device_id
+    """
+    Previously this raised when X-Device-Id was missing. To simplify clients,
+    we now fall back to a deterministic device id based on IP + user agent so
+    existing session logic still has a per-device key.
+    """
+    device_id = request.META.get("HTTP_X_DEVICE_ID") or request.COOKIES.get("device_id")
+    if device_id:
+        return device_id
+
+    # Fallback: derive a stable hash for the request origin
+    fingerprint = f"{get_client_ip(request) or 'ip'}|{get_user_agent(request) or 'ua'}"
+    return hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()[:32]
 
 
 def get_user_firm(user):

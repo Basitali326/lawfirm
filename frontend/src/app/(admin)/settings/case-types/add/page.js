@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import localFetch from "@/lib/api";
 
 export default function CaseTypeAddPage() {
   const router = useRouter();
@@ -18,13 +19,12 @@ export default function CaseTypeAddPage() {
 
   const mutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await fetch("/api/settings/case-types", {
+      const body = await localFetch("/api/v1/settings/case-types/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || body?.success === false) {
+      if (body?.success === false) {
         const err = new Error(body?.message || "Failed to create");
         err.body = body;
         throw err;

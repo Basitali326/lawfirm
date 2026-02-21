@@ -7,6 +7,7 @@ import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import localFetch, { tokenStore } from "@/lib/api";
 
 import Pagination from "@/components/Pagination";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -25,25 +26,6 @@ const extractMessage = (payload, fallback = "Request failed") => {
   return fallback;
 };
 
-async function localFetch(url, options = {}) {
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  const contentType = res.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-  const body = isJson ? await res.json().catch(() => ({})) : await res.text().catch(() => "");
-  const payload = isJson ? body : { message: "Request failed", detail: typeof body === "string" ? body : undefined };
-  if (!res.ok || payload?.success === false) {
-    const err = new Error(extractMessage(payload));
-    err.body = payload;
-    err.status = res.status;
-    throw err;
-  }
-  return payload;
-}
-
 const formatDate = (value) => {
   if (!value) return "—";
   try {
@@ -56,6 +38,7 @@ const formatDate = (value) => {
 export default function CaseTemplatesPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const hasToken = tokenStore.getAccess();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [caseTypeId, setCaseTypeId] = useState("");
@@ -74,23 +57,23 @@ export default function CaseTemplatesPage() {
 
   useEffect(() => {
     if (status === "loading") return;
-    if (!session) {
+    if (!session && !hasToken) {
       router.replace("/login");
       return;
     }
-    const role = (session.user?.role || session?.role || session?.user?.profile?.role || "").toUpperCase();
+    const role = (session?.user?.role || session?.role || session?.user?.profile?.role || "").toUpperCase();
     if (role && !ALLOWED_ROLES.includes(role)) {
       router.replace("/403");
     }
-  }, [session, status, router]);
+  }, [session, status, hasToken, router]);
 
   const queryClient = useQueryClient();
 
   const { data: caseTypesData } = useQuery({
     queryKey: ["case-types-options"],
-    queryFn: () => localFetch("/api/settings/case-types?is_active=true&page=1&page_size=100&sort=name"),
+    queryFn: () => localFetch("/api/v1/settings/case-types?is_active=true&page=1&page_size=100&sort=name"),
     staleTime: 5 * 60 * 1000,
-    enabled: status === "authenticated",
+    enabled: status === "authenticated" || !!hasToken,
   });
   const caseTypes = useMemo(
     () => (caseTypesData?.data || []).map((ct) => ({ value: ct.id, label: ct.name })),
@@ -111,15 +94,15 @@ export default function CaseTemplatesPage() {
       if (activeOnly) params.set("is_active", "true");
       if (defaultOnly) params.set("is_default", "true");
       if (sort) params.set("sort", sort);
-      return localFetch(`/api/settings/task-templates?${params.toString()}`);
+      return localFetch(`/api/v1/settings/task-templates?${params.toString()}`);
     },
     onError: (err) => toast.error(extractMessage(err?.body, err.message)),
     keepPreviousData: true,
-    enabled: status === "authenticated",
+    enabled: status === "authenticated" || !!hasToken,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => localFetch(`/api/settings/task-templates/${id}`, { method: "DELETE" }),
+    mutationFn: (id) => localFetch(`/api/v1/settings/task-templates/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success("Template deleted");
       queryClient.invalidateQueries({ queryKey: ["task-templates"] });

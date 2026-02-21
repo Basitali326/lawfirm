@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { useCaseQuery, useUpdateCaseMutation } from "@/features/cases/cases.hooks";
 import { toast } from "sonner";
+import localFetch from "@/lib/api";
 
 const STATUS_OPTIONS = [
   { value: "PENDING_PAYMENT", label: "Pending payment" },
@@ -36,8 +37,7 @@ export default function EditCasePage() {
   const { data: usersData } = useQuery({
     queryKey: ["users-list"],
     queryFn: () =>
-      fetch("/api/settings/users", { cache: "no-store" })
-        .then((r) => r.json())
+      localFetch("/api/v1/settings/users", { cache: "no-store" })
         .then((j) => (Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : []))
         .catch(() => []),
     staleTime: 60_000,
@@ -46,14 +46,13 @@ export default function EditCasePage() {
   const { data: caseTypesData = [], isLoading: caseTypesLoading } = useQuery({
     queryKey: ["case-types", { search: caseTypeSearch }],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/settings/case-types?is_active=true&page=1&page_size=100&sort=name${
+      const res = await localFetch(
+        `/api/v1/settings/case-types?is_active=true&page=1&page_size=100&sort=name${
           caseTypeSearch ? `&search=${encodeURIComponent(caseTypeSearch)}` : ""
         }`,
         { cache: "no-store" }
       );
-      const json = await res.json().catch(() => ({}));
-      return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
     },
     staleTime: 60_000,
   });

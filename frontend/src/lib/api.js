@@ -4,9 +4,36 @@ import { API_BASE_URL, AUTH_MODE, USE_NEXTAUTH } from "@/lib/config";
 
 const ACCESS_KEY = "access_token";
 const REFRESH_KEY = "refresh_token";
+
+function storageAvailable() {
+  if (typeof window === "undefined") return false;
+  try {
+    const testKey = "__storage_test__";
+    window.sessionStorage.setItem(testKey, "1");
+    window.sessionStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function readStored(key) {
+  if (!storageAvailable()) return null;
+  return window.sessionStorage.getItem(key);
+}
+
+function writeStored(key, value) {
+  if (!storageAvailable()) return;
+  if (value) {
+    window.sessionStorage.setItem(key, value);
+  } else {
+    window.sessionStorage.removeItem(key);
+  }
+}
+
 let tokens = {
-  access: (typeof window !== "undefined" && window.localStorage.getItem(ACCESS_KEY)) || null,
-  refresh: (typeof window !== "undefined" && window.localStorage.getItem(REFRESH_KEY)) || null,
+  access: readStored(ACCESS_KEY),
+  refresh: readStored(REFRESH_KEY),
 };
 
 export const tokenStore = {
@@ -21,35 +48,17 @@ export const tokenStore = {
   },
   setAccess(access) {
     tokens.access = access || null;
-    if (typeof window !== "undefined") {
-      if (access) {
-        window.localStorage.setItem(ACCESS_KEY, access);
-      } else {
-        window.localStorage.removeItem(ACCESS_KEY);
-      }
-    }
+    writeStored(ACCESS_KEY, access || null);
   },
   setTokens({ access, refresh }) {
     tokens = { access: access || null, refresh: refresh || null };
-    if (typeof window !== "undefined") {
-      if (access) {
-        window.localStorage.setItem(ACCESS_KEY, access);
-      } else {
-        window.localStorage.removeItem(ACCESS_KEY);
-      }
-      if (refresh) {
-        window.localStorage.setItem(REFRESH_KEY, refresh);
-      } else {
-        window.localStorage.removeItem(REFRESH_KEY);
-      }
-    }
+    writeStored(ACCESS_KEY, access || null);
+    writeStored(REFRESH_KEY, refresh || null);
   },
   clear() {
     tokens = { access: null, refresh: null };
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(ACCESS_KEY);
-      window.localStorage.removeItem(REFRESH_KEY);
-    }
+    writeStored(ACCESS_KEY, null);
+    writeStored(REFRESH_KEY, null);
   },
 };
 
@@ -159,11 +168,12 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
     return body;
   };
 
+  const hasRefresh = AUTH_MODE === "token" ? !!tokenStore.getRefresh() : true;
   const shouldRefresh =
     !isPublic &&
     response.status === 401 &&
     retry &&
-    (AUTH_MODE === "cookie" || AUTH_MODE === "token");
+    ((AUTH_MODE === "cookie") || (AUTH_MODE === "token" && hasRefresh));
 
   if (shouldRefresh) {
     try {
@@ -191,6 +201,21 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
     error.code = errInfo.code;
     if (payload?.errors) {
       error.errors = payload.errors;
+    }
+     // If token is invalid/expired and refresh failed, clear stored tokens so the UI can re-auth
+    const detail = payload?.detail || payload?.errors?.detail || "";
+    const code = payload?.code || errInfo.code || "";
+    const tokenInvalid =
+      response.status === 401 &&
+      (code === "token_not_valid" ||
+        /token_not_valid/i.test(detail) ||
+        /token is invalid or expired/i.test(detail));
+    if (tokenInvalid) {
+      try {
+        tokenStore.clear();
+      } catch (_) {
+        // ignore
+      }
     }
     throw error;
   }

@@ -44,7 +44,7 @@ export default function AddUserPage() {
 
   const onSubmit = async (values) => {
     try {
-      await localFetch("/api/settings/users", {
+      await localFetch("/api/v1/settings/users", {
         method: "POST",
         body: JSON.stringify(values),
       });
