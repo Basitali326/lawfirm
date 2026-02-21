@@ -9,6 +9,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import Loader from "@/components/Loader";
+import localFetch, { tokenStore } from "@/lib/api";
 
 const ALLOWED_ROLES = ["FIRM_OWNER", "SUPER_ADMIN"];
 
@@ -21,25 +22,6 @@ const extractMessage = (payload, fallback = "Request failed") => {
   if (typeof firstError === "string") return firstError;
   return fallback;
 };
-
-async function localFetch(url, options = {}) {
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  const contentType = res.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-  const body = isJson ? await res.json().catch(() => ({})) : await res.text().catch(() => "");
-  const payload = isJson ? body : { message: "Request failed", detail: typeof body === "string" ? body : undefined };
-  if (!res.ok || payload?.success === false) {
-    const err = new Error(extractMessage(payload));
-    err.body = payload;
-    err.status = res.status;
-    throw err;
-  }
-  return payload;
-}
 
 const defaultItem = () => ({
   title: "",
@@ -54,6 +36,7 @@ const defaultItem = () => ({
 export default function CaseTemplateAddPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const hasToken = tokenStore.getAccess();
   const queryClient = useQueryClient();
   const [openItem, setOpenItem] = useState(0);
 
@@ -78,21 +61,21 @@ export default function CaseTemplateAddPage() {
 
   useEffect(() => {
     if (status === "loading") return;
-    if (!session) {
+    if (!session && !hasToken) {
       router.replace("/login");
       return;
     }
-    const role = (session.user?.role || session?.role || session?.user?.profile?.role || "").toUpperCase();
+    const role = (session?.user?.role || session?.role || session?.user?.profile?.role || "").toUpperCase();
     if (role && !ALLOWED_ROLES.includes(role)) {
       router.replace("/403");
     }
-  }, [session, status, router]);
+  }, [session, status, hasToken, router]);
 
   const { data: caseTypesData, isLoading: caseTypesLoading } = useQuery({
     queryKey: ["case-types-options"],
     queryFn: () => localFetch("/api/v1/settings/case-types?is_active=true&page=1&page_size=100&sort=name"),
     staleTime: 5 * 60 * 1000,
-    enabled: status === "authenticated",
+    enabled: status === "authenticated" || !!hasToken,
   });
 
   const mutation = useMutation({

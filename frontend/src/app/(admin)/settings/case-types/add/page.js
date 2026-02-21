@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import localFetch from "@/lib/api";
 
 export default function CaseTypeAddPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const {
     register,
     handleSubmit,
@@ -33,6 +34,8 @@ export default function CaseTypeAddPage() {
     },
     onSuccess: (body) => {
       toast.success(body?.message || "Case type created");
+      queryClient.invalidateQueries({ queryKey: ["case-types"] });
+      queryClient.invalidateQueries({ queryKey: ["case-types-options"] });
       router.push("/settings/case-types");
     },
     onError: (err) => {

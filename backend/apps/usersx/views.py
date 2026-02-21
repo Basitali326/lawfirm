@@ -191,6 +191,12 @@ class UserDeleteView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsFirmOwner]
 
     def delete(self, request, user_id):
+        if getattr(request.user, "id", None) == user_id:
+            return api_error(
+                "Validation error",
+                errors={"detail": ["You cannot delete your own account."]},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
         firm = resolve_firm_for_user(request.user)
         if not firm and request.user.is_superuser:
             firm_id = request.data.get("firm_id") or request.query_params.get("firm_id")
