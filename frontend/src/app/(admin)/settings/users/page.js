@@ -5,10 +5,13 @@ import { format, parseISO } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
+import localFetch from "@/lib/api";
 
 import DataTable from "@/components/datatable/DataTable";
 import { cn } from "@/lib/utils";
 import UserRolesMultiSelect from "@/components/users/UserRolesMultiSelect";
+import { ensureAccessToken } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
 
 const extractMessage = (payload, fallback = "Request failed") => {
   if (!payload) return fallback;
@@ -20,25 +23,6 @@ const extractMessage = (payload, fallback = "Request failed") => {
   if (typeof firstError === "string") return firstError;
   return fallback;
 };
-
-async function localFetch(url, options = {}) {
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  const contentType = res.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-  const body = isJson ? await res.json().catch(() => ({})) : await res.text().catch(() => "");
-  const payload = isJson ? body : { message: "Request failed", detail: typeof body === "string" ? body : undefined };
-  if (!res.ok || payload?.success === false) {
-    const err = new Error(extractMessage(payload));
-    err.body = payload;
-    err.status = res.status;
-    throw err;
-  }
-  return payload;
-}
 
 const statusTone = {
   ACTIVE: "bg-emerald-100 text-emerald-800",
@@ -105,7 +89,21 @@ export default function UsersPage() {
   const queryClient = useQueryClient();
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ["users-list"],
-    queryFn: () => localFetch("/api/v1/settings/users"),
+    queryFn: async () => {
+      const token = await ensureAccessToken();
+      const res = await fetch(`${API_BASE_URL}/api/v1/settings/users/`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.success === false) {
+        const err = new Error(extractMessage(json));
+        err.body = json;
+        err.status = res.status;
+        throw err;
+      }
+      return json;
+    },
     onError: (err) => toast.error(extractMessage(err?.body, "Failed to load users")),
   });
 
@@ -122,7 +120,12 @@ export default function UsersPage() {
     const ok = await confirmWithToast(`Delete user ${label || ""}? This cannot be undone.`, "Delete");
     if (!ok) return;
     try {
-      const res = await localFetch(`/api/v1/settings/users/${safeId}`, { method: "DELETE" });
+      const token = await ensureAccessToken();
+      const res = await fetch(`${API_BASE_URL}/api/v1/settings/users/${safeId}/`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json());
+      if (res?.success === false) throw new Error(res?.message || "Delete failed");
       if (res?.success === false) throw new Error(res?.message || "Delete failed");
       toast.success("User deleted");
       refetchAll();

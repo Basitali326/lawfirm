@@ -5,6 +5,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useRolesList } from "@/hooks/useRolesList";
+import { ensureAccessToken } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
 
 const extractMessage = (payload, fallback = "Request failed") => {
   if (!payload) return fallback;
@@ -19,18 +21,6 @@ const extractMessage = (payload, fallback = "Request failed") => {
   return fallback;
 };
 
-async function localFetch(url, options) {
-  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || json?.success === false) {
-    const err = new Error(extractMessage(json));
-    err.body = json;
-    err.status = res.status;
-    throw err;
-  }
-  return json;
-}
-
 export default function AddUserPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -44,12 +34,24 @@ export default function AddUserPage() {
 
   const onSubmit = async (values) => {
     try {
-      await localFetch("/api/v1/settings/users", {
+      const token = await ensureAccessToken();
+      const res = await fetch(`${API_BASE_URL}/api/v1/settings/users/`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(values),
       });
-      queryClient.invalidateQueries({ queryKey: ["users-list"] });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.success === false) {
+        const err = new Error(extractMessage(json));
+        err.body = json;
+        err.status = res.status;
+        throw err;
+      }
       toast.success("User created (default password set)");
+      queryClient.invalidateQueries({ queryKey: ["users-list"] });
       router.push("/settings/users");
     } catch (err) {
       const body = err?.body;
