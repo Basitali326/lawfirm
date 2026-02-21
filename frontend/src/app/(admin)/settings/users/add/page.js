@@ -51,6 +51,21 @@ export default function AddUserPage() {
         throw err;
       }
       toast.success("User created (default password set)");
+      queryClient.setQueryData(["users-list"], (old) => {
+        if (!old) return old;
+        const arr = Array.isArray(old?.data) ? old.data : Array.isArray(old) ? old : [];
+        const created = {
+          id: json?.data?.id,
+          name: `${values.first_name || ""} ${values.last_name || ""}`.trim() || values.email,
+          email: values.email,
+          roles: [values.role].filter(Boolean),
+          role: values.role,
+          created_at: new Date().toISOString(),
+        };
+        if (Array.isArray(old?.data)) return { ...old, data: [created, ...arr] };
+        if (Array.isArray(old)) return [created, ...arr];
+        return old;
+      });
       queryClient.invalidateQueries({ queryKey: ["users-list"] });
       router.push("/settings/users");
     } catch (err) {

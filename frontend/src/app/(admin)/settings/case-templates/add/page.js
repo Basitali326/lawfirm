@@ -78,9 +78,17 @@ export default function CaseTemplateAddPage() {
     enabled: status === "authenticated" || !!hasToken,
   });
 
+  const { data: usersData } = useQuery({
+    queryKey: ["case-template-users"],
+    queryFn: () => localFetch("/api/v1/settings/users/"),
+    select: (res) => (Array.isArray(res) ? res : res?.data || []),
+    enabled: status === "authenticated" || !!hasToken,
+    staleTime: 60_000,
+  });
+
   const mutation = useMutation({
     mutationFn: (payload) =>
-      localFetch("/api/v1/settings/task-templates", {
+      localFetch("/api/v1/settings/task-templates/", {
         method: "POST",
         body: JSON.stringify(payload),
       }),
@@ -114,6 +122,18 @@ export default function CaseTemplateAddPage() {
   if (caseTypesLoading) return <Loader />;
 
   const caseTypes = caseTypesData?.data || [];
+  const userOptions = (usersData || []).map((u) => ({
+    value: u.id,
+    label: u.name || u.email || `User ${u.id}`,
+  }));
+  const assignOptions = [
+    { value: "CASE_LEAD", label: "Case Lead" },
+    { value: "CASE_LAWYER", label: "Case Lawyer" },
+    { value: "CASE_PARALEGAL", label: "Case Paralegal" },
+    { value: "CASE_ACCOUNTANT", label: "Case Accountant" },
+    { value: "UNASSIGNED", label: "Unassigned" },
+    ...userOptions,
+  ];
 
   return (
     <div className="space-y-6">
@@ -304,9 +324,9 @@ export default function CaseTemplateAddPage() {
                       className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
                       {...register(`items.${index}.assign_to`)}
                     >
-                      {["CASE_LEAD", "CASE_LAWYER", "CASE_PARALEGAL", "CASE_ACCOUNTANT", "UNASSIGNED"].map((p) => (
-                        <option key={p} value={p}>
-                          {p}
+                      {assignOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
                         </option>
                       ))}
                     </select>

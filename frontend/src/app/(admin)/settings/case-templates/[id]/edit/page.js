@@ -9,6 +9,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import Loader from "@/components/Loader";
+import localFetch, { tokenStore } from "@/lib/api";
 
 const ALLOWED_ROLES = ["FIRM_OWNER", "SUPER_ADMIN"];
 
@@ -89,29 +90,30 @@ export default function CaseTemplateEditPage() {
 
   const { fields, append, remove, move, replace } = useFieldArray({ control, name: "items" });
 
-  useEffect(() => {
-    if (status === "loading") return;
-    if (!session) {
-      router.replace("/login");
-      return;
-    }
-    const role = (session.user?.role || session?.role || session?.user?.profile?.role || "").toUpperCase();
-    if (role && !ALLOWED_ROLES.includes(role)) {
-      router.replace("/403");
-    }
-  }, [session, status, router]);
+useEffect(() => {
+  const hasToken = tokenStore.getAccess();
+  if (status === "loading") return;
+  if (!session && !hasToken) {
+    router.replace("/login");
+    return;
+  }
+  const role = (session?.user?.role || session?.role || session?.user?.profile?.role || "").toUpperCase();
+  if (role && !ALLOWED_ROLES.includes(role)) {
+    router.replace("/403");
+  }
+}, [session, status, router]);
 
   const { data: caseTypesData, isLoading: caseTypesLoading } = useQuery({
     queryKey: ["case-types-options"],
     queryFn: () => localFetch("/api/v1/settings/case-types?is_active=true&page=1&page_size=100&sort=name"),
     staleTime: 5 * 60 * 1000,
-    enabled: status === "authenticated",
+    enabled: status === "authenticated" || !!tokenStore.getAccess(),
   });
 
   const { data: detailData, isLoading: detailLoading } = useQuery({
     queryKey: ["task-template-detail", templateId],
-    queryFn: () => localFetch(`/api/v1/settings/task-templates/${templateId}`),
-    enabled: !!templateId && status === "authenticated",
+    queryFn: () => localFetch(`/api/v1/settings/task-templates/${templateId}/`),
+    enabled: !!templateId && (status === "authenticated" || !!tokenStore.getAccess()),
     onError: (err) => toast.error(extractMessage(err?.body, err.message)),
   });
 
@@ -149,7 +151,7 @@ export default function CaseTemplateEditPage() {
 
   const mutation = useMutation({
     mutationFn: (payload) =>
-      localFetch(`/api/settings/task-templates/${templateId}`, {
+      localFetch(`/api/v1/settings/task-templates/${templateId}/`, {
         method: "PATCH",
         body: JSON.stringify(payload),
       }),

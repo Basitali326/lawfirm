@@ -120,17 +120,27 @@ export default function UsersPage() {
     const ok = await confirmWithToast(`Delete user ${label || ""}? This cannot be undone.`, "Delete");
     if (!ok) return;
     try {
+      // Optimistic remove for faster UI
+      queryClient.setQueryData(["users-list"], (old) => {
+        if (!old) return old;
+        const arr = Array.isArray(old?.data) ? old.data : Array.isArray(old) ? old : [];
+        const filtered = arr.filter((u) => String(u.id) !== String(safeId));
+        if (Array.isArray(old?.data)) return { ...old, data: filtered };
+        if (Array.isArray(old)) return filtered;
+        return old;
+      });
+
       const token = await ensureAccessToken();
       const res = await fetch(`${API_BASE_URL}/api/v1/settings/users/${safeId}/`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       }).then((r) => r.json());
       if (res?.success === false) throw new Error(res?.message || "Delete failed");
-      if (res?.success === false) throw new Error(res?.message || "Delete failed");
       toast.success("User deleted");
       refetchAll();
     } catch (err) {
       toast.error(extractMessage(err?.body, err.message));
+      queryClient.invalidateQueries({ queryKey: ["users-list"] });
     }
   };
 
