@@ -91,6 +91,13 @@ class RoleViewSet(viewsets.ModelViewSet):
         if role.is_system:
             return api_response(False, "Validation error", errors={"detail": ["Cannot delete system role"]},
                                 status=status.HTTP_400_BAD_REQUEST)
+        if role.user_roles.filter(user=request.user).exists():
+            return api_response(
+                False,
+                "Validation error",
+                errors={"detail": ["You cannot delete a role assigned to yourself. Remove yourself first."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if role.user_roles.exists():
             return api_response(
                 False,

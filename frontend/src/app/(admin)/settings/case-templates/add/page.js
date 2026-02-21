@@ -115,6 +115,7 @@ export default function CaseTemplateAddPage() {
       title: (item.title || "").trim(),
       due_in_days: item.due_in_days === "" ? null : Number(item.due_in_days),
       sort_order: idx + 1,
+      assign_to: undefined,
     }));
     mutation.mutate({ ...values, items });
   };
@@ -319,17 +320,7 @@ export default function CaseTemplateAddPage() {
                     )}
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Assign To</label>
-                    <select
-                      className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-                      {...register(`items.${index}.assign_to`)}
-                    >
-                      {assignOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Assign To removed per request; backend will default assignment */}
                   </div>
                   <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                     <input type="checkbox" {...register(`items.${index}.is_active`)} />

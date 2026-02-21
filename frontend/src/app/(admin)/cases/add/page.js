@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import localFetch from "@/lib/api";
+import localFetch, { ensureAccessToken, tokenStore } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
@@ -37,7 +37,8 @@ async function fetchCaseTypes() {
   return json?.data || [];
 }
 
-async function createCase(payload, token) {
+async function createCase(payload) {
+  const token = await ensureAccessToken();
   const res = await fetch(`${API_BASE}/api/v1/cases/`, {
     method: "POST",
     headers: {
@@ -59,7 +60,7 @@ async function createCase(payload, token) {
 export default function AddCasePage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const accessToken = session?.access || session?.token?.access;
+  const accessToken = session?.access || session?.token?.access || tokenStore.getAccess();
   const queryClient = useQueryClient();
   const [caseTypeSearch, setCaseTypeSearch] = useState("");
   const [caseTypeOpen, setCaseTypeOpen] = useState(false);
@@ -123,10 +124,9 @@ export default function AddCasePage() {
 
   const mutation = useMutation({
     mutationFn: (values) => {
-      if (!accessToken) throw new Error("Not authenticated");
       const payload = { ...values };
       if (!payload.assigned_lead) payload.assigned_lead = null;
-      return createCase(payload, accessToken);
+      return createCase(payload);
     },
     onSuccess: (body) => {
       toast.success("Case created successfully");

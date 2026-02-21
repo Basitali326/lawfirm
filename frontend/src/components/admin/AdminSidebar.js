@@ -87,7 +87,7 @@ export default function AdminSidebar() {
   return (
     <aside
       className={cn(
-        "flex h-screen flex-col border-r border-slate-800 bg-slate-950 text-white transition-all",
+        "flex flex-col border-r border-slate-800 bg-slate-950 text-white transition-all",
         sidebarOpen ? "w-64" : "w-20"
       )}
     >
