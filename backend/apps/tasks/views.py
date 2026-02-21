@@ -177,11 +177,16 @@ class OpenCasesTasksView(APIView):
             firm_id = getattr(profile, "firm_id", None)
         if not firm_id and hasattr(user, "owned_firm"):
             firm_id = getattr(user.owned_firm, "id", None)
-        # Superusers must provide firm_id explicitly to scope the query
-        if not firm_id and getattr(user, "is_superuser", False) and request is not None:
-            firm_id = request.query_params.get("firm_id") or None
+        # Superusers: allow explicit override, else default to first firm
+        if getattr(user, "is_superuser", False):
+            if request is not None:
+                firm_id = request.query_params.get("firm_id") or firm_id
             if not firm_id:
-                return None
+                try:
+                    from apps.authx.models import Firm
+                    firm_id = Firm.objects.values_list("id", flat=True).first()
+                except Exception:
+                    firm_id = None
         if not firm_id:
             firm_id = (
                 Case.objects.filter(
