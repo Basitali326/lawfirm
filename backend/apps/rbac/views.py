@@ -77,6 +77,9 @@ class RoleViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         firm = get_user_firm(user)
+        if firm is None and getattr(user, "is_superuser", False):
+            from apps.authx.models import Firm
+            firm = Firm.objects.first()
         return Role.objects.filter(firm=firm, is_deleted=False)
 
     def get_permissions(self):

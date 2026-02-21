@@ -42,6 +42,11 @@ class RoleSerializer(serializers.ModelSerializer):
 
         firm = get_user_firm(user)
         if firm is None:
+            # Superusers may not be bound to a firm; fall back to the first firm
+            if getattr(user, "is_superuser", False):
+                from apps.authx.models import Firm
+                firm = Firm.objects.first()
+        if firm is None:
             raise serializers.ValidationError({"detail": "User firm not set"})
         validated_data["firm"] = firm
         return super().create(validated_data)
