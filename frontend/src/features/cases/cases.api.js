@@ -1,5 +1,5 @@
 import apiClient from "@/lib/apiClient";
-import { tokenStore } from "@/lib/api";
+import { tokenStore, ensureAccessToken } from "@/lib/api";
 import { endpoints } from "@/lib/endpoints";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -97,14 +97,13 @@ export async function fetchCases({ token, params = {} }) {
 }
 
 export async function generateCaseTasks(id, token) {
-  const authToken = pickToken(token);
-  const res = await fetch(`/api/cases/${id}/generate-tasks/`, {
+  const authToken = token || (await ensureAccessToken());
+  const res = await fetch(`${API_BASE}/api/v1/cases/${id}/generate-tasks/`, {
     method: "POST",
     headers: {
-      Authorization: authToken ? `Bearer ${authToken}` : undefined,
+      Authorization: `Bearer ${authToken}`,
       "Content-Type": "application/json",
     },
-    credentials: "include",
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body?.success === false) {

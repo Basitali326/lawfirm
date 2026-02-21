@@ -16,7 +16,7 @@ import useMe from "@/hooks/useMe";
 
 export default function TasksPage() {
   const { status, data: session } = useSession();
-   const hasToken = tokenStore.getAccess();
+  const hasToken = !!tokenStore.getAccess();
   const { can, roles } = useRBAC();
   const { data: meData } = useMe();
   const currentUserId =
