@@ -12,6 +12,7 @@ from .permissions import IsFirmOwner
 from .models import InviteToken
 from apps.rbac.models import Role, UserRole
 from django.db import transaction
+from .emails import send_new_user_credentials
 
 User = get_user_model()
 USER_LIMIT = 10
@@ -158,9 +159,12 @@ class UsersListView(APIView):
         }
         if any(f.name == "firm" for f in User._meta.fields):
             user_kwargs["firm"] = firm
+        default_password = "Abcd.@123456"
+        login_url = getattr(settings, "FRONTEND_LOGIN_URL", None) or getattr(settings, "FRONTEND_URL", None) or ""
+
         with transaction.atomic():
             user = User.objects.create(**user_kwargs)
-            user.set_password("Abcd.@123456")
+            user.set_password(default_password)
             user.save(update_fields=["password"])
             profile, _ = UserProfile.objects.get_or_create(user=user)
             profile.role = data.get("role")
@@ -172,6 +176,12 @@ class UsersListView(APIView):
                 role_obj = Role.objects.filter(firm=firm, name=role_name, is_deleted=False).first()
                 if role_obj:
                     UserRole.objects.get_or_create(user=user, role=role_obj)
+
+        # Send credentials email (best-effort)
+        try:
+            send_new_user_credentials(user.email, firm.name if firm else "Lawfirm", login_url, default_password)
+        except Exception:
+            pass
         total, remaining = firm_user_counts(firm)
         return api_success(
             "User created",
