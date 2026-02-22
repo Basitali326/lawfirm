@@ -191,7 +191,8 @@ class UserDeleteView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsFirmOwner]
 
     def delete(self, request, user_id):
-        if getattr(request.user, "id", None) == user_id:
+        # Prevent self-delete (path param may be str)
+        if str(getattr(request.user, "id", None)) == str(user_id):
             return api_error(
                 "Validation error",
                 errors={"detail": ["You cannot delete your own account."]},
@@ -216,7 +217,7 @@ class UserDeleteView(APIView):
             if getattr(target, "firm_id", None) != getattr(firm, "id", None):
                 return api_error("Cannot modify users outside your firm", status_code=status.HTTP_403_FORBIDDEN)
 
-        if target == request.user:
+        if str(target.id) == str(getattr(request.user, "id", None)):
             return api_error("You cannot delete yourself", status_code=status.HTTP_400_BAD_REQUEST)
 
         is_firm_owner = False

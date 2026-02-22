@@ -23,6 +23,34 @@ export function normalizeError(error) {
     };
   }
 
+  if (error.errors && typeof error.errors === "object" && !Array.isArray(error.errors)) {
+    const fieldErrors = [];
+    for (const [field, messages] of Object.entries(error.errors)) {
+      const message = Array.isArray(messages) ? messages.join(" ") : String(messages);
+      const mappedField = field === "non_field_errors" ? "_global" : field;
+      fieldErrors.push({ field: mappedField, message });
+    }
+    return {
+      message: fieldErrors.map((e) => e.message).join(" ") || error.message || "Request failed.",
+      fieldErrors,
+      status: error.status ?? null,
+    };
+  }
+
+  if (error.data && error.data.errors && typeof error.data.errors === "object" && !Array.isArray(error.data.errors)) {
+    const fieldErrors = [];
+    for (const [field, messages] of Object.entries(error.data.errors)) {
+      const message = Array.isArray(messages) ? messages.join(" ") : String(messages);
+      const mappedField = field === "non_field_errors" ? "_global" : field;
+      fieldErrors.push({ field: mappedField, message });
+    }
+    return {
+      message: fieldErrors.map((e) => e.message).join(" ") || error.message || "Request failed.",
+      fieldErrors,
+      status: error.status ?? null,
+    };
+  }
+
   if (error.data && typeof error.data === "object" && !Array.isArray(error.data)) {
     const fieldErrors = [];
     for (const [field, messages] of Object.entries(error.data)) {
