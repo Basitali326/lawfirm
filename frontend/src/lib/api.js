@@ -177,15 +177,7 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
 
   const handleAuthFail = (statusCode, payload) => {
     if (statusCode !== 401) return;
-    const detail = payload?.detail || payload?.errors?.detail || "";
-    const code = payload?.code || payload?.errors?.code || "";
-    const msg = payload?.message || "";
-    const tokenInvalid =
-      /token_not_valid/i.test(code) ||
-      /token_not_valid/i.test(detail) ||
-      /token is invalid or expired/i.test(detail) ||
-      /token is invalid or expired/i.test(msg);
-    if (!tokenInvalid) return;
+    // For any 401, clear tokens and send to session-expired
     try {
       tokenStore.clear();
     } catch (_) {
@@ -212,6 +204,8 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
       }
     } catch (err) {
       tokenStore.clear();
+      // Refresh failed; treat the original 401 as an auth failure and redirect.
+      handleAuthFail(response.status, payload);
       throw err;
     }
   }

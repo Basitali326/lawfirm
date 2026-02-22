@@ -26,7 +26,7 @@ class CasePermission(BasePermission):
                 return True
 
         profile = getattr(request.user, "profile", None)
-        role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").upper()
+        role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").replace(" ", "_").upper()
         if role in {"SUPER_ADMIN", "FIRM_OWNER", "OWNER"}:
             return True
         # Fallback: treat firm owners without explicit role as FIRM_OWNER
@@ -49,7 +49,7 @@ class CasePermission(BasePermission):
                 return True
 
         profile = getattr(request.user, "profile", None)
-        role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").upper()
+        role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").replace(" ", "_").upper()
         if role == "SUPER_ADMIN":
             return True
         if role in {"FIRM_OWNER", "OWNER"}:

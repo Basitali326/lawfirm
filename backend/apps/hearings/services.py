@@ -17,7 +17,9 @@ MANAGE_CODE = "case.hearings.manage"
 
 def _user_role(user):
     profile = getattr(user, "profile", None)
-    return (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
+    raw = (getattr(user, "role", "") or getattr(profile, "role", "") or "")
+    # Normalize roles like "Firm owner" or "Firm Owner" -> "FIRM_OWNER"
+    return raw.replace(" ", "_").upper()
 
 
 def _ensure_case_access(user, case, method="GET"):
