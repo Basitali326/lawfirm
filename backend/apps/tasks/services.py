@@ -50,12 +50,31 @@ def generate_tasks_for_case(case, triggered_by_user=None, force=False):
 
     created = []
     with transaction.atomic():
-        # When forcing regeneration, drop previous tasks generated from this template for this case
-        if force:
-            CaseTask.objects.filter(case=case, generated_from_template=template).delete()
-
+        existing_by_item = {
+            t.generated_from_template_item_id: t
+            for t in CaseTask.objects.filter(
+                case=case, generated_from_template=template, is_deleted=False
+            )
+        }
         base_date = case.opened_at or datetime.date.today()
         for item in template_items:
+            existing = existing_by_item.get(item.id)
+            if existing:
+                # keep user-controlled fields; refresh template-driven fields
+                updated_fields = []
+                if existing.title != item.title:
+                    existing.title = item.title
+                    updated_fields.append("title")
+                if existing.description != item.description:
+                    existing.description = item.description
+                    updated_fields.append("description")
+                if existing.priority != item.priority:
+                    existing.priority = item.priority
+                    updated_fields.append("priority")
+                if updated_fields:
+                    existing.save(update_fields=updated_fields + ["updated_at"])
+                continue
+
             due_date = None
             if item.due_in_days is not None:
                 due_date = base_date + datetime.timedelta(days=item.due_in_days)
