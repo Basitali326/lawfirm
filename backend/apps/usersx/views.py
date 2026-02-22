@@ -111,10 +111,9 @@ class UsersListView(APIView):
                 return 2
             return 3  # regular members / viewers
 
-        current_role = None
         profile = getattr(request.user, "profile", None)
         current_role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").replace(" ", "_")
-        current_rank = rank(current_role)
+        current_rank = 0 if getattr(request.user, "is_superuser", False) else rank(current_role)
 
         if any(f.name == "firm" for f in User._meta.fields):
             users = User.objects.filter(firm=firm, is_active=True).select_related("profile").order_by("-date_joined")
@@ -129,11 +128,13 @@ class UsersListView(APIView):
             user_roles = list(
                 Role.objects.filter(user_roles__user_id=u.id, is_deleted=False, firm=firm).values_list("name", flat=True)
             )
-            primary_role = (
-                "FIRM_OWNER"
-                if getattr(firm, "owner_id", None) == u.id
-                else getattr(getattr(u, "profile", None), "role", None)
-            )
+            primary_role = None
+            if getattr(u, "is_superuser", False):
+                primary_role = "SUPER_ADMIN"
+            elif getattr(firm, "owner_id", None) == u.id:
+                primary_role = "FIRM_OWNER"
+            else:
+                primary_role = getattr(getattr(u, "profile", None), "role", None)
             if primary_role and primary_role not in user_roles:
                 user_roles.insert(0, primary_role)
 
