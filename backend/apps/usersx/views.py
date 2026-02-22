@@ -19,6 +19,7 @@ USER_LIMIT = 10
 
 
 def resolve_firm_for_user(user):
+    # Priority: explicit firm field -> owned_firm -> profile.firm -> firm_id
     firm = getattr(user, "firm", None)
     if firm:
         return firm
@@ -45,6 +46,10 @@ def resolve_firm_for_user(user):
 
 def default_firm_for_superadmin():
     try:
+        # Prefer the superadmin's own firm if one exists
+        owner_firm = Firm.objects.filter(owner__is_superuser=True).first()
+        if owner_firm:
+            return owner_firm
         return Firm.objects.first()
     except Exception:
         return None
@@ -87,11 +92,18 @@ class UsersListView(APIView):
 
     def _firm_for_request(self, request):
         firm = resolve_firm_for_user(request.user)
-        if not firm and request.user.is_superuser:
-            firm_id = request.data.get("firm_id") if hasattr(request, "data") else None
+        if request.user.is_superuser:
+            # Superadmin can force firm via header or body
+            firm_id = None
+            try:
+                firm_id = request.headers.get("X-FIRM-ID") or firm_id
+            except Exception:
+                pass
+            if hasattr(request, "data"):
+                firm_id = firm_id or request.data.get("firm_id")
             firm_id = firm_id or request.query_params.get("firm_id")
             if firm_id:
-                firm = Firm.objects.filter(id=firm_id).first()
+                firm = Firm.objects.filter(id=firm_id).first() or firm
             if not firm:
                 firm = default_firm_for_superadmin()
         return firm
