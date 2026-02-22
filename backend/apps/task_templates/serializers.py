@@ -148,11 +148,7 @@ class CaseTaskTemplateSerializer(serializers.ModelSerializer):
                 setattr(instance, attr, value)
             instance.save()
             if items_data is not None:
-                now = timezone.now()
-                instance.items.filter(is_deleted=False).update(
-                    is_deleted=True, deleted_at=now, is_active=False, updated_at=now
-                )
-                self._create_items(instance, items_data)
+                self._upsert_items(instance, items_data)
         return instance
 
     def _create_items(self, template, items_data):
@@ -172,3 +168,59 @@ class CaseTaskTemplateSerializer(serializers.ModelSerializer):
                 )
             )
         CaseTaskTemplateItem.objects.bulk_create(items)
+
+    def _upsert_items(self, template, items_data):
+        existing = {str(it.id): it for it in template.items.filter(is_deleted=False)}
+        seen_ids = set()
+        new_items = []
+
+        for item in items_data or []:
+            item_id = str(item.get("id") or "") if item.get("id") else None
+            if item_id and item_id in existing:
+                obj = existing[item_id]
+                seen_ids.add(item_id)
+                fields = {
+                    "title": item.get("title", obj.title).strip(),
+                    "description": item.get("description", obj.description),
+                    "priority": item.get("priority", obj.priority) or TemplatePriority.MEDIUM,
+                    "default_status": item.get("default_status", obj.default_status) or TemplateTaskStatus.TODO,
+                    "due_in_days": item.get("due_in_days", obj.due_in_days),
+                    "assign_to": item.get("assign_to", obj.assign_to) or TemplateAssignTo.UNASSIGNED,
+                    "sort_order": item.get("sort_order", obj.sort_order),
+                    "is_active": item.get("is_active", obj.is_active),
+                }
+                updated = False
+                for f, v in fields.items():
+                    if getattr(obj, f) != v:
+                        setattr(obj, f, v)
+                        updated = True
+                if updated:
+                    obj.save()
+                continue
+
+            new_items.append(
+                CaseTaskTemplateItem(
+                    template=template,
+                    title=item.get("title", "").strip(),
+                    description=item.get("description"),
+                    priority=item.get("priority") or TemplatePriority.MEDIUM,
+                    default_status=item.get("default_status") or TemplateTaskStatus.TODO,
+                    due_in_days=item.get("due_in_days"),
+                    assign_to=item.get("assign_to") or TemplateAssignTo.UNASSIGNED,
+                    sort_order=item.get("sort_order", 0),
+                    is_active=item.get("is_active", True),
+                )
+            )
+
+        # Soft delete items not present anymore
+        to_delete = [obj for iid, obj in existing.items() if iid not in seen_ids]
+        if to_delete:
+            now = timezone.now()
+            for obj in to_delete:
+                obj.is_deleted = True
+                obj.deleted_at = now
+                obj.is_active = False
+            CaseTaskTemplateItem.objects.bulk_update(to_delete, ["is_deleted", "deleted_at", "is_active", "updated_at"])
+
+        if new_items:
+            CaseTaskTemplateItem.objects.bulk_create(new_items)
