@@ -17,7 +17,11 @@ const extractMessage = (payload, fallback = "Request failed") => {
   if (!payload) return fallback;
   if (payload.message) return payload.message;
   if (payload.detail) return payload.detail;
-  if (payload.errors?.detail) return payload.errors.detail;
+  if (payload.errors?.detail) {
+    const detail = payload.errors.detail;
+    if (Array.isArray(detail)) return detail.join(" ");
+    return detail;
+  }
   const firstError = payload.errors && Object.values(payload.errors)[0];
   if (Array.isArray(firstError)) return firstError.join(" ");
   if (typeof firstError === "string") return firstError;

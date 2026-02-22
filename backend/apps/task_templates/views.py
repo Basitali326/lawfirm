@@ -11,6 +11,8 @@ from apps.authx.models import Firm
 from apps.task_templates.models import CaseTaskTemplate, CaseTaskTemplateItem
 from apps.task_templates.permissions import CaseTaskTemplatePermission
 from apps.task_templates.serializers import CaseTaskTemplateSerializer
+from apps.tasks.services import generate_tasks_for_case
+from apps.cases.models import Case
 
 
 class CaseTaskTemplatePagination(PageNumberPagination):
@@ -30,6 +32,26 @@ class CaseTaskTemplateViewSet(
     serializer_class = CaseTaskTemplateSerializer
     permission_classes = [CaseTaskTemplatePermission]
     pagination_class = CaseTaskTemplatePagination
+
+    def _regenerate_cases(self, template, user):
+        """
+        Refresh tasks for cases that already generated tasks from this template's case type.
+        Keeps cases that haven't generated yet untouched.
+        """
+        if not template or not template.firm or not template.case_type:
+            return
+        cases = Case.objects.filter(
+            firm=template.firm,
+            case_type=template.case_type,
+            is_deleted=False,
+            tasks_generated_at__isnull=False,
+        ).only("id", "firm_id", "case_type_id", "tasks_generated_at", "opened_at")
+        for case in cases:
+            try:
+                generate_tasks_for_case(case, triggered_by_user=user, force=True)
+            except Exception:
+                # Do not block template update on regeneration issues
+                continue
 
     def _resolve_firm(self, request):
         user = request.user
@@ -159,6 +181,8 @@ class CaseTaskTemplateViewSet(
                     status_code=status.HTTP_409_CONFLICT,
                 )
             raise
+        # Auto-sync tasks for cases that have already generated from this case type.
+        self._regenerate_cases(template, request.user)
         response_serializer = self.get_serializer(template)
         return api_success("Task template updated", data=response_serializer.data)
 
