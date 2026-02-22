@@ -335,13 +335,18 @@ class GenerateTasksAPIView(APIView):
         user = request.user
         role = (getattr(user, "role", "") or "").upper()
         is_super = getattr(user, "is_superuser", False) or role == "SUPER_ADMIN"
+        from apps.cases.utils import get_user_firm
+        user_firm = get_user_firm(user)
         try:
             case = Case.objects.get(id=case_id, is_deleted=False)
         except Case.DoesNotExist:
             return api_error("Case not found", status_code=status.HTTP_404_NOT_FOUND)
 
-        if not is_super and case.firm_id != getattr(user, "firm_id", None):
-            return api_error("Not found", status_code=status.HTTP_404_NOT_FOUND)
+        if not is_super:
+            if not user_firm:
+                return api_error("User firm not set", status_code=status.HTTP_400_BAD_REQUEST)
+            if case.firm_id != getattr(user_firm, "id", None):
+                return api_error("Not found", status_code=status.HTTP_404_NOT_FOUND)
 
         allowed_roles = {"SUPER_ADMIN", "FIRM_OWNER"}
         if case.assigned_lead_id == user.id:
