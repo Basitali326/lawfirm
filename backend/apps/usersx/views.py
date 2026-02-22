@@ -100,6 +100,22 @@ class UsersListView(APIView):
         firm = self._firm_for_request(request)
         if not firm:
             return api_error("User not associated with a firm", status_code=status.HTTP_400_BAD_REQUEST)
+
+        def rank(role_name):
+            r = (role_name or "").replace(" ", "_").upper()
+            if r in {"SUPER_ADMIN", "SUPERADMIN"}:
+                return 0
+            if r in {"FIRM_OWNER", "OWNER"}:
+                return 1
+            if r in {"FIRM_ADMIN"}:
+                return 2
+            return 3  # regular members / viewers
+
+        current_role = None
+        profile = getattr(request.user, "profile", None)
+        current_role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").replace(" ", "_")
+        current_rank = rank(current_role)
+
         if any(f.name == "firm" for f in User._meta.fields):
             users = User.objects.filter(firm=firm, is_active=True).select_related("profile").order_by("-date_joined")
         else:
@@ -120,6 +136,12 @@ class UsersListView(APIView):
             )
             if primary_role and primary_role not in user_roles:
                 user_roles.insert(0, primary_role)
+
+            # Hierarchy filter: show only self or users with rank >= current user's rank
+            user_rank = rank(primary_role or (user_roles[0] if user_roles else None))
+            if u.id != request.user.id and user_rank < current_rank:
+                continue
+
             data.append(
                 {
                     "id": u.id,
