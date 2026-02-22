@@ -4,6 +4,7 @@ import { API_BASE_URL, AUTH_MODE, USE_NEXTAUTH } from "@/lib/config";
 
 const ACCESS_KEY = "access_token";
 const REFRESH_KEY = "refresh_token";
+const FIRM_KEY = "firm_id";
 
 function storageAvailable() {
   if (typeof window === "undefined") return false;
@@ -34,6 +35,7 @@ function writeStored(key, value) {
 let tokens = {
   access: readStored(ACCESS_KEY),
   refresh: readStored(REFRESH_KEY),
+  firmId: readStored(FIRM_KEY),
 };
 
 export const tokenStore = {
@@ -43,6 +45,9 @@ export const tokenStore = {
   getRefresh() {
     return tokens.refresh;
   },
+  getFirmId() {
+    return tokens.firmId;
+  },
   hasAccess() {
     return !!tokens.access;
   },
@@ -50,15 +55,20 @@ export const tokenStore = {
     tokens.access = access || null;
     writeStored(ACCESS_KEY, access || null);
   },
+  setFirmId(firmId) {
+    tokens.firmId = firmId || null;
+    writeStored(FIRM_KEY, firmId || null);
+  },
   setTokens({ access, refresh }) {
-    tokens = { access: access || null, refresh: refresh || null };
+    tokens = { access: access || null, refresh: refresh || null, firmId: tokens.firmId || null };
     writeStored(ACCESS_KEY, access || null);
     writeStored(REFRESH_KEY, refresh || null);
   },
   clear() {
-    tokens = { access: null, refresh: null };
+    tokens = { access: null, refresh: null, firmId: null };
     writeStored(ACCESS_KEY, null);
     writeStored(REFRESH_KEY, null);
+    writeStored(FIRM_KEY, null);
   },
 };
 
@@ -116,6 +126,11 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
           // ignore; 401 will be handled below
         }
       }
+    }
+
+    const firmId = tokenStore.getFirmId();
+    if (firmId) {
+      headers["X-FIRM-ID"] = firmId;
     }
 
     // NextAuth cookie mode: pull access token from session and attach as Bearer

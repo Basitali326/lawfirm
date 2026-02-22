@@ -7,8 +7,12 @@ function setTokensFromResponse(data) {
   if (AUTH_MODE !== "token") return;
   const access = data?.tokens?.access || data?.access;
   const refresh = data?.tokens?.refresh || data?.refresh;
+   const firmId = data?.firm?.id || data?.tokens?.firm_id;
   if (access) {
     tokenStore.setTokens({ access, refresh });
+  }
+  if (firmId) {
+    tokenStore.setFirmId(String(firmId));
   }
 }
 

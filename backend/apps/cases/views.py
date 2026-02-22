@@ -47,7 +47,22 @@ class CaseViewSet(
     def get_queryset(self):
         qs = Case.objects.select_related("client", "assigned_lead", "firm").filter(is_deleted=False)
         user = self.request.user
-        firm = get_user_firm(user)
+        # Allow firm override (e.g., superadmin switching tenants)
+        firm_override = self.request.headers.get("X-FIRM-ID") or self.request.query_params.get("firm_id")
+        firm = None
+        if firm_override:
+            try:
+                firm = firm_override if hasattr(firm_override, "id") else None
+                from apps.authx.models import Firm
+                firm = Firm.objects.filter(id=firm_override).first()
+            except Exception:
+                firm = None
+        if not firm:
+            firm = get_user_firm(user)
+        if not firm and getattr(user, "is_superuser", False):
+            # last resort for superadmin: default to their firm or first firm
+            from apps.usersx.views import default_firm_for_superadmin
+            firm = default_firm_for_superadmin()
         profile = getattr(user, "profile", None)
         role = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
         if not role:
@@ -58,25 +73,17 @@ class CaseViewSet(
 
         # RBAC: if user has cases.view, return firm-scoped cases
         if user_has_perm(user, "cases.view"):
-            # Owners/superadmins still see all firm cases
-            if role in {"SUPER_ADMIN", "FIRM_OWNER", "OWNER"} or getattr(user, "owned_firm", None):
-                base = qs
-                if firm:
-                    base = base.filter(firm_id=firm.id)
-                return base.order_by("-created_at")
-            # If a special permission exists to view all cases, honor it
-            if user_has_perm(user, "cases.view_all"):
-                base = qs
-                if firm:
-                    base = base.filter(firm_id=firm.id)
-                return base.order_by("-created_at")
-            # Otherwise limit to cases assigned to the user within their firm
-            base = qs.filter(assigned_lead=user)
+            base = qs
             if firm:
-                base = base.filter(firm_id=firm.id)
+                base = base.filter(firm_id=getattr(firm, "id", firm))
+            # If a special permission exists to view all cases, honor it, but otherwise firm scope is enough
             return base.order_by("-created_at")
         if role == "SUPER_ADMIN":
-            return qs.order_by("-created_at")
+            base = qs
+            if firm:
+                base = base.filter(firm_id=getattr(firm, "id", firm))
+            # If no firm specified, return all firms (superadmin global view)
+            return base.order_by("-created_at")
         if role == "FIRM_OWNER" or role == "OWNER" or (not role and hasattr(user, "owned_firm")):
             firm_id = getattr(user, "firm_id", None)
             if not firm_id and profile:

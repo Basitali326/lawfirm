@@ -6,6 +6,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 from .models import EmailOTP, UserProfile
+from apps.authx.models import Firm
 
 
 def generate_otp() -> str:
@@ -34,5 +35,16 @@ def send_email_otp(user, code: str):
 
 
 def ensure_profile(user):
-    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={"email_verified": False})
+    profile, created = UserProfile.objects.get_or_create(user=user, defaults={"email_verified": False})
+    if not getattr(profile, "firm_id", None):
+        candidate = None
+        # Prefer explicit firm on user, then owned firm, then a firm the user owns, else first firm.
+        candidate = getattr(user, "firm", None) or getattr(user, "owned_firm", None)
+        if not candidate:
+            candidate = Firm.objects.filter(owner=user).first()
+        if not candidate:
+            candidate = Firm.objects.first()
+        if candidate:
+            profile.firm = candidate
+            profile.save(update_fields=["firm"])
     return profile
