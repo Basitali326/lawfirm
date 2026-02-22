@@ -50,6 +50,10 @@ def generate_tasks_for_case(case, triggered_by_user=None, force=False):
 
     created = []
     with transaction.atomic():
+        # When forcing regeneration, drop previous tasks generated from this template for this case
+        if force:
+            CaseTask.objects.filter(case=case, generated_from_template=template).delete()
+
         base_date = case.opened_at or datetime.date.today()
         for item in template_items:
             due_date = None
