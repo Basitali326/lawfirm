@@ -11,6 +11,8 @@ from apps.tasks.serializers import CaseTaskSerializer, TaskNoteSerializer
 from apps.tasks.permissions import TaskPermission
 from apps.cases.models import Case, CaseStatus
 from apps.cases.serializers import CaseSerializer
+from apps.tasks.services import generate_tasks_for_case
+from apps.task_templates.models import CaseTaskTemplate
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
 
@@ -235,6 +237,39 @@ class OpenCasesTasksView(APIView):
             ).distinct()
 
         cases = qs.select_related("case_type", "assigned_lead", "client").order_by("-created_at")
+
+        # Ensure tasks are in sync with latest default template for this case type
+        for case in cases:
+            try:
+                template = (
+                    CaseTaskTemplate.objects.filter(
+                        firm=case.firm,
+                        case_type=case.case_type,
+                        is_default=True,
+                        is_active=True,
+                        is_deleted=False,
+                    )
+                    .order_by("-updated_at")
+                    .first()
+                )
+                if not template:
+                    continue
+                needs_regen = False
+                if case.tasks_generated_at and template.updated_at and template.updated_at > case.tasks_generated_at:
+                    needs_regen = True
+                if case.tasks_generated_at and not needs_regen:
+                    existing_count = CaseTask.objects.filter(
+                        case=case, generated_from_template=template, is_deleted=False
+                    ).count()
+                    items_count = template.items.filter(is_deleted=False, is_active=True).count()
+                    if items_count != existing_count:
+                        needs_regen = True
+                if needs_regen:
+                    generate_tasks_for_case(case, triggered_by_user=request.user, force=True)
+            except Exception:
+                # Keep listing even if regeneration fails
+                continue
+
         case_ids = [c.id for c in cases]
         tasks = (
             CaseTask.objects.filter(case_id__in=case_ids, is_deleted=False)
