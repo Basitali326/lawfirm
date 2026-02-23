@@ -88,9 +88,12 @@ export default function FirmsPage() {
       });
     },
     onError: (err) => {
+      const errorsObj = err?.body?.errors;
+      const detail = (errorsObj && (errorsObj.detail || errorsObj.code)) || null;
       const msg =
+        detail ||
         err?.body?.message ||
-        (err?.body?.errors && Object.values(err.body.errors)[0]) ||
+        (errorsObj && Object.values(errorsObj)[0]) ||
         err?.message ||
         "Failed to create firm";
       toast.error(Array.isArray(msg) ? msg.join(" ") : msg);
