@@ -400,7 +400,8 @@ class InviteUserView(APIView):
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.role = data.get("role")
         profile.firm = firm
-        profile.save(update_fields=["role", "firm"])
+        profile.must_change_password = True
+        profile.save(update_fields=["role", "firm", "must_change_password"])
         total, remaining = firm_user_counts(firm)
         return api_success(
             "User created",

@@ -45,6 +45,7 @@ def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None, 
             'last_name': user.last_name,
             'role': role_value,
             'email_verified': profile.email_verified,
+            'must_change_password': getattr(profile, "must_change_password", False),
         },
         'firm': {
             'id': firm.id,

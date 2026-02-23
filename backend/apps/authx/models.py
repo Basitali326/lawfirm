@@ -24,6 +24,7 @@ class Firm(models.Model):
     phone = models.CharField(max_length=50, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     timezone = models.CharField(max_length=100, default="Asia/Dubai")
+    status = models.CharField(max_length=20, default="ACTIVE")  # ACTIVE / SUSPENDED
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -44,6 +45,7 @@ class UserProfile(models.Model):
     email_verified = models.BooleanField(default=False)
     role = models.CharField(max_length=32, null=True, blank=True)
     firm = models.ForeignKey(Firm, on_delete=models.SET_NULL, null=True, blank=True, related_name="user_profiles")
+    must_change_password = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
