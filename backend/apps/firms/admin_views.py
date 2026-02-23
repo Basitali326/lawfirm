@@ -26,7 +26,7 @@ class SuperAdminOnly(BasePermission):
 
 
 def ensure_default_roles(firm):
-    default_roles = ["FIRM_OWNER", "FIRM_ADMIN", "LAWYER", "PARALEGAL", "CLIENT"]
+    default_roles = ["FIRM_OWNER", "LAWYER", "PARALEGAL", "CLIENT"]
     created = []
     for name in default_roles:
         role, _ = Role.objects.get_or_create(firm=firm, name=name, defaults={"is_system": True})

@@ -13,7 +13,7 @@ from apps.rbac.services import assign_permissions_to_role
 DEFAULT_SUPER_EMAIL = "superadmin@platform.local"
 DEFAULT_SUPER_PASSWORD = "SuperAdmin@12345"
 
-DEFAULT_ROLES = ["SUPER_ADMIN", "FIRM_OWNER", "FIRM_ADMIN", "LAWYER", "PARALEGAL", "CLIENT"]
+DEFAULT_ROLES = ["SUPER_ADMIN", "FIRM_OWNER", "LAWYER", "PARALEGAL", "CLIENT"]
 
 
 class Command(BaseCommand):

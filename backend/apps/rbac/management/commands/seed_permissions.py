@@ -17,6 +17,8 @@ PERMISSION_MATRIX = {
     "reports": ["view", "export"],
     "settings": ["view", "update"],
     "audit": ["view", "export"],
+    "messages": ["view", "add", "update", "delete"],
+    "trash": ["view", "restore", "delete"],
 }
 
 
