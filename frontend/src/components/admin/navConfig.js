@@ -11,6 +11,7 @@ export const navItems = [
   { label: "Audit Logs", href: "/audit-logs", perm: "audit.view" },
   { label: "Trash", href: "/trash", perm: null },
   { label: "Settings", href: "/settings", perm: "settings.view" },
+  { label: "Firms", href: "/settings/firms", parent: "/settings", perm: null },
   { label: "Users", href: "/settings/users", parent: "/settings", perm: "users.view" },
   { label: "Case Types", href: "/settings/case-types", parent: "/settings", perm: "cases.view" },
   { label: "Case Templates", href: "/settings/case-templates", parent: "/settings", perm: "cases.view" },

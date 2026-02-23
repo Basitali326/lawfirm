@@ -45,6 +45,7 @@ const iconMap = {
   "/audit-logs": ShieldCheck,
   "/trash": Trash2,
   "/settings": Settings,
+  "/settings/firms": ShieldCheck,
   "/settings/users": User2,
   "/settings/case-types": Briefcase,
   "/settings/case-templates": FileText,
@@ -75,6 +76,7 @@ export default function AdminSidebar() {
 
   const primaryRole = meData?.data?.user?.role || meData?.user?.role || "";
   const rbacRoles = meData?.data?.roles || meData?.roles || [];
+  const isSuper = primaryRole === "SUPER_ADMIN";
   const isOwnerOrSuper =
     primaryRole === "FIRM_OWNER" ||
     primaryRole === "OWNER" ||
@@ -82,7 +84,9 @@ export default function AdminSidebar() {
     rbacRoles.some((r) => ["firm owner", "firm admin", "super admin"].includes(String(r).toLowerCase()));
 
   const rootItems = navItems.filter((i) => !i.parent);
-  const settingsChildren = navItems.filter((i) => i.parent === "/settings");
+  const settingsChildren = navItems
+    .filter((i) => i.parent === "/settings")
+    .filter((child) => (child.href === "/settings/firms" ? isSuper : true));
 
   return (
     <aside
