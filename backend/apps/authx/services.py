@@ -28,14 +28,15 @@ def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None, 
             return role_value
         return str(role_value).replace(" ", "_").replace("-", "_").upper()
 
-    role_value = profile.role or getattr(user, "role", None)
-    if not role_value:
-        if getattr(user, "is_superuser", False):
-            role_value = "SUPER_ADMIN"
-        elif getattr(user, "owned_firm", None) or getattr(user, "firm_id", None):
-            role_value = "FIRM_OWNER"
-        else:
-            role_value = "CLIENT"
+    if getattr(user, "is_superuser", False):
+        role_value = "SUPER_ADMIN"
+    else:
+        role_value = profile.role or getattr(user, "role", None)
+        if not role_value:
+            if getattr(user, "owned_firm", None) or getattr(user, "firm_id", None):
+                role_value = "FIRM_OWNER"
+            else:
+                role_value = "CLIENT"
     role_value = _normalize(role_value)
     return {
         'user': {

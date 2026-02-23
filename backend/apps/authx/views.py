@@ -275,14 +275,15 @@ class MeView(APIView):
         if not firm and request.user.is_superuser:
             firm = Firm.objects.first()
 
-        role_value = profile.role or getattr(request.user, "role", None)
-        if not role_value:
-            if getattr(request.user, "is_superuser", False):
-                role_value = "SUPER_ADMIN"
-            elif firm and getattr(firm, "owner_id", None) == request.user.id:
-                role_value = "FIRM_OWNER"
-            else:
-                role_value = "CLIENT"
+        if getattr(request.user, "is_superuser", False):
+            role_value = "SUPER_ADMIN"
+        else:
+            role_value = profile.role or getattr(request.user, "role", None)
+            if not role_value:
+                if firm and getattr(firm, "owner_id", None) == request.user.id:
+                    role_value = "FIRM_OWNER"
+                else:
+                    role_value = "CLIENT"
         role_value = role_value.replace(" ", "_").replace("-", "_").upper()
         # Collect RBAC roles and permissions
         role_names = list(
@@ -293,12 +294,14 @@ class MeView(APIView):
             for r in role_names
             if r
         ]
+        if getattr(request.user, "is_superuser", False):
+            role_names = ["SUPER_ADMIN"]
         effective_perms = list(get_effective_permissions(request.user, force=True))
         # Fallback: include legacy profile role if no RBAC role assigned
         if not role_names and profile.role:
           role_names = [profile.role.replace(" ", "_").replace("-", "_").upper()]
         # Present a single primary role for backward compatibility: first RBAC role if present, else legacy role_value
-        primary_role = role_names[0] if role_names else role_value
+        primary_role = "SUPER_ADMIN" if getattr(request.user, "is_superuser", False) else (role_names[0] if role_names else role_value)
         return api_success(
             {
                 'user': {

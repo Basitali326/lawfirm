@@ -1,13 +1,9 @@
-import random
-import string
-
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.authx.models import Firm, UserProfile
-from apps.rbac.models import Role
-from apps.rbac.services import assign_permissions_to_role
+from apps.rbac.models import Role, UserRole
 
 
 DEFAULT_SUPER_EMAIL = "superadmin@platform.local"
@@ -32,7 +28,10 @@ class Command(BaseCommand):
             )
             if created or not user.check_password(DEFAULT_SUPER_PASSWORD):
                 user.set_password(DEFAULT_SUPER_PASSWORD)
-                user.save()
+            # Always enforce admin flags for seeded superadmin account.
+            user.is_staff = True
+            user.is_superuser = True
+            user.save()
             profile, _ = UserProfile.objects.get_or_create(user=user)
 
             # Ensure platform firm exists and linked to superadmin
@@ -44,10 +43,9 @@ class Command(BaseCommand):
                     "status": "ACTIVE",
                 },
             )
-            if firm_created:
-                profile.firm = firm
-                profile.role = "SUPER_ADMIN"
-                profile.save(update_fields=["firm", "role"])
+            profile.firm = firm
+            profile.role = "SUPER_ADMIN"
+            profile.save(update_fields=["firm", "role"])
 
             # Seed default roles on platform firm
             for role_name in DEFAULT_ROLES:
@@ -56,5 +54,11 @@ class Command(BaseCommand):
                     name=role_name,
                     defaults={"is_system": True},
                 )
+
+            # Enforce a single RBAC role for superadmin: SUPER_ADMIN only.
+            super_admin_role = Role.objects.filter(firm=firm, name="SUPER_ADMIN", is_deleted=False).first()
+            UserRole.objects.filter(user=user).exclude(role=super_admin_role).delete()
+            if super_admin_role:
+                UserRole.objects.get_or_create(user=user, role=super_admin_role)
 
         self.stdout.write(self.style.SUCCESS("Superadmin and default roles seeded."))
