@@ -196,7 +196,7 @@ CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS') or [
     "http://127.0.0.1:3000",
     "http://72.60.211.107:3000",
 ]
-CORS_ALLOW_HEADERS = list(default_headers) + ["x-device-id"]
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-device-id", "x-firm-id"]
 # Simplify local dev: allow all when DEBUG
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
