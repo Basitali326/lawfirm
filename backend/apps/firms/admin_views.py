@@ -40,8 +40,25 @@ class AdminFirmPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class AdminFirmCreateView(APIView):
+def _serialize_firm(f, counts=False):
+    base = {
+        "id": f.id,
+        "name": f.name,
+        "slug": f.slug,
+        "status": f.status,
+        "email": f.email,
+        "phone": f.phone,
+        "created_at": f.created_at,
+    }
+    if counts:
+        base["user_count"] = getattr(f, "user_count", None)
+        base["case_count"] = getattr(f, "case_count", None)
+    return base
+
+
+class AdminFirmListView(APIView):
     permission_classes = [SuperAdminOnly]
+    pagination_class = AdminFirmPagination
 
     @transaction.atomic
     def post(self, request):
@@ -86,20 +103,12 @@ class AdminFirmCreateView(APIView):
         profile.save(update_fields=["firm", "role", "must_change_password"])
 
         ensure_default_roles(firm)
-        # Link user to firm owner role
         owner_role = Role.objects.filter(firm=firm, name="FIRM_OWNER").first()
         if owner_role:
             user.user_roles.get_or_create(role=owner_role)
 
         resp = {
-            "firm": {
-                "id": firm.id,
-                "name": firm.name,
-                "slug": firm.slug,
-                "status": firm.status,
-                "email": firm.email,
-                "phone": firm.phone,
-            },
+            "firm": _serialize_firm(firm),
             "ceo_user": {
                 "id": user.id,
                 "email": user.email,
@@ -109,11 +118,6 @@ class AdminFirmCreateView(APIView):
             "temporary_password": temp_password,
         }
         return api_success("Firm created", data=resp, status_code=status.HTTP_201_CREATED)
-
-
-class AdminFirmListView(APIView):
-    permission_classes = [SuperAdminOnly]
-    pagination_class = AdminFirmPagination
 
     def get(self, request):
         qs = Firm.objects.all().annotate(user_count=Count("user_profiles"), case_count=Count("cases"))
@@ -125,19 +129,7 @@ class AdminFirmListView(APIView):
             qs = qs.filter(status__iexact=status_param)
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(qs, request)
-        def serialize(f):
-            return {
-                "id": f.id,
-                "name": f.name,
-                "slug": f.slug,
-                "status": f.status,
-                "email": f.email,
-                "phone": f.phone,
-                "created_at": f.created_at,
-                "user_count": f.user_count,
-                "case_count": f.case_count,
-            }
-        data = [serialize(f) for f in (page or qs)]
+        data = [_serialize_firm(f, counts=True) for f in (page or qs)]
         meta = None
         if page is not None:
             meta = {
