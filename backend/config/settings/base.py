@@ -189,10 +189,12 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env('CORS_ALLOWED_ORIGINS') or [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://72.60.211.107:3000",
 ]
 CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS') or [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://72.60.211.107:3000",
 ]
 CORS_ALLOW_HEADERS = list(default_headers) + ["x-device-id"]
 # Simplify local dev: allow all when DEBUG
