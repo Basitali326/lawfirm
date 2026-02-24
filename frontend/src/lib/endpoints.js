@@ -8,6 +8,7 @@ export const endpoints = {
   casesCreate: "/api/v1/cases/",
   trashList: "/api/v1/trash/",
   trashRestore: "/api/v1/trash/",
+  hearingsList: "/api/v1/hearings/",
   hearingsByCase: (caseId) => `/api/v1/cases/${caseId}/hearings/`,
   hearingDetail: (id) => `/api/v1/hearings/${id}/`,
 };

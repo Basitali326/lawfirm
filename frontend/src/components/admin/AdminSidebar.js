@@ -36,6 +36,7 @@ const iconMap = {
   "/clients": Users,
   "/cases": Briefcase,
   "/tasks": CheckSquare,
+  "/hearings": CalendarDays,
   "/messages": MessageSquare,
   "/requests": FileText,
   "/documents": FileText,

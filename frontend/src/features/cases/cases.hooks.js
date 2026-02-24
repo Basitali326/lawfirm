@@ -118,7 +118,11 @@ export function useGenerateCaseTasksMutation(options = {}) {
     },
     onError: (error, variables, context) => {
       const normalized = normalizeError(shapeAxiosError(error));
-      toast.error(normalized.message || "Failed to generate tasks");
+      const apiMessage =
+        error?.data?.message ||
+        error?.errors?.detail ||
+        error?.message;
+      toast.error(apiMessage || normalized.message || "Failed to generate tasks");
       options.onError?.(error, variables, context);
     },
   });

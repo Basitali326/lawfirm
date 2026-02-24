@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from datetime import datetime
 from django.db import transaction
+from django.db import models
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, NotFound
 
@@ -13,6 +14,7 @@ from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
 
 MANAGE_CODE = "case.hearings.manage"
+VIEW_CODE = "hearings.view"
 
 
 def _user_role(user):
@@ -34,6 +36,15 @@ def _ensure_manage(user):
         return
     role = _user_role(user)
     if role in {"SUPER_ADMIN", "FIRM_OWNER", "FIRM_ADMIN", "OWNER"} or getattr(user, "owned_firm", None):
+        return
+    raise PermissionDenied("Forbidden")
+
+
+def _ensure_view(user):
+    if user_has_perm(user, VIEW_CODE):
+        return
+    role = _user_role(user)
+    if role in {"SUPER_ADMIN", "FIRM_OWNER", "FIRM_ADMIN", "OWNER", "LAWYER", "PARALEGAL", "VIEWER", "CLIENT"}:
         return
     raise PermissionDenied("Forbidden")
 
@@ -97,6 +108,57 @@ def list_case_hearings(user, case_id, filters):
         qs = qs.filter(start_at__gte=from_dt)
     if to_dt:
         qs = qs.filter(start_at__lte=to_dt)
+    return qs
+
+
+def list_hearings(user, filters):
+    firm = get_user_firm(user)
+    if not firm:
+        raise PermissionDenied("User firm not set")
+    _ensure_view(user)
+
+    role = _user_role(user)
+    rbac_roles = set()
+    try:
+        rbac_roles = {
+            (r or "").replace(" ", "_").upper()
+            for r in user.user_roles.select_related("role").values_list("role__name", flat=True)
+            if r
+        }
+    except Exception:
+        rbac_roles = set()
+
+    qs = (
+        CaseHearing.objects.filter(firm=firm, is_deleted=False, case__is_deleted=False)
+        .select_related("case", "created_by", "updated_by")
+        .order_by("-start_at", "-created_at")
+    )
+
+    if role in {"LAWYER", "PARALEGAL", "VIEWER"} or rbac_roles.intersection({"LAWYER", "PARALEGAL", "VIEWER"}):
+        qs = qs.filter(case__assigned_lead=user)
+    elif role == "CLIENT" or "CLIENT" in rbac_roles:
+        qs = qs.filter(case__client__user=user)
+
+    status_val = filters.get("status")
+    if status_val:
+        qs = qs.filter(status=status_val)
+    from_dt = filters.get("from")
+    to_dt = filters.get("to")
+    if from_dt:
+        qs = qs.filter(start_at__gte=from_dt)
+    if to_dt:
+        qs = qs.filter(start_at__lte=to_dt)
+    case_id = filters.get("case_id")
+    if case_id:
+        qs = qs.filter(case_id=case_id)
+    search = (filters.get("search") or "").strip()
+    if search:
+        qs = qs.filter(
+            models.Q(title__icontains=search)
+            | models.Q(case__title__icontains=search)
+            | models.Q(case__case_number__icontains=search)
+            | models.Q(court_name__icontains=search)
+        )
     return qs
 
 

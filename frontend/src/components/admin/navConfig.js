@@ -2,6 +2,7 @@ export const navItems = [
   { label: "Dashboard", href: "/dashboard", perm: null },
   { label: "Cases", href: "/cases", perm: "cases.view" },
   { label: "Tasks", href: "/tasks", perm: "tasks.view" },
+  { label: "Hearings", href: "/hearings", perm: "hearings.view" },
   { label: "Messages", href: "/messages", perm: null },
   { label: "Requests", href: "/requests", perm: "intake.view" },
   { label: "Documents", href: "/documents", perm: "documents.view" },

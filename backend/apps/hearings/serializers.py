@@ -7,12 +7,14 @@ from apps.cases.utils import get_user_firm
 class CaseHearingSerializer(serializers.ModelSerializer):
     created_by_detail = serializers.SerializerMethodField()
     updated_by_detail = serializers.SerializerMethodField()
+    case_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = CaseHearing
         fields = [
             "id",
             "case",
+            "case_detail",
             "title",
             "hearing_type",
             "start_at",
@@ -77,3 +79,13 @@ class CaseHearingSerializer(serializers.ModelSerializer):
             return None
         name = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip() or getattr(user, "email", "")
         return {"id": user.id, "name": name, "email": getattr(user, "email", None)}
+
+    def get_case_detail(self, obj):
+        case = getattr(obj, "case", None)
+        if not case:
+            return None
+        return {
+            "id": str(case.id),
+            "title": getattr(case, "title", None),
+            "case_number": getattr(case, "case_number", None),
+        }

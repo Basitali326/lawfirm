@@ -98,6 +98,21 @@ class HearingsAPITests(TestCase):
         self.assertIn("My Hearing", titles)
         self.assertNotIn("Other Hearing", titles)
 
+    def test_global_hearings_list_returns_related_case(self):
+        CaseHearing.objects.create(
+            firm=self.firm,
+            case=self.case,
+            title="Dashboard Hearing",
+            hearing_type=HearingType.MENTION,
+            start_at=self.now + timedelta(days=2),
+            status=HearingStatus.SCHEDULED,
+        )
+        resp = self.client.get("/api/v1/hearings/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.data["success"])
+        self.assertGreaterEqual(len(resp.data["data"]), 1)
+        self.assertEqual(resp.data["data"][0]["case_detail"]["id"], str(self.case.id))
+
     def test_update_and_delete(self):
         hearing = CaseHearing.objects.create(
             firm=self.firm,

@@ -1,15 +1,14 @@
-from datetime import datetime
 from django.utils.dateparse import parse_datetime
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.exceptions import ValidationError
 
 from core.responses import api_success, api_error
 from apps.hearings.serializers import CaseHearingSerializer
 from apps.hearings.services import (
     create_hearing,
+    list_hearings,
     list_case_hearings,
     get_hearing,
     update_hearing,
@@ -63,6 +62,46 @@ class CaseHearingsView(APIView):
         hearing = create_hearing(request.user, case_id, serializer.validated_data)
         data = CaseHearingSerializer(hearing).data
         return api_success("Hearing created", data=data, status_code=status.HTTP_201_CREATED)
+
+
+class HearingListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        filters = {}
+        status_param = request.query_params.get("status")
+        if status_param:
+            filters["status"] = status_param
+        from_param = request.query_params.get("from")
+        to_param = request.query_params.get("to")
+        if from_param:
+            parsed = parse_datetime(from_param)
+            if parsed:
+                filters["from"] = parsed
+        if to_param:
+            parsed = parse_datetime(to_param)
+            if parsed:
+                filters["to"] = parsed
+        case_id = request.query_params.get("case_id")
+        if case_id:
+            filters["case_id"] = case_id
+        search = request.query_params.get("search")
+        if search:
+            filters["search"] = search
+
+        qs = list_hearings(request.user, filters)
+        paginator = HearingPagination()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = CaseHearingSerializer(page or qs, many=True)
+        meta = None
+        if page is not None:
+            meta = {
+                "page": paginator.page.number,
+                "page_size": paginator.get_page_size(request),
+                "count": paginator.page.paginator.count,
+                "total_pages": paginator.page.paginator.num_pages,
+            }
+        return api_success("Hearings retrieved", data=serializer.data, meta=meta)
 
 
 class HearingDetailView(APIView):
