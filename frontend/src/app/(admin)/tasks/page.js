@@ -393,9 +393,7 @@ export default function TasksPage() {
                         .map((t) => (
                           <div
                             key={t.id}
-                            draggable
-                            onDragStart={(e) => onDragStart(e, t.id)}
-                            className="group relative cursor-move rounded-md border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                            className="group relative rounded-md border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                           >
                             <button
                               className="absolute right-2 top-2 inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm opacity-0 transition group-hover:opacity-100"
@@ -406,11 +404,23 @@ export default function TasksPage() {
                             >
                               Edit
                             </button>
-                            <div
-                              className="text-sm font-semibold text-slate-900"
-                              onDoubleClick={() => dispatch({ type: actions.OPEN_TASK_DETAIL, payload: t.id })}
-                            >
-                              {t.title}
+                            <div className="flex items-start gap-2 pr-12">
+                              <button
+                                type="button"
+                                draggable
+                                onDragStart={(e) => onDragStart(e, t.id)}
+                                className="mt-0.5 inline-flex cursor-grab select-none rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 active:cursor-grabbing"
+                                title="Drag to move status"
+                              >
+                                ::
+                              </button>
+                              <button
+                                type="button"
+                                className="text-left text-sm font-semibold text-slate-900 hover:text-slate-700"
+                                onClick={() => dispatch({ type: actions.OPEN_TASK_DETAIL, payload: t.id })}
+                              >
+                                {t.title}
+                              </button>
                             </div>
                             <div className="text-xs text-slate-500">{t.case_title}</div>
                             <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">

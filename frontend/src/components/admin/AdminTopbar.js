@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
+import { USE_NEXTAUTH } from "@/lib/config";
 
 export default function AdminTopbar() {
   const { data: session } = useSession();
@@ -25,11 +26,16 @@ export default function AdminTopbar() {
   const handleSignOut = async () => {
     setOpen(false);
     try {
-      await logout();
+      if (USE_NEXTAUTH) {
+        await signOut({ redirect: false });
+      } else {
+        await logout();
+      }
     } catch (e) {
       // ignore error and still navigate
+    } finally {
+      router.push("/login");
     }
-    router.push("/login");
   };
 
   return (
