@@ -50,7 +50,7 @@ export default function CaseTypesPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["case-types", page, pageSize, search],
     queryFn: () => fetchCaseTypes({ page, pageSize, search }),
     keepPreviousData: true,
@@ -113,8 +113,12 @@ export default function CaseTypesPage() {
         </div>
       </div>
 
-      {rows.length === 0 ? (
-        <EmptyState title="No case types found" actionLabel="Add case type" onAction={() => router.push("/settings/case-types/add")} />
+      {isLoading ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+          Loading case types...
+        </div>
+      ) : rows.length === 0 ? (
+        <EmptyState title="No case types found" />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full border-separate border-spacing-0">

@@ -19,6 +19,8 @@ PERMISSION_MATRIX = {
     "audit": ["view", "export"],
     "messages": ["view", "add", "update", "delete"],
     "trash": ["view", "restore", "delete"],
+    "case_types": ["view", "add", "update", "delete"],
+    "task_templates": ["view", "add", "update", "delete"],
 }
 
 

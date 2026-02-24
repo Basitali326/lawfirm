@@ -1,4 +1,5 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from apps.rbac.services import user_has_perm
 
 
 ALLOWED_READ_ROLES = {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "LAWYER", "PARALEGAL", "VIEWER"}
@@ -7,6 +8,9 @@ ADMIN_ROLES = {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN"}
 
 class CaseTypePermission(BasePermission):
     def has_permission(self, request, view):
+        if getattr(request.user, "is_superuser", False):
+            return True
+
         profile = getattr(request.user, "profile", None)
         raw_role = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "")
         role = raw_role.replace(" ", "_").upper()
@@ -32,6 +36,16 @@ class CaseTypePermission(BasePermission):
         admin_ok = role in ADMIN_ROLES or is_owner or ADMIN_ROLES.intersection(rbac_roles) or getattr(
             request.user, "is_superuser", False
         )
+
+        # RBAC permission-first checks (backward compatible with role checks below)
+        if request.method in SAFE_METHODS and user_has_perm(request.user, "case_types.view"):
+            return True
+        if request.method == "POST" and user_has_perm(request.user, "case_types.add"):
+            return True
+        if request.method in {"PUT", "PATCH"} and user_has_perm(request.user, "case_types.update"):
+            return True
+        if request.method == "DELETE" and user_has_perm(request.user, "case_types.delete"):
+            return True
 
         if request.method in SAFE_METHODS:
             # allow any authenticated firm member to read

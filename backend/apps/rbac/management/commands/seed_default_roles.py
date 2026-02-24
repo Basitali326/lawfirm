@@ -50,7 +50,19 @@ class Command(BaseCommand):
 
         # Lawyer: view + add/upload on core modules
         lawyer_codes = []
-        keep_modules = ["cases", "documents", "tasks", "hearings", "intake", "clients", "reports", "audit", "messages"]
+        keep_modules = [
+            "cases",
+            "documents",
+            "tasks",
+            "hearings",
+            "intake",
+            "clients",
+            "reports",
+            "audit",
+            "messages",
+            "case_types",
+            "task_templates",
+        ]
         for m, acts in PERMISSION_MATRIX.items():
             if m in keep_modules:
                 for a in acts:
@@ -71,11 +83,13 @@ class Command(BaseCommand):
                 para_codes.extend([f"tasks.{a}" for a in acts if a in ["view", "add"]])
             if m == "messages":
                 para_codes.extend([f"messages.{a}" for a in acts if a in ["view", "add"]])
+            if m in ["case_types", "task_templates"]:
+                para_codes.extend([f"{m}.{a}" for a in acts if a in ["view"]])
         assign_permissions_to_role(para, para_codes)
 
         # Client: minimal view (cases/documents/tasks/messages)
         client_codes = []
-        for m in ["cases", "documents", "tasks", "messages"]:
+        for m in ["cases", "documents", "tasks", "messages", "case_types", "task_templates"]:
             if m in PERMISSION_MATRIX:
                 client_codes.append(f"{m}.view")
         assign_permissions_to_role(client_role, client_codes)
