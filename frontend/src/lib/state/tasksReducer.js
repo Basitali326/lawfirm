@@ -30,7 +30,6 @@ export default function tasksReducer(state, action) {
   switch (action.type) {
     case actions.SET_DATA: {
       const newCases = action.payload || [];
-      console.log("tasksReducer SET_DATA newCases length", newCases.length);
       return {
         ...state,
         cases: newCases,
