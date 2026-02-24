@@ -17,6 +17,7 @@ class CaseSerializer(serializers.ModelSerializer):
     client_detail = serializers.SerializerMethodField(read_only=True)
     assigned_lead_detail = serializers.SerializerMethodField(read_only=True)
     case_type_detail = serializers.SerializerMethodField(read_only=True)
+    tasks_generated_by_detail = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Case
@@ -34,6 +35,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "open_date",
             "opened_at",
             "tasks_generated_at",
+            "tasks_generated_by_detail",
             "close_date",
             "close_reason",
             "client",
@@ -219,6 +221,15 @@ class CaseSerializer(serializers.ModelSerializer):
             "id": str(ct.id),
             "name": getattr(ct, "name", None),
             "code": getattr(ct, "code", None),
+        }
+
+    def get_tasks_generated_by_detail(self, obj):
+        user = getattr(obj, "tasks_generated_by", None)
+        if not user:
+            return None
+        return {
+            "id": user.id,
+            "email": user.email,
         }
 
     def to_representation(self, instance):

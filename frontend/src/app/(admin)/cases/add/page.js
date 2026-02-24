@@ -2,13 +2,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import localFetch, { ensureAccessToken, tokenStore } from "@/lib/api";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+import localFetch, { tokenStore } from "@/lib/api";
 
 const STATUS_OPTIONS = [
   { value: "OPEN", label: "Open" },
@@ -37,31 +34,16 @@ async function fetchCaseTypes() {
 }
 
 async function createCase(payload) {
-  const token = await ensureAccessToken();
   const firmId = tokenStore.getFirmId();
-  const res = await fetch(`${API_BASE}/api/v1/cases/`, {
+  return localFetch("/api/v1/cases/", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(firmId ? { "X-FIRM-ID": String(firmId) } : {}),
-    },
+    headers: firmId ? { "X-FIRM-ID": String(firmId) } : {},
     body: JSON.stringify(payload),
   });
-  const body = await res.json().catch(() => ({}));
-  const ok = res.ok && body?.success !== false;
-  if (!ok) {
-    const err = new Error(body?.message || "Failed to create case");
-    err.body = body;
-    throw err;
-  }
-  return body;
 }
 
 export default function AddCasePage() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const accessToken = session?.access || session?.token?.access || tokenStore.getAccess();
   const queryClient = useQueryClient();
   const [caseTypeSearch, setCaseTypeSearch] = useState("");
   const [caseTypeOpen, setCaseTypeOpen] = useState(false);

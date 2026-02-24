@@ -97,7 +97,11 @@ def generate_tasks_for_case(case, triggered_by_user=None, force=False):
         case.tasks_generated_at = now
         if not case.opened_at:
             case.opened_at = now
-        case.save(update_fields=["tasks_generated_at", "opened_at", "updated_at"])
+        if triggered_by_user is not None:
+            case.tasks_generated_by = triggered_by_user
+            case.save(update_fields=["tasks_generated_at", "opened_at", "tasks_generated_by", "updated_at"])
+        else:
+            case.save(update_fields=["tasks_generated_at", "opened_at", "updated_at"])
     return {
         "created_count": len(created),
         "template_id": str(template.id),

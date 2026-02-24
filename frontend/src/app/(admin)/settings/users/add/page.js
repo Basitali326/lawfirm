@@ -5,8 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useRolesList } from "@/hooks/useRolesList";
-import { ensureAccessToken } from "@/lib/api";
-import { API_BASE_URL } from "@/lib/config";
+import localFetch from "@/lib/api";
 
 const extractMessage = (payload, fallback = "Request failed") => {
   if (!payload) return fallback;
@@ -34,22 +33,10 @@ export default function AddUserPage() {
 
   const onSubmit = async (values) => {
     try {
-      const token = await ensureAccessToken();
-      const res = await fetch(`${API_BASE_URL}/api/v1/settings/users/`, {
+      const json = await localFetch("/api/v1/settings/users/", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(values),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json?.success === false) {
-        const err = new Error(extractMessage(json));
-        err.body = json;
-        err.status = res.status;
-        throw err;
-      }
       toast.success("User created (default password set)");
       queryClient.setQueryData(["users-list"], (old) => {
         if (!old) return old;

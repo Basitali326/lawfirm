@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { ensureAccessToken } from "@/lib/api";
-import { API_BASE_URL } from "@/lib/config";
+import localFetch from "@/lib/api";
 import useMe from "@/hooks/useMe";
 import AppButton from "@/components/AppButton";
 import { cn } from "@/lib/utils";
@@ -16,40 +15,17 @@ function isSuper(me) {
 }
 
 async function fetchFirms({ page, search }) {
-  const token = await ensureAccessToken();
   const params = new URLSearchParams();
   params.set("page", page);
   if (search) params.set("search", search);
-  const res = await fetch(`${API_BASE_URL}/api/v1/admin/firms/?${params.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || json?.success === false) {
-    const message = json?.message || "Failed to load firms";
-    throw Object.assign(new Error(message), { body: json });
-  }
-  return json;
+  return localFetch(`/api/v1/admin/firms/?${params.toString()}`, { cache: "no-store" });
 }
 
 async function createFirm(payload) {
-  const token = await ensureAccessToken();
-  const res = await fetch(`${API_BASE_URL}/api/v1/admin/firms/`, {
+  return localFetch("/api/v1/admin/firms/", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
     body: JSON.stringify(payload),
   });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || json?.success === false) {
-    const message = json?.message || "Failed to create firm";
-    throw Object.assign(new Error(message), { body: json });
-  }
-  return json;
 }
 
 export default function FirmsPage() {

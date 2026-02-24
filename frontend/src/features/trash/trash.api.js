@@ -1,36 +1,17 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import localFetch from "@/lib/api";
 
 export async function fetchTrash(token) {
-  const res = await fetch(new URL("/api/v1/trash/", API_BASE).toString(), {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : undefined,
-    },
-    credentials: "include",
+  const body = await localFetch("/api/v1/trash/", {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    const err = new Error(body?.message || "Failed to load trash");
-    err.body = body;
-    throw err;
-  }
-  return body?.data || [];
+  return body?.data || body || [];
 }
 
 export async function restoreItem({ id, type }, token) {
-  const res = await fetch(new URL("/api/v1/trash/", API_BASE).toString(), {
+  const body = await localFetch("/api/v1/trash/", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token ? `Bearer ${token}` : undefined,
-    },
-    credentials: "include",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: JSON.stringify({ id, type }),
   });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    const err = new Error(body?.message || "Failed to restore item");
-    err.body = body;
-    throw err;
-  }
   return body?.data || body;
 }

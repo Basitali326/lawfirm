@@ -340,11 +340,34 @@ class CaseTaskCreateView(APIView):
             return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
 
         data = request.data.copy()
+        note_body = str(data.pop("note", "") or "").strip()
+        template_item_id = data.pop("from_template_item_id", None)
         data["case"] = str(case.id)
+        if not data.get("assigned_to"):
+            data["assigned_to"] = request.user.id
         serializer = CaseTaskSerializer(data=data, context={"request": request})
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         task = serializer.save(created_by=request.user, firm=case.firm, case=case)
+        # Optional linkage for manual tasks created from suggestion card.
+        if template_item_id:
+            try:
+                from apps.task_templates.models import CaseTaskTemplateItem
+
+                item = CaseTaskTemplateItem.objects.filter(
+                    id=template_item_id,
+                    template__firm=case.firm,
+                    template__case_type=case.case_type,
+                    is_deleted=False,
+                ).first()
+                if item:
+                    task.generated_from_template_item = item
+                    task.generated_from_template = item.template
+                    task.save(update_fields=["generated_from_template_item", "generated_from_template", "updated_at"])
+            except Exception:
+                pass
+        if note_body:
+            TaskNote.objects.create(task=task, body=note_body, created_by=request.user)
         try:
             log_audit_event(
                 request=request,

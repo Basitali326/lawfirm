@@ -56,6 +56,13 @@ class Case(models.Model):
     open_date = models.DateField(default=timezone.localdate)
     opened_at = models.DateTimeField(null=True, blank=True)
     tasks_generated_at = models.DateTimeField(null=True, blank=True)
+    tasks_generated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cases_tasks_generated",
+    )
     close_date = models.DateField(null=True, blank=True)
     close_reason = models.TextField(null=True, blank=True)
     assigned_lead = models.ForeignKey(

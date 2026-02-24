@@ -25,6 +25,14 @@ export default function TasksPage() {
     session?.user?.id ||
     session?.user?.sub ||
     null;
+  const currentUser = {
+    id: currentUserId,
+    name:
+      `${meData?.data?.user?.first_name || meData?.user?.first_name || ""} ${
+        meData?.data?.user?.last_name || meData?.user?.last_name || ""
+      }`.trim() || session?.user?.name || session?.user?.email || "",
+    email: meData?.data?.user?.email || meData?.user?.email || session?.user?.email || "",
+  };
   const isAdmin =
     (roles || [])
       .map((r) => (r || "").toString().toUpperCase().replace(/\s|-/g, "_"))
@@ -210,7 +218,7 @@ export default function TasksPage() {
         description: task.description,
         status: task.status,
         priority: task.priority,
-        assigned_to: task.assigned_to?.id || null,
+        assigned_to: task.assigned_to?.id || currentUserId || null,
         due_date: task.due_date,
         note,
         from_template_item_id: task.generated_from_template_item || null,
@@ -434,6 +442,7 @@ export default function TasksPage() {
         caseId={addTaskForCaseId}
         cases={cases}
         users={usersQuery.data || []}
+        currentUser={currentUser}
         onCreate={handleCreateTask}
         confirmDiscard={confirmDiscard}
         onSetDirty={(dirty) => dispatch({ type: actions.SET_DIRTY, payload: dirty })}
@@ -455,14 +464,15 @@ export default function TasksPage() {
       <ConfirmModal
         open={confirmDiscard}
         title="Discard changes?"
-        description="You have unsaved changes. Discard them?"
+        message="You have unsaved changes. Discard them?"
         confirmLabel="Discard"
+        cancelLabel="Keep editing"
         onConfirm={() => {
           dispatch({ type: actions.HIDE_DISCARD });
           dispatch({ type: actions.CLOSE_ADD_TASK });
           dispatch({ type: actions.SET_DIRTY, payload: false });
         }}
-        onClose={() => dispatch({ type: actions.HIDE_DISCARD })}
+        onCancel={() => dispatch({ type: actions.HIDE_DISCARD })}
       />
     </div>
   );

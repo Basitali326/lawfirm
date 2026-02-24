@@ -10,8 +10,7 @@ import localFetch from "@/lib/api";
 import DataTable from "@/components/datatable/DataTable";
 import { cn } from "@/lib/utils";
 import UserRolesMultiSelect from "@/components/users/UserRolesMultiSelect";
-import { ensureAccessToken } from "@/lib/api";
-import { API_BASE_URL } from "@/lib/config";
+import localFetch from "@/lib/api";
 
 const extractMessage = (payload, fallback = "Request failed") => {
   if (!payload) return fallback;
@@ -94,19 +93,7 @@ export default function UsersPage() {
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ["users-list"],
     queryFn: async () => {
-      const token = await ensureAccessToken();
-      const res = await fetch(`${API_BASE_URL}/api/v1/settings/users/`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || json?.success === false) {
-        const err = new Error(extractMessage(json));
-        err.body = json;
-        err.status = res.status;
-        throw err;
-      }
-      return json;
+      return localFetch("/api/v1/settings/users/", { cache: "no-store" });
     },
     onError: (err) => toast.error(extractMessage(err?.body, "Failed to load users")),
   });
@@ -134,11 +121,9 @@ export default function UsersPage() {
         return old;
       });
 
-      const token = await ensureAccessToken();
-      const res = await fetch(`${API_BASE_URL}/api/v1/settings/users/${safeId}/`, {
+      const res = await localFetch(`/api/v1/settings/users/${safeId}/`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json());
+      });
       if (res?.success === false) throw new Error(res?.message || "Delete failed");
       toast.success("User deleted");
       refetchAll();

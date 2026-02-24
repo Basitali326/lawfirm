@@ -13,6 +13,7 @@ export default function AddTaskDrawer({
   caseId,
   cases,
   users,
+  currentUser,
   onCreate,
   confirmDiscard,
   onSetDirty,
@@ -42,7 +43,6 @@ export default function AddTaskDrawer({
       description: "",
       status: "TODO",
       priority: "MEDIUM",
-      assigned_to: "",
       due_date: "",
       notes: "",
     },
@@ -60,7 +60,9 @@ export default function AddTaskDrawer({
     if (!caseItem) return;
     const task = {
       ...values,
-      assigned_to: users.find((u) => u.id === values.assigned_to) || null,
+      assigned_to:
+        users.find((u) => String(u.id) === String(currentUser?.id)) ||
+        (currentUser?.id ? { id: currentUser.id, name: currentUser.name, email: currentUser.email } : null),
       id: crypto.randomUUID(),
       created_at: formatISO(new Date(), { representation: "date" }),
       case_id: caseItem.id,
@@ -115,6 +117,7 @@ export default function AddTaskDrawer({
               </div>
               <div className="space-x-2">
                 <button
+                  type="button"
                   className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   onClick={() => {
                     if (isDirty) onRequestDiscard();
@@ -124,6 +127,7 @@ export default function AddTaskDrawer({
                   Cancel
                 </button>
                 <button
+                  type="button"
                   className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
                   onClick={handleSubmit(onSubmit)}
                 >
@@ -167,14 +171,11 @@ export default function AddTaskDrawer({
 
               <div className="grid gap-3 md:grid-cols-2">
                 <Field label="Assigned to">
-                  <select className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm" {...register("assigned_to") }>
-                    <option value="">Unassigned</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name || u.email || u.id}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    readOnly
+                    className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                    value={currentUser?.name || currentUser?.email || "You"}
+                  />
                 </Field>
                 <Field label="Due date">
                   <input type="date" className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm" {...register("due_date")} />

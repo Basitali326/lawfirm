@@ -60,6 +60,7 @@ class Command(BaseCommand):
             "reports",
             "audit",
             "messages",
+            "requests",
             "case_types",
             "task_templates",
         ]
@@ -83,13 +84,15 @@ class Command(BaseCommand):
                 para_codes.extend([f"tasks.{a}" for a in acts if a in ["view", "add"]])
             if m == "messages":
                 para_codes.extend([f"messages.{a}" for a in acts if a in ["view", "add"]])
+            if m == "requests":
+                para_codes.extend([f"requests.{a}" for a in acts if a in ["view", "add", "update"]])
             if m in ["case_types", "task_templates"]:
                 para_codes.extend([f"{m}.{a}" for a in acts if a in ["view"]])
         assign_permissions_to_role(para, para_codes)
 
         # Client: minimal view (cases/documents/tasks/messages)
         client_codes = []
-        for m in ["cases", "documents", "tasks", "messages", "case_types", "task_templates"]:
+        for m in ["cases", "documents", "tasks", "messages", "requests", "case_types", "task_templates"]:
             if m in PERMISSION_MATRIX:
                 client_codes.append(f"{m}.view")
         assign_permissions_to_role(client_role, client_codes)
