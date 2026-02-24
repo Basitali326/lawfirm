@@ -121,7 +121,7 @@ class RefreshTokenLogoutSerializer(serializers.Serializer):
         return attrs
 
     def save(self, **kwargs):
-        refresh_token = self.validated_data['refresh']
+        refresh_token = self.validated_data.get('refresh', '')
         if not refresh_token:
             return {}
         try:
