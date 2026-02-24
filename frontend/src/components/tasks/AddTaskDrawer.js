@@ -56,6 +56,18 @@ export default function AddTaskDrawer({
     if (!open) reset();
   }, [open, reset]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (isDirty) onRequestDiscard?.();
+        else onClose?.();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, isDirty, onClose, onRequestDiscard]);
+
   const onSubmit = (values) => {
     if (!caseItem) return;
     const task = {
@@ -87,7 +99,14 @@ export default function AddTaskDrawer({
   if (!open || !caseItem) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-900/30 backdrop-blur-sm"
+      onMouseDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (isDirty) onRequestDiscard?.();
+        else onClose?.();
+      }}
+    >
       <div className="h-full w-full max-w-5xl bg-white shadow-xl">
         <div className="grid h-full grid-cols-1 md:grid-cols-3">
           <div className="border-r border-slate-200 p-4">

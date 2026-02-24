@@ -40,10 +40,24 @@ export default function TaskDetailDrawer({
     }
   }, [task]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open || !task) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/30 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-40 flex justify-end bg-slate-900/30 backdrop-blur-sm"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+    >
       <div className="h-full w-full max-w-md bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 p-4">
           <div>
