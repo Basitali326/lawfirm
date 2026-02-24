@@ -1,7 +1,7 @@
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
+from django.shortcuts import get_object_or_404
 from rest_framework import status, mixins, viewsets
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -42,7 +42,13 @@ class PublicIntakeRequestView(APIView):
     throttle_classes = [PublicIPMinuteThrottle, PublicIPHourThrottle, PhoneEmailThrottle]
 
     def post(self, request, firm_slug):
-        firm = get_object_or_404(Firm, slug=firm_slug)
+        firm = Firm.objects.filter(slug=firm_slug).first()
+        if not firm:
+            return api_error(
+                "Firm not found",
+                errors={"detail": "Invalid firm slug."},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
         serializer = PublicIntakeSerializer(data=request.data)
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)

@@ -44,7 +44,11 @@ export default function CaseTypes() {
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
 
-  const firmSlug = process.env.NEXT_PUBLIC_FIRM_SLUG || "demo-firm";
+  const queryFirmSlug =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("firm")
+      : null;
+  const firmSlug = (queryFirmSlug || process.env.NEXT_PUBLIC_FIRM_SLUG || "").trim();
 
   const handleSelect = (item) => {
     setSelected(item);
@@ -60,6 +64,9 @@ export default function CaseTypes() {
     setSuccess(null);
     setError(null);
     try {
+      if (!firmSlug) {
+        throw new Error("Firm intake is not configured. Set NEXT_PUBLIC_FIRM_SLUG or pass ?firm=<slug>.");
+      }
       const res = await fetch(`${API_BASE_URL}/public/${firmSlug}/intake-requests/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,7 +78,9 @@ export default function CaseTypes() {
       });
       const body = await res.json();
       if (!res.ok || body?.success === false) {
-        throw new Error(body?.message || "Submission failed");
+        const detail = body?.errors?.detail;
+        const detailMsg = Array.isArray(detail) ? detail.join(" ") : detail;
+        throw new Error(detailMsg || body?.message || "Submission failed");
       }
       setSuccess("Request received. A firm will contact you soon.");
       setForm(defaultForm);

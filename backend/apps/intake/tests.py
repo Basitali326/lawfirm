@@ -53,6 +53,19 @@ class PublicIntakeTests(APITestCase):
         resp = self.client.post(url, payload, format="json")
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_public_intake_invalid_firm_slug(self):
+        url = "/public/demo-firm/intake-requests/"
+        payload = {
+            "full_name": "John Doe",
+            "phone": "+1 555 111 2222",
+            "message": "Need help",
+            "recaptcha_token": "token",
+        }
+        resp = self.client.post(url, payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertFalse(resp.data["success"])
+        self.assertEqual(resp.data["message"], "Firm not found")
+
 
 class DashboardIntakeTests(APITestCase):
     def setUp(self):
