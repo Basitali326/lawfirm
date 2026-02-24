@@ -10,7 +10,6 @@ import localFetch from "@/lib/api";
 import DataTable from "@/components/datatable/DataTable";
 import { cn } from "@/lib/utils";
 import UserRolesMultiSelect from "@/components/users/UserRolesMultiSelect";
-import localFetch from "@/lib/api";
 
 const extractMessage = (payload, fallback = "Request failed") => {
   if (!payload) return fallback;
