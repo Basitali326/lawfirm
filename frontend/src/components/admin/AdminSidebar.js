@@ -69,7 +69,7 @@ const accountItems = [{ label: "Logout", href: "/login", icon: LogOut }];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const { can } = useRBAC();
+  const { can, meLoading } = useRBAC();
   const { data: meData } = useMe();
   const dispatch = useAppDispatch();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
@@ -117,12 +117,21 @@ export default function AdminSidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {rootItems
-          .filter((item) => {
-            if (item.href === "/trash") return isOwnerOrSuper;
-            return !item.perm || can(item.perm);
-          })
-          .map((item) => {
+        {meLoading ? (
+          <div className="space-y-2 pt-1">
+            {Array.from({ length: 7 }).map((_, idx) => (
+              <div key={idx} className="animate-pulse rounded-xl bg-slate-800/70 px-3 py-3">
+                <div className="h-4 rounded bg-slate-700/80" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          rootItems
+            .filter((item) => {
+              if (item.href === "/trash") return isOwnerOrSuper;
+              return !item.perm || can(item.perm);
+            })
+            .map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
@@ -197,7 +206,8 @@ export default function AdminSidebar() {
                 )}
               </div>
             );
-          })}
+          })
+        )}
       </nav>
 
       <div className="px-4 pb-3 pt-4">

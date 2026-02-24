@@ -5,10 +5,12 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.local')
 
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
-from apps.wsx.auth import TokenAuthMiddleware
-from apps.wsx import routing as ws_routing
 
 dj_app = get_asgi_application()
+
+# Import websocket modules only after Django app registry is ready.
+from apps.wsx.auth import TokenAuthMiddleware
+from apps.wsx import routing as ws_routing
 
 application = ProtocolTypeRouter(
     {
