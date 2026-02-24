@@ -194,7 +194,7 @@ class UsersListView(APIView):
         }
         if any(f.name == "firm" for f in User._meta.fields):
             user_kwargs["firm"] = firm
-        default_password = "Abcd.@123456"
+        default_password = getattr(settings, "DEFAULT_USER_PASSWORD", "Welcome@12345")
         login_url = getattr(settings, "FRONTEND_LOGIN_URL", None) or getattr(settings, "FRONTEND_URL", None) or ""
 
         with transaction.atomic():
@@ -395,7 +395,7 @@ class InviteUserView(APIView):
         if any(f.name == "role" for f in User._meta.fields):
             user_kwargs["role"] = data["role"]
         user = User.objects.create(**user_kwargs)
-        user.set_password("Abcd.@123456")
+        user.set_password(getattr(settings, "DEFAULT_USER_PASSWORD", "Welcome@12345"))
         user.save(update_fields=["password"])
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.role = data.get("role")

@@ -28,6 +28,7 @@ env = environ.Env(
     FRONTEND_URL=(str, 'http://localhost:3000'),
     OTP_EMAIL_ENABLED=(bool, False),
     INVITE_EXPIRE_HOURS=(int, 24),
+    DEFAULT_USER_PASSWORD=(str, 'Welcome@12345'),
 )
 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
@@ -171,6 +172,7 @@ DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 FRONTEND_URL = env('FRONTEND_URL')
 OTP_EMAIL_ENABLED = env('OTP_EMAIL_ENABLED')
 INVITE_EXPIRE_HOURS = env('INVITE_EXPIRE_HOURS')
+DEFAULT_USER_PASSWORD = env('DEFAULT_USER_PASSWORD')
 
 RECAPTCHA_ENABLED = env.bool('RECAPTCHA_ENABLED', default=False)
 RECAPTCHA_SECRET_KEY = env('RECAPTCHA_SECRET_KEY', default='')

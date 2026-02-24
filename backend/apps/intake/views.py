@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import transaction
+from django.conf import settings
 from rest_framework import status, mixins, viewsets
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -198,7 +199,7 @@ class IntakeConvertAPIView(APIView):
             )
             if created:
                 # set a default login password for new clients
-                temp_password = "Abcd.@123456"
+                temp_password = getattr(settings, "DEFAULT_USER_PASSWORD", "Welcome@12345")
                 user.set_password(temp_password)
                 created_password = temp_password
                 user.save()

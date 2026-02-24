@@ -1,5 +1,6 @@
 import random
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -29,6 +30,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         User = get_user_model()
         firm = self._get_firm(options.get("firm_slug"))
+        default_user_password = getattr(settings, "DEFAULT_USER_PASSWORD", "Welcome@12345")
 
         demo_clients = [
             {"name": "Ali Khan", "email": "ali.client@example.com", "phone": "+971565610715"},
@@ -45,7 +47,7 @@ class Command(BaseCommand):
                 defaults={"username": data["email"], "first_name": data["name"].split()[0]},
             )
             if user_created:
-                user.set_password("password123")
+                user.set_password(default_user_password)
                 user.save()
 
             UserProfile.objects.update_or_create(
@@ -82,7 +84,7 @@ class Command(BaseCommand):
         owner = User.objects.create_user(
             username="demo.owner@example.com",
             email="demo.owner@example.com",
-            password="password123",
+            password=getattr(settings, "DEFAULT_USER_PASSWORD", "Welcome@12345"),
             first_name="Demo",
             last_name="Owner",
         )

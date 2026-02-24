@@ -1,6 +1,7 @@
 import secrets
 
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
@@ -16,7 +17,7 @@ from apps.cases.models import Case
 from core.responses import api_success, api_error
 
 
-DEFAULT_TEMP_PASSWORD = "Welcome@12345"
+DEFAULT_TEMP_PASSWORD = getattr(settings, "DEFAULT_USER_PASSWORD", "Welcome@12345")
 
 
 class SuperAdminOnly(BasePermission):
