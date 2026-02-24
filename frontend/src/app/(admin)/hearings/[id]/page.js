@@ -34,12 +34,13 @@ export default function HearingDetailPage() {
     queryFn: () => getHearing(hearingId),
     enabled: Boolean(hearingId),
   });
+  const hearing = data?.data || data;
 
   if (isLoading) {
     return <div className="text-sm text-slate-500">Loading hearing...</div>;
   }
 
-  if (!data) {
+  if (!hearing) {
     return <div className="text-sm text-slate-500">Hearing not found.</div>;
   }
 
@@ -47,8 +48,8 @@ export default function HearingDetailPage() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{data.title || "Hearing"}</h1>
-          <p className="text-sm text-slate-500">Related case: {data.case_detail?.title || "-"}</p>
+          <h1 className="text-2xl font-semibold text-slate-900">{hearing.title || "Hearing"}</h1>
+          <p className="text-sm text-slate-500">Related case: {hearing.case_detail?.title || "-"}</p>
         </div>
         <Link
           href="/hearings"
@@ -59,23 +60,23 @@ export default function HearingDetailPage() {
       </div>
 
       <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-3">
-        <Row label="Case" value={data.case_detail?.title} />
-        <Row label="Case Number" value={data.case_detail?.case_number} />
-        <Row label="Status" value={data.status} />
-        <Row label="Type" value={data.hearing_type} />
-        <Row label="Start" value={formatDate(data.start_at)} />
-        <Row label="End" value={formatDate(data.end_at)} />
-        <Row label="Court" value={data.court_name} />
-        <Row label="Court Room" value={data.court_room} />
-        <Row label="Location" value={data.location} />
-        <Row label="Created By" value={data.created_by_detail?.email || data.created_by_detail?.name} />
-        <Row label="Updated By" value={data.updated_by_detail?.email || data.updated_by_detail?.name} />
-        <Row label="Updated At" value={formatDate(data.updated_at)} />
+        <Row label="Case" value={hearing.case_detail?.title} />
+        <Row label="Case Number" value={hearing.case_detail?.case_number} />
+        <Row label="Status" value={hearing.status} />
+        <Row label="Type" value={hearing.hearing_type} />
+        <Row label="Start" value={formatDate(hearing.start_at)} />
+        <Row label="End" value={formatDate(hearing.end_at)} />
+        <Row label="Court" value={hearing.court_name} />
+        <Row label="Court Room" value={hearing.court_room} />
+        <Row label="Location" value={hearing.location} />
+        <Row label="Created By" value={hearing.created_by_detail?.email || hearing.created_by_detail?.name} />
+        <Row label="Updated By" value={hearing.updated_by_detail?.email || hearing.updated_by_detail?.name} />
+        <Row label="Updated At" value={formatDate(hearing.updated_at)} />
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-xs uppercase tracking-wide text-slate-500">Notes</p>
-        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-900">{data.notes || "-"}</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-900">{hearing.notes || "-"}</p>
       </div>
     </div>
   );
