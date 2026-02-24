@@ -54,6 +54,8 @@ class Command(BaseCommand):
                     name=role_name,
                     defaults={"is_system": True},
                 )
+            # Remove legacy platform role if it exists.
+            Role.objects.filter(firm=firm, name="FIRM_ADMIN").delete()
 
             # Enforce a single RBAC role for superadmin: SUPER_ADMIN only.
             super_admin_role = Role.objects.filter(firm=firm, name="SUPER_ADMIN", is_deleted=False).first()

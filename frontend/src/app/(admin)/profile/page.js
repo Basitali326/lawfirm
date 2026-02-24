@@ -31,6 +31,7 @@ export default function ProfilePage() {
     }
     return null;
   }, [data, session]);
+  const firmName = useMemo(() => data?.firm?.name || session?.firm?.name || "—", [data, session]);
 
   const {
     register,
@@ -90,6 +91,7 @@ export default function ProfilePage() {
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field label="Email" value={user?.email || "—"} />
           <Field label="Role" value={user?.role || "—"} />
+          <Field label="Firm" value={firmName} />
           <Field label="First name" value={user?.first_name || "—"} />
           <Field label="Last name" value={user?.last_name || "—"} />
         </CardContent>

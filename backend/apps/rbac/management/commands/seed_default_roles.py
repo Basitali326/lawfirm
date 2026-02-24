@@ -21,6 +21,8 @@ class Command(BaseCommand):
 
     def _ensure_roles(self, firm):
         created = 0
+        # Cleanup legacy role to keep only firm owner + member roles.
+        Role.objects.filter(firm=firm, name="FIRM_ADMIN").delete()
         # Firm Owner
         owner_role, was_created = Role.objects.get_or_create(
             firm=firm, name="FIRM_OWNER", defaults={"description": "Full access", "is_system": True}
