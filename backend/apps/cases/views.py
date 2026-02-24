@@ -64,7 +64,16 @@ class CaseViewSet(
             from apps.usersx.views import default_firm_for_superadmin
             firm = default_firm_for_superadmin()
         profile = getattr(user, "profile", None)
-        role = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
+        role = (getattr(user, "role", "") or getattr(profile, "role", "") or "").replace(" ", "_").upper()
+        rbac_roles = set()
+        try:
+            rbac_roles = {
+                (r or "").replace(" ", "_").upper()
+                for r in user.user_roles.select_related("role").values_list("role__name", flat=True)
+                if r
+            }
+        except Exception:
+            rbac_roles = set()
         if not role:
             if getattr(user, "is_superuser", False):
                 role = "SUPER_ADMIN"
@@ -76,7 +85,11 @@ class CaseViewSet(
             base = qs
             if firm:
                 base = base.filter(firm_id=getattr(firm, "id", firm))
-            # If a special permission exists to view all cases, honor it, but otherwise firm scope is enough
+            # Staff roles should only see cases assigned to them.
+            if role in {"LAWYER", "PARALEGAL", "VIEWER"} or rbac_roles.intersection({"LAWYER", "PARALEGAL", "VIEWER"}):
+                return base.filter(assigned_lead=user).order_by("-created_at")
+            if role == "CLIENT" or "CLIENT" in rbac_roles:
+                return base.filter(client__user=user).order_by("-created_at")
             return base.order_by("-created_at")
         if role == "SUPER_ADMIN":
             base = qs

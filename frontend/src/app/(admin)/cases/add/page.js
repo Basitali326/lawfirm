@@ -38,11 +38,13 @@ async function fetchCaseTypes() {
 
 async function createCase(payload) {
   const token = await ensureAccessToken();
+  const firmId = tokenStore.getFirmId();
   const res = await fetch(`${API_BASE}/api/v1/cases/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
+      ...(firmId ? { "X-FIRM-ID": String(firmId) } : {}),
     },
     body: JSON.stringify(payload),
   });
@@ -130,8 +132,10 @@ export default function AddCasePage() {
     onSuccess: (body) => {
       toast.success("Case created successfully");
       reset();
+      queryClient.removeQueries({ queryKey: ["cases"] });
       queryClient.invalidateQueries({ queryKey: ["cases"] });
       router.push("/cases");
+      router.refresh();
     },
     onError: (error) => {
       const body = error?.body;
