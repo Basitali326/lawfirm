@@ -6,29 +6,37 @@ const ACCESS_KEY = "access_token";
 const REFRESH_KEY = "refresh_token";
 const FIRM_KEY = "firm_id";
 
-function storageAvailable() {
-  if (typeof window === "undefined") return false;
-  try {
-    const testKey = "__storage_test__";
-    window.sessionStorage.setItem(testKey, "1");
-    window.sessionStorage.removeItem(testKey);
-    return true;
-  } catch (e) {
-    return false;
-  }
+function cookiesAvailable() {
+  return typeof document !== "undefined";
 }
 
 function readStored(key) {
-  if (!storageAvailable()) return null;
-  return window.sessionStorage.getItem(key);
+  if (!cookiesAvailable()) return null;
+  const encodedKey = encodeURIComponent(key) + "=";
+  const parts = document.cookie.split("; ");
+  for (const part of parts) {
+    if (!part.startsWith(encodedKey)) continue;
+    const raw = part.slice(encodedKey.length);
+    return decodeURIComponent(raw || "");
+  }
+  return null;
 }
 
 function writeStored(key, value) {
-  if (!storageAvailable()) return;
+  if (!cookiesAvailable()) return;
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:";
   if (value) {
-    window.sessionStorage.setItem(key, value);
+    document.cookie = [
+      `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+      "Path=/",
+      "Max-Age=2592000",
+      "SameSite=Lax",
+      secure ? "Secure" : "",
+    ]
+      .filter(Boolean)
+      .join("; ");
   } else {
-    window.sessionStorage.removeItem(key);
+    document.cookie = `${encodeURIComponent(key)}=; Path=/; Max-Age=0; SameSite=Lax`;
   }
 }
 
