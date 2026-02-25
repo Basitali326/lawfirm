@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     'apps.billing',
     'apps.sessionsx',
     'apps.hearings',
+    'apps.dashboard',
 ]
 
 MIDDLEWARE = [

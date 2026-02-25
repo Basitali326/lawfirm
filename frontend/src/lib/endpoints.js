@@ -11,4 +11,5 @@ export const endpoints = {
   hearingsList: "/api/v1/hearings/",
   hearingsByCase: (caseId) => `/api/v1/cases/${caseId}/hearings/`,
   hearingDetail: (id) => `/api/v1/hearings/${id}/`,
+  dashboardSummary: "/api/v1/dashboard/summary/",
 };

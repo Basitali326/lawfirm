@@ -1,6 +1,7 @@
 import "@/app/globals.css";
 
 import Providers from "@/app/providers";
+import PageTitleSync from "@/components/PageTitleSync";
 import { buildMetadata } from "@/lib/metadata";
 
 export const metadata = buildMetadata({
@@ -12,7 +13,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <PageTitleSync />
+          {children}
+        </Providers>
       </body>
     </html>
   );

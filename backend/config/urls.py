@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/v1/', include('apps.chatx.urls')),
     path('api/v1/', include('apps.notifx.urls')),
     path('api/v1/', include('apps.hearings.urls')),
+    path('api/v1/', include('apps.dashboard.api.urls')),
     path('api/v1/admin/', include('apps.firms.admin_urls')),
     path('public/', include('apps.intake.urls_public')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
