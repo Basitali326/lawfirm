@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
@@ -28,6 +29,7 @@ import { toggleSidebar } from "@/store/uiSlice";
 import { navItems as baseNavItems } from "@/components/admin/navConfig";
 import { useRBAC } from "@/lib/rbac";
 import useMe from "@/hooks/useMe";
+import { useRouter } from "next/navigation";
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
@@ -67,6 +69,7 @@ const accountItems = [{ label: "Logout", href: "/login", icon: LogOut }];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { can, meLoading } = useRBAC();
   const { data: meData } = useMe();
   const dispatch = useAppDispatch();
@@ -86,6 +89,17 @@ export default function AdminSidebar() {
   const settingsChildren = navItems
     .filter((i) => i.parent === "/settings")
     .filter((child) => (child.href === "/settings/firms" ? isSuper : true));
+
+  const navigate = (href) => (e) => {
+    e.preventDefault();
+    if (!href || pathname === href) return;
+    router.push(href);
+    window.setTimeout(() => {
+      if (window.location.pathname !== href) {
+        window.location.assign(href);
+      }
+    }, 800);
+  };
 
   return (
     <aside
@@ -161,8 +175,10 @@ export default function AdminSidebar() {
                     )}
                   </button>
                 ) : (
-                  <a
+                  <Link
                     href={item.href}
+                    prefetch={false}
+                    onClick={navigate(item.href)}
                     className={cn(
                       "flex items-center justify-between rounded-xl px-3 py-3 text-sm transition",
                       isActive
@@ -174,7 +190,7 @@ export default function AdminSidebar() {
                       <Icon className="h-4 w-4" />
                       {sidebarOpen && item.label}
                     </span>
-                  </a>
+                  </Link>
                 )}
 
                 {isSettings && sidebarOpen && settingsChildren.length > 0 && settingsOpen && (
@@ -185,9 +201,11 @@ export default function AdminSidebar() {
                         pathname.startsWith(`${child.href}/`);
                       const ChildIcon = child.icon;
                       return (
-                        <a
+                        <Link
                           key={child.href}
                           href={child.href}
+                          prefetch={false}
+                          onClick={navigate(child.href)}
                           className={cn(
                             "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
                             childActive
@@ -197,7 +215,7 @@ export default function AdminSidebar() {
                         >
                           <ChildIcon className="h-4 w-4" />
                           {child.label}
-                        </a>
+                        </Link>
                       );
                     })}
                   </div>
@@ -217,14 +235,16 @@ export default function AdminSidebar() {
         {accountItems.map((item) => {
           const Icon = item.icon;
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
+              onClick={navigate(item.href)}
               className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
             >
               <Icon className="h-4 w-4" />
               {sidebarOpen && item.label}
-            </a>
+            </Link>
           );
         })}
       </div>
