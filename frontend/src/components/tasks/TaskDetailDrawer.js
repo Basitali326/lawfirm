@@ -53,12 +53,10 @@ export default function TaskDetailDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex justify-end bg-slate-900/30 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
+      className="fixed inset-y-0 right-0 z-40 flex justify-end pointer-events-none"
     >
-      <div className="h-full w-full max-w-md bg-white shadow-xl">
+      <div aria-hidden className="absolute inset-0 bg-slate-900/20 backdrop-blur-[1px] pointer-events-none" />
+      <div className="relative h-full w-full max-w-md bg-white shadow-xl pointer-events-auto">
         <div className="flex items-center justify-between border-b border-slate-200 p-4">
           <div>
             <div className="text-lg font-semibold text-slate-900">{task.title}</div>

@@ -100,14 +100,10 @@ export default function AddTaskDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-slate-900/30 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (isDirty) onRequestDiscard?.();
-        else onClose?.();
-      }}
+      className="fixed inset-y-0 right-0 z-50 flex justify-end pointer-events-none"
     >
-      <div className="h-full w-full max-w-5xl bg-white shadow-xl">
+      <div aria-hidden className="absolute inset-0 bg-slate-900/20 backdrop-blur-[1px] pointer-events-none" />
+      <div className="relative h-full w-full max-w-5xl bg-white shadow-xl pointer-events-auto">
         <div className="grid h-full grid-cols-1 md:grid-cols-3">
           <div className="border-r border-slate-200 p-4">
             <h3 className="text-sm font-semibold text-slate-900">Suggested from template</h3>
