@@ -134,19 +134,17 @@ export default function TasksPage() {
   }, [filteredCases]);
 
   const [selectedCaseId, setSelectedCaseId] = useState(null);
-
-  useEffect(() => {
-    if (!selectedCaseId && filteredCases.length > 0) {
-      setSelectedCaseId(filteredCases[0].id);
+  const effectiveSelectedCaseId = useMemo(() => {
+    if (!filteredCases.length) return null;
+    if (selectedCaseId && filteredCases.some((c) => c.id === selectedCaseId)) {
+      return selectedCaseId;
     }
-    if (selectedCaseId && !filteredCases.find((c) => c.id === selectedCaseId)) {
-      setSelectedCaseId(filteredCases[0]?.id || null);
-    }
+    return filteredCases[0].id;
   }, [filteredCases, selectedCaseId]);
 
   const selectedCase = useMemo(
-    () => filteredCases.find((c) => c.id === selectedCaseId) || filteredCases[0],
-    [filteredCases, selectedCaseId]
+    () => filteredCases.find((c) => c.id === effectiveSelectedCaseId) || filteredCases[0],
+    [filteredCases, effectiveSelectedCaseId]
   );
 
   const caseTasks = useMemo(() => {
@@ -322,7 +320,7 @@ export default function TasksPage() {
                   <button
                     key={c.id}
                     className={`group w-full text-left px-4 py-3 transition ${
-                      c.id === selectedCaseId
+                      c.id === effectiveSelectedCaseId
                         ? "bg-slate-200 border-l-4 border-slate-900"
                         : "hover:bg-slate-50"
                     }`}
