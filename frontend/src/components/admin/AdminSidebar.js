@@ -1,6 +1,4 @@
 "use client";
-
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
@@ -163,7 +161,7 @@ export default function AdminSidebar() {
                     )}
                   </button>
                 ) : (
-                  <Link
+                  <a
                     href={item.href}
                     className={cn(
                       "flex items-center justify-between rounded-xl px-3 py-3 text-sm transition",
@@ -176,7 +174,7 @@ export default function AdminSidebar() {
                       <Icon className="h-4 w-4" />
                       {sidebarOpen && item.label}
                     </span>
-                  </Link>
+                  </a>
                 )}
 
                 {isSettings && sidebarOpen && settingsChildren.length > 0 && settingsOpen && (
@@ -187,7 +185,7 @@ export default function AdminSidebar() {
                         pathname.startsWith(`${child.href}/`);
                       const ChildIcon = child.icon;
                       return (
-                        <Link
+                        <a
                           key={child.href}
                           href={child.href}
                           className={cn(
@@ -199,7 +197,7 @@ export default function AdminSidebar() {
                         >
                           <ChildIcon className="h-4 w-4" />
                           {child.label}
-                        </Link>
+                        </a>
                       );
                     })}
                   </div>
@@ -219,14 +217,14 @@ export default function AdminSidebar() {
         {accountItems.map((item) => {
           const Icon = item.icon;
           return (
-            <Link
+            <a
               key={item.href}
               href={item.href}
               className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
             >
               <Icon className="h-4 w-4" />
               {sidebarOpen && item.label}
-            </Link>
+            </a>
           );
         })}
       </div>
