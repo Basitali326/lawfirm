@@ -18,6 +18,7 @@ from apps.intake.throttles import PublicIPMinuteThrottle, PublicIPHourThrottle, 
 from apps.intake.services import verify_recaptcha, normalize_phone, is_duplicate_recent
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
+from apps.billing.invoice_generation_service import create_invoice_for_case_on_create
 
 
 class IntakePagination(PageNumberPagination):
@@ -234,9 +235,9 @@ class IntakeConvertAPIView(APIView):
             # Determine case type if provided
             case_type_obj = None
             if instance.case_type:
-                case_type_obj = CaseType.objects.filter(code__iexact=instance.case_type).first()
+                case_type_obj = CaseType.objects.filter(firm=instance.firm, code__iexact=instance.case_type, is_deleted=False).first()
                 if not case_type_obj:
-                    case_type_obj = CaseType.objects.filter(name__iexact=instance.case_type).first()
+                    case_type_obj = CaseType.objects.filter(firm=instance.firm, name__iexact=instance.case_type, is_deleted=False).first()
 
             # Generate a case number per firm using the standard sequence (CIA-YYYY-###)
             prefix = f"CIA-{timezone.localdate().year}-"
@@ -262,7 +263,7 @@ class IntakeConvertAPIView(APIView):
                 title=instance.case_type or instance.full_name or "New Intake Case",
                 case_type=case_type_obj,
                 case_number=case_number,
-                status=CaseStatus.OPEN,
+                status=CaseStatus.PENDING_PAYMENT,
                 priority=CasePriority.MEDIUM,
                 description=instance.message,
                 court_name="",
@@ -270,6 +271,13 @@ class IntakeConvertAPIView(APIView):
                 open_date=instance.created_at.date(),
                 assigned_lead=assigned_lead_user,
                 created_by=created_by_user,
+            )
+            create_invoice_for_case_on_create(
+                firm=instance.firm,
+                case=case,
+                client=client_profile,
+                created_by_user=created_by_user,
+                source="WEBSITE",
             )
             created_case_id = case.id
         except Exception:

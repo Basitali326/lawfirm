@@ -2,6 +2,14 @@ import { useMemo } from "react";
 import TasksTable from "./TasksTable";
 import { StatusBadge } from "./TaskBadges";
 
+const formatCaseTypeLabel = (caseType) => {
+  if (!caseType) return "";
+  const name = caseType.name || "";
+  const code = caseType.code || "";
+  if (name && code) return `${name} (${code})`;
+  return name || code || "";
+};
+
 export default function CaseAccordionItem({
   item,
   isOpen,
@@ -31,7 +39,7 @@ export default function CaseAccordionItem({
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-semibold text-slate-900">{item.title}</div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-            {item.case_type.name}
+            {formatCaseTypeLabel(item.case_type) || "—"}
           </span>
           <StatusBadge value="OPEN" />
           <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">

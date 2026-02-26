@@ -7,6 +7,14 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import localFetch from "@/lib/api";
 
+const formatCaseTypeLabel = (caseType) => {
+  if (!caseType) return "";
+  const name = caseType.name || "";
+  const code = caseType.code || "";
+  if (name && code) return `${name} (${code})`;
+  return name || code || "";
+};
+
 export default function AddTaskDrawer({
   open,
   onClose,
@@ -107,7 +115,7 @@ export default function AddTaskDrawer({
         <div className="grid h-full grid-cols-1 md:grid-cols-3">
           <div className="border-r border-slate-200 p-4">
             <h3 className="text-sm font-semibold text-slate-900">Suggested from template</h3>
-            <p className="text-xs text-slate-500">Case type: {caseItem.case_type.name}</p>
+            <p className="text-xs text-slate-500">Case type: {formatCaseTypeLabel(caseItem.case_type) || "—"}</p>
             <div className="mt-3 space-y-2">
               {suggestionsQuery.isLoading && <p className="text-xs text-slate-500">Loading...</p>}
               {!suggestionsQuery.isLoading && suggestions.length === 0 && <p className="text-xs text-slate-500">No suggestions</p>}

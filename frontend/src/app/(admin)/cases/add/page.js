@@ -22,6 +22,14 @@ const PRIORITY_OPTIONS = [
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+const formatCaseTypeLabel = (ct) => {
+  if (!ct) return "";
+  const name = ct.name || "";
+  const code = ct.code || "";
+  if (name && code) return `${name} (${code})`;
+  return name || code || "";
+};
+
 async function fetchUsers() {
   const json = await localFetch("/api/v1/settings/users", { cache: "no-store" });
   return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
@@ -85,6 +93,20 @@ export default function AddCasePage() {
     queryFn: fetchCaseTypes,
     staleTime: 60_000,
   });
+  const { data: caseTypeFeePreview } = useQuery({
+    queryKey: ["case-type-fee-preview", selectedCaseTypeId],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: "1",
+        page_size: "1",
+        case_type_id: selectedCaseTypeId,
+        is_active: "true",
+      });
+      return localFetch(`/api/v1/billing/case-type-fees/?${params.toString()}`, { cache: "no-store" });
+    },
+    enabled: !!selectedCaseTypeId,
+    staleTime: 60_000,
+  });
   const filteredCaseTypes = useMemo(() => {
     const q = caseTypeSearch.trim().toLowerCase();
     if (!q) return caseTypes || [];
@@ -112,7 +134,19 @@ export default function AddCasePage() {
       return createCase(payload);
     },
     onSuccess: (body) => {
-      toast.success("Case created successfully");
+      const createdCase = body?.data || body;
+      if (createdCase?.pending_invoice_number) {
+        toast.success(`Case created. Pending invoice ${createdCase.pending_invoice_number} generated.`, {
+          action: createdCase?.pending_invoice_id
+            ? {
+                label: "View Invoice",
+                onClick: () => router.push(`/invoices/${createdCase.pending_invoice_id}`),
+              }
+            : undefined,
+        });
+      } else {
+        toast.success("Case created successfully");
+      }
       reset();
       queryClient.removeQueries({ queryKey: ["cases"] });
       queryClient.invalidateQueries({ queryKey: ["cases"] });
@@ -200,12 +234,11 @@ export default function AddCasePage() {
                         onClick={() => {
                           setValue("case_type", ct.id, { shouldValidate: true });
                           setSelectedCaseTypeId(ct.id);
-                          setCaseTypeSearch(ct.name || ct.code || "");
+                          setCaseTypeSearch(formatCaseTypeLabel(ct));
                           setCaseTypeOpen(false);
                         }}
                       >
-                        <span>{ct.name}</span>
-                        {ct.code && <span className="text-xs text-slate-500">{ct.code}</span>}
+                        <span>{formatCaseTypeLabel(ct)}</span>
                       </button>
                     ))
                   )}
@@ -218,6 +251,14 @@ export default function AddCasePage() {
               </p>
             )}
             {errors.case_type && <p className="text-xs text-rose-600 mt-1">{errors.case_type.message}</p>}
+            {selectedCaseTypeId && (
+              <p className="mt-1 text-xs text-slate-500">
+                Default fee:{" "}
+                {caseTypeFeePreview?.data?.[0]
+                  ? `${caseTypeFeePreview.data[0].default_amount} ${caseTypeFeePreview.data[0].currency}`
+                  : "Not configured (invoice will be pending review)"}
+              </p>
+            )}
           </div>
           <SelectField
             label="Status"

@@ -53,7 +53,7 @@ export default function RequestsPage() {
 
   const handleConvert = async (row) => {
     try {
-      await localFetch(`/api/v1/intake-requests/${row.id}/convert/`, {
+      const res = await localFetch(`/api/v1/intake-requests/${row.id}/convert/`, {
         method: "POST",
         body: JSON.stringify({
           full_name: row.full_name,
@@ -61,7 +61,11 @@ export default function RequestsPage() {
           phone: row.phone,
         }),
       });
-      toast.success("Converted to client");
+      if (res?.data?.case_id) {
+        toast.success("Converted to client. Pending invoice created for the new case.");
+      } else {
+        toast.success("Converted to client");
+      }
       updateCacheRow(row.id, { status: "CONVERTED" });
       qc.invalidateQueries({ queryKey: ["intake-requests"] });
       if (selected?.id === row.id) setSelected({ ...row, status: "CONVERTED" });

@@ -14,6 +14,14 @@ import localFetch, { tokenStore } from "@/lib/api";
 import { useRBAC } from "@/lib/rbac";
 import useMe from "@/hooks/useMe";
 
+const formatCaseTypeLabel = (caseType) => {
+  if (!caseType) return "";
+  const name = caseType.name || "";
+  const code = caseType.code || "";
+  if (name && code) return `${name} (${code})`;
+  return name || code || "";
+};
+
 export default function TasksPage() {
   const { status, data: session } = useSession();
   const hasToken = !!tokenStore.getAccess();
@@ -100,7 +108,7 @@ export default function TasksPage() {
     const q = filters.search.trim().toLowerCase();
     const result = cases.filter((c) => {
       const matchesSearch =
-        q === "" || c.title.toLowerCase().includes(q) || (c.case_type?.name || "").toLowerCase().includes(q);
+        q === "" || c.title.toLowerCase().includes(q) || formatCaseTypeLabel(c.case_type).toLowerCase().includes(q);
       if (isAdmin) return matchesSearch;
       const isMine =
         !currentUserId ||
@@ -126,7 +134,7 @@ export default function TasksPage() {
           ...t,
           case_title: c.title,
           case_id: c.id,
-          case_type: c.case_type?.name || "",
+          case_type: formatCaseTypeLabel(c.case_type),
         });
       });
     });
@@ -153,7 +161,7 @@ export default function TasksPage() {
       ...t,
       case_title: selectedCase.title,
       case_id: selectedCase.id,
-      case_type: selectedCase.case_type?.name || "",
+      case_type: formatCaseTypeLabel(selectedCase.case_type),
     }));
   }, [selectedCase]);
 
@@ -328,7 +336,7 @@ export default function TasksPage() {
                   >
                     <div className="font-semibold text-slate-900">{c.title}</div>
                     <div className="text-xs text-slate-500 flex items-center justify-between">
-                      <span>{c.case_type?.name || "—"}</span>
+                      <span>{formatCaseTypeLabel(c.case_type) || "—"}</span>
                       <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700">
                         {taskCount} tasks
                       </span>

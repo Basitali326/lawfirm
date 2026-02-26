@@ -50,6 +50,7 @@ const iconMap = {
   "/settings/users": User2,
   "/settings/case-types": Briefcase,
   "/settings/case-templates": FileText,
+  "/settings/billing/case-type-payments": CreditCard,
   "/settings/roles": ShieldCheck,
   "/settings/permissions": ShieldCheck,
   "/settings/sessions": ShieldCheck,

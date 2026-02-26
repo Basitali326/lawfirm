@@ -20,6 +20,16 @@ const formatDateTime = (value) => {
   }
 };
 
+const formatCaseTypeLabel = (caseItem) => {
+  const detail =
+    caseItem?.case_type_detail ||
+    (caseItem?.case_type && typeof caseItem.case_type === "object" ? caseItem.case_type : null);
+  const name = detail?.name || (typeof caseItem?.case_type === "string" ? caseItem.case_type : "");
+  const code = detail?.code || "";
+  if (name && code) return `${name} (${code})`;
+  return name || code || "—";
+};
+
 export default function CaseDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -149,7 +159,7 @@ export default function CaseDetailPage() {
               <div className="flex flex-wrap gap-2 text-xs text-slate-700">
                 <Badge tone="indigo" label="Status" value={caseItem.status} />
                 <Badge tone="amber" label="Priority" value={caseItem.priority} />
-                <Badge tone="slate" label="Type" value={caseItem.case_type || "—"} />
+                <Badge tone="slate" label="Type" value={formatCaseTypeLabel(caseItem)} />
               </div>
             </div>
 
@@ -158,12 +168,7 @@ export default function CaseDetailPage() {
               <Item label="Priority" value={caseItem.priority} />
               <Item
                 label="Case type"
-                value={
-                  caseItem.case_type_detail?.name ||
-                  caseItem.case_type?.name ||
-                  caseItem.case_type ||
-                  "—"
-                }
+                value={formatCaseTypeLabel(caseItem)}
               />
               <Item label="Court" value={caseItem.court_name || "—"} />
               <Item label="Judge" value={caseItem.judge_name || "—"} />
@@ -179,6 +184,28 @@ export default function CaseDetailPage() {
                 <p className="mt-2 text-sm text-slate-800 whitespace-pre-line">{caseItem.description}</p>
               </div>
             ) : null}
+
+            <div className="mt-6 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+              <p className="text-xs font-semibold text-slate-600">Billing</p>
+              {caseItem?.has_invoice ? (
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-800">
+                  <span>
+                    Pending invoice: {caseItem.pending_invoice_number || "Available"}
+                    {caseItem.pending_invoice_amount ? ` • ${caseItem.pending_invoice_amount} AED` : ""}
+                  </span>
+                  {caseItem.pending_invoice_id ? (
+                    <Link
+                      href={`/invoices/${caseItem.pending_invoice_id}`}
+                      className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      View Invoice
+                    </Link>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">No invoice linked yet.</p>
+              )}
+            </div>
           </div>
         ) : (
           <div className="pt-4">

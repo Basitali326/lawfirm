@@ -22,6 +22,14 @@ const PRIORITY_OPTIONS = [
   { value: "URGENT", label: "Urgent" },
 ];
 
+const formatCaseTypeLabel = (ct) => {
+  if (!ct) return "";
+  const name = ct.name || ct.title || "";
+  const code = ct.code || "";
+  if (name && code) return `${name} (${code})`;
+  return name || code || "";
+};
+
 export default function EditCasePage() {
   const params = useParams();
   const router = useRouter();
@@ -104,9 +112,8 @@ export default function EditCasePage() {
     if (ctVal) {
       setValue("case_type", ctVal);
       const label =
-        caseItem.case_type_detail?.name ||
-        (ctRaw && typeof ctRaw === "object" ? ctRaw.name || ctRaw.title || ctRaw.code : null) ||
-        caseItem.case_type_detail?.code ||
+        formatCaseTypeLabel(caseItem.case_type_detail) ||
+        (ctRaw && typeof ctRaw === "object" ? formatCaseTypeLabel(ctRaw) : null) ||
         (typeof ctRaw === "string" ? ctRaw : "") ||
         "";
       if (label) setCaseTypeSearch(label);
@@ -129,7 +136,7 @@ export default function EditCasePage() {
         const text = `${ct.name || ""} ${ct.code || ""}`.toLowerCase();
         return text.includes(search);
       })
-      .map((ct) => ({ value: ct.id, label: ct.name || ct.title || ct.code || ct.id }));
+      .map((ct) => ({ value: ct.id, label: formatCaseTypeLabel(ct) || ct.id }));
   }, [caseTypesData, caseTypeSearch]);
 
   const userOptions = useMemo(() => {

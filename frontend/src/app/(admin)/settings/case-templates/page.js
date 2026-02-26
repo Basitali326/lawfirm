@@ -35,6 +35,14 @@ const formatDate = (value) => {
   }
 };
 
+const formatCaseTypeLabel = (caseType) => {
+  if (!caseType) return "";
+  const name = caseType.name || "";
+  const code = caseType.code || "";
+  if (name && code) return `${name} (${code})`;
+  return name || code || "";
+};
+
 export default function CaseTemplatesPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -76,7 +84,7 @@ export default function CaseTemplatesPage() {
     enabled: status === "authenticated" || !!hasToken,
   });
   const caseTypes = useMemo(
-    () => (caseTypesData?.data || []).map((ct) => ({ value: ct.id, label: ct.name })),
+    () => (caseTypesData?.data || []).map((ct) => ({ value: ct.id, label: formatCaseTypeLabel(ct) || ct.name })),
     [caseTypesData]
   );
 
@@ -239,7 +247,7 @@ export default function CaseTemplatesPage() {
                 {templates.map((tpl) => (
                   <tr key={tpl.id}>
                     <td className="px-4 py-3 text-sm font-semibold text-slate-900">{tpl.name}</td>
-                    <td className="px-4 py-3 text-sm text-slate-700">{tpl.case_type?.name || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-700">{formatCaseTypeLabel(tpl.case_type) || "—"}</td>
                     <td className="px-4 py-3 text-sm">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${

@@ -20,6 +20,8 @@ from apps.audit.models import EntityType, AuditAction
 from apps.task_templates.models import CaseTaskTemplate
 from apps.rbac.services import user_has_perm
 from apps.cases.utils import get_user_firm
+from apps.billing.invoice_generation_service import create_invoice_for_case_on_create
+from apps.billing.models import Invoice, InvoiceStatus
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +158,13 @@ class CaseViewSet(
 
     def perform_create(self, serializer):
         case = serializer.save()
+        create_invoice_for_case_on_create(
+            firm=case.firm,
+            case=case,
+            client=case.client,
+            created_by_user=self.request.user,
+            source="ADMIN",
+        )
         # Audit: case created
         try:
             log_audit_event(
@@ -406,6 +415,44 @@ class GenerateTasksAPIView(APIView):
                 "created_count": result.get("created_count", 0),
                 "tasks_generated_at": result.get("tasks_generated_at"),
                 "reason": result.get("reason"),
+            },
+        )
+
+
+class CaseBillingSummaryAPIView(APIView):
+    permission_classes = [IsAuthenticated, CasePermission]
+
+    def get(self, request, case_id):
+        try:
+            case = Case.objects.get(id=case_id, is_deleted=False)
+        except Case.DoesNotExist:
+            return api_error("Case not found", status_code=status.HTTP_404_NOT_FOUND)
+        if not CasePermission().has_object_permission(request, self, case):
+            return api_error("Not found", status_code=status.HTTP_404_NOT_FOUND)
+        pending = (
+            Invoice.objects.filter(
+                case=case,
+                is_deleted=False,
+                status__in=[
+                    InvoiceStatus.PENDING,
+                    InvoiceStatus.PENDING_REVIEW,
+                    InvoiceStatus.SENT,
+                    InvoiceStatus.PARTIAL,
+                ],
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        latest = Invoice.objects.filter(case=case, is_deleted=False).order_by("-created_at").first()
+        return api_success(
+            "OK",
+            data={
+                "has_invoice": latest is not None,
+                "pending_invoice_id": str(pending.id) if pending else None,
+                "pending_invoice_number": pending.invoice_number if pending else None,
+                "pending_invoice_amount": str(pending.total_amount) if pending else None,
+                "pending_invoice_status": pending.status if pending else None,
+                "latest_invoice_id": str(latest.id) if latest else None,
             },
         )
 from rest_framework.permissions import IsAuthenticated

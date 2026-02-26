@@ -6,6 +6,7 @@ from apps.authx.models import Firm
 from django.db import transaction
 
 from .models import Case, CaseStatus, CasePriority, ClientProfile, FirmCaseCounter
+from apps.billing.models import Invoice, InvoiceStatus
 
 User = get_user_model()
 
@@ -18,6 +19,10 @@ class CaseSerializer(serializers.ModelSerializer):
     assigned_lead_detail = serializers.SerializerMethodField(read_only=True)
     case_type_detail = serializers.SerializerMethodField(read_only=True)
     tasks_generated_by_detail = serializers.SerializerMethodField(read_only=True)
+    has_invoice = serializers.SerializerMethodField(read_only=True)
+    pending_invoice_id = serializers.SerializerMethodField(read_only=True)
+    pending_invoice_number = serializers.SerializerMethodField(read_only=True)
+    pending_invoice_amount = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Case
@@ -36,6 +41,10 @@ class CaseSerializer(serializers.ModelSerializer):
             "opened_at",
             "tasks_generated_at",
             "tasks_generated_by_detail",
+            "has_invoice",
+            "pending_invoice_id",
+            "pending_invoice_number",
+            "pending_invoice_amount",
             "close_date",
             "close_reason",
             "client",
@@ -231,6 +240,37 @@ class CaseSerializer(serializers.ModelSerializer):
             "id": user.id,
             "email": user.email,
         }
+
+    def _pending_invoice(self, obj):
+        return (
+            Invoice.objects.filter(
+                case=obj,
+                is_deleted=False,
+                status__in=[
+                    InvoiceStatus.PENDING,
+                    InvoiceStatus.PENDING_REVIEW,
+                    InvoiceStatus.SENT,
+                    InvoiceStatus.PARTIAL,
+                ],
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+    def get_has_invoice(self, obj):
+        return Invoice.objects.filter(case=obj, is_deleted=False).exists()
+
+    def get_pending_invoice_id(self, obj):
+        inv = self._pending_invoice(obj)
+        return str(inv.id) if inv else None
+
+    def get_pending_invoice_number(self, obj):
+        inv = self._pending_invoice(obj)
+        return inv.invoice_number if inv else None
+
+    def get_pending_invoice_amount(self, obj):
+        inv = self._pending_invoice(obj)
+        return str(inv.total_amount) if inv else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

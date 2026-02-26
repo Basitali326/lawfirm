@@ -28,6 +28,16 @@ const priorityTone = {
   URGENT: "text-white bg-rose-600",
 };
 
+const formatCaseTypeLabel = (caseType) => {
+  const detail =
+    caseType?.case_type_detail ||
+    (caseType?.case_type && typeof caseType.case_type === "object" ? caseType.case_type : null);
+  const name = detail?.name || (typeof caseType?.case_type === "string" ? caseType.case_type : "");
+  const code = detail?.code || "";
+  if (name && code) return `${name} (${code})`;
+  return name || code || "—";
+};
+
 export default function CasesPage() {
   const router = useRouter();
   const { can, meLoading } = useRBAC();
@@ -60,12 +70,7 @@ export default function CasesPage() {
       priority: item.priority,
       opened_at: item.open_date,
       assigned_to: item.assigned_lead_detail?.email || "—",
-      case_type:
-        item.case_type_detail?.name ||
-        (item.case_type && item.case_type.name) ||
-        item.case_type ||
-        "—",
-      created_at: item.created_at,
+      case_type: formatCaseTypeLabel(item),
     }));
   }, [data]);
 
@@ -133,12 +138,6 @@ export default function CasesPage() {
       render: (row) => formatDateTime(row.opened_at),
     },
     { key: "assigned_to", header: "Assigned", render: (row) => row.assigned_to || "—" },
-    {
-      key: "created_at",
-      header: "Created",
-      sortable: true,
-      render: (row) => formatDateTime(row.created_at),
-    },
     {
       key: "actions",
       header: "Actions",

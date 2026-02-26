@@ -22,6 +22,7 @@ PERMISSION_MATRIX = {
     "trash": ["view", "restore", "delete"],
     "case_types": ["view", "add", "update", "delete"],
     "task_templates": ["view", "add", "update", "delete"],
+    "case_type_fees": ["view", "add", "update", "delete"],
 }
 
 

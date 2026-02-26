@@ -6,12 +6,16 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from .models import Invoice, Payment, InvoiceStatus, PaymentMethod, PaymentStatus
 from .services import refresh_invoice_totals, generate_invoice_number
+from .models import CaseTypeFeePolicy
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
 
 
 class InvoiceListSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
+    case_id = serializers.SerializerMethodField()
+    currency = serializers.SerializerMethodField()
+    auto_generated = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -25,10 +29,25 @@ class InvoiceListSerializer(serializers.ModelSerializer):
             "issue_date",
             "due_date",
             "client_name",
+            "case_id",
+            "currency",
+            "auto_generated",
         ]
 
     def get_client_name(self, obj):
         return getattr(obj.client, "name", None)
+
+    def get_case_id(self, obj):
+        return str(obj.case_id) if obj.case_id else None
+
+    def get_currency(self, obj):
+        item = obj.line_items.order_by("created_at").first()
+        if not item:
+            return "AED"
+        return "AED"
+
+    def get_auto_generated(self, obj):
+        return bool(obj.case_id)
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -108,6 +127,7 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
 class InvoiceDetailSerializer(serializers.ModelSerializer):
     client_detail = serializers.SerializerMethodField()
     created_by_email = serializers.SerializerMethodField()
+    line_items = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -123,6 +143,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
             "client_detail",
             "case",
             "created_by_email",
+            "line_items",
             "created_at",
             "updated_at",
         ]
@@ -140,6 +161,18 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
 
     def get_created_by_email(self, obj):
         return getattr(obj.created_by, "email", None)
+
+    def get_line_items(self, obj):
+        return [
+            {
+                "id": str(item.id),
+                "description": item.description,
+                "quantity": str(item.quantity),
+                "unit_amount": str(item.unit_amount),
+                "total_amount": str(item.total_amount),
+            }
+            for item in obj.line_items.all().order_by("created_at")
+        ]
 
 
 class InvoiceCreateSerializer(serializers.Serializer):
@@ -170,7 +203,7 @@ class InvoiceCreateSerializer(serializers.Serializer):
                 client=client,
                 case=case,
                 invoice_number=inv_number,
-                status=InvoiceStatus.SENT,
+                status=InvoiceStatus.PENDING,
                 total_amount=validated_data["total_amount"],
                 paid_amount=0,
                 balance_amount=validated_data["total_amount"],
@@ -197,3 +230,82 @@ class InvoiceCreateSerializer(serializers.Serializer):
             except Exception:
                 pass
         return invoice
+
+
+class CaseTypeFeePolicySerializer(serializers.ModelSerializer):
+    case_type_detail = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = CaseTypeFeePolicy
+        fields = [
+            "id",
+            "case_type",
+            "case_type_detail",
+            "currency",
+            "default_amount",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "case_type_detail"]
+
+    def get_case_type_detail(self, obj):
+        ct = obj.case_type
+        return {"id": str(ct.id), "name": ct.name, "code": ct.code}
+
+    def validate_default_amount(self, value):
+        if value is None or value < 0:
+            raise serializers.ValidationError("Default amount must be greater than or equal to zero.")
+        return value
+
+    def validate_currency(self, value):
+        cleaned = (value or "").strip().upper()
+        if cleaned not in {"AED"}:
+            raise serializers.ValidationError("Unsupported currency.")
+        return cleaned
+
+    def validate_case_type(self, value):
+        request = self.context.get("request")
+        firm = getattr(request.user, "firm", None) or getattr(getattr(request.user, "profile", None), "firm", None)
+        if not firm and hasattr(request.user, "owned_firm"):
+            firm = request.user.owned_firm
+        if not firm and getattr(request.user, "is_superuser", False):
+            firm_id = request.headers.get("X-FIRM-ID")
+            if firm_id:
+                from apps.authx.models import Firm
+                firm = Firm.objects.filter(id=firm_id).first()
+        if not firm:
+            raise serializers.ValidationError("User firm not set.")
+        if value.firm_id != firm.id:
+            raise serializers.ValidationError("Case type must belong to your firm.")
+        return value
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        firm = getattr(request.user, "firm", None) or getattr(getattr(request.user, "profile", None), "firm", None)
+        if not firm and hasattr(request.user, "owned_firm"):
+            firm = request.user.owned_firm
+        if not firm and getattr(request.user, "is_superuser", False):
+            firm_id = request.headers.get("X-FIRM-ID")
+            if firm_id:
+                from apps.authx.models import Firm
+                firm = Firm.objects.filter(id=firm_id).first()
+        if not firm:
+            raise serializers.ValidationError({"firm": "User firm not set."})
+        attrs["firm"] = firm
+        case_type = attrs.get("case_type") or getattr(self.instance, "case_type", None)
+        if case_type and case_type.firm_id != firm.id:
+            raise serializers.ValidationError({"case_type": "Case type must belong to your firm."})
+        qs = CaseTypeFeePolicy.objects.filter(firm=firm, case_type=case_type, is_deleted=False)
+        if self.instance:
+            qs = qs.exclude(id=self.instance.id)
+        if qs.exists():
+            raise serializers.ValidationError({"case_type": "Fee policy for this case type already exists."})
+        return attrs
+
+    def create(self, validated_data):
+        return CaseTypeFeePolicy.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop("firm", None)
+        return super().update(instance, validated_data)

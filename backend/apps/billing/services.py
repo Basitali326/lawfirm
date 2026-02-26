@@ -29,14 +29,22 @@ def refresh_invoice_totals(invoice: Invoice):
         ] or Decimal("0.00")
         inv.paid_amount = paid
         inv.balance_amount = (inv.total_amount or Decimal("0.00")) - paid
-        if inv.balance_amount <= Decimal("0.00"):
+        if (
+            inv.status == InvoiceStatus.PENDING_REVIEW
+            and (inv.total_amount or Decimal("0.00")) <= Decimal("0.00")
+            and paid <= Decimal("0.00")
+        ):
+            inv.status = InvoiceStatus.PENDING_REVIEW
+        elif inv.balance_amount <= Decimal("0.00"):
             inv.status = InvoiceStatus.PAID
         elif paid > Decimal("0.00"):
             inv.status = InvoiceStatus.PARTIAL
+        elif inv.status == InvoiceStatus.PENDING_REVIEW:
+            inv.status = InvoiceStatus.PENDING_REVIEW
         else:
-            inv.status = InvoiceStatus.SENT
+            inv.status = InvoiceStatus.PENDING
         inv.save(update_fields=["paid_amount", "balance_amount", "status", "updated_at"])
 
-        if inv.status == InvoiceStatus.PAID and inv.case and inv.case.status == CaseStatus.PENDING_PAYMENT:
+        if inv.status == InvoiceStatus.PAID and inv.case and inv.case.status in {CaseStatus.PENDING_PAYMENT, CaseStatus.HOLD}:
             Case.objects.filter(id=inv.case_id).update(status=CaseStatus.OPEN)
         return inv
