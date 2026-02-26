@@ -6,7 +6,6 @@ import NewInvoiceModal from "@/components/billing/NewInvoiceModal";
 
 const statusChips = [
   { label: "All", value: "" },
-  { label: "Pending (Auto)", value: "PENDING" },
   { label: "Pending Review", value: "PENDING_REVIEW" },
   { label: "Sent", value: "SENT" },
   { label: "Partial", value: "PARTIAL" },
@@ -15,10 +14,9 @@ const statusChips = [
 
 export default function InvoicesPage() {
   const [status, setStatus] = useState("");
-  const [autoOnly, setAutoOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
-  const { data, isLoading } = useInvoicesList({ status, search, auto: autoOnly ? "true" : "" });
+  const { data, isLoading } = useInvoicesList({ status, search });
   const invoices = data?.data || data || [];
 
   return (
@@ -52,13 +50,6 @@ export default function InvoicesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button
-          type="button"
-          onClick={() => setAutoOnly((v) => !v)}
-          className={`rounded-full border px-3 py-1 text-sm ${autoOnly ? "bg-indigo-600 text-white" : "bg-white text-slate-700"}`}
-        >
-          Pending (Auto)
-        </button>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">

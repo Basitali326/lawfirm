@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 const APP_NAME = "Lawfirm";
+const TITLE_OVERRIDES = {
+  cases: "Case",
+};
 
 function isDynamicToken(value) {
   if (!value) return false;
@@ -39,6 +42,7 @@ function routeTitle(pathname) {
   if (last === "edit") return `Edit ${titleCase(singular(prev))}`;
   if (isDynamicToken(last)) return `${titleCase(singular(prev))} Details`;
 
+  if (TITLE_OVERRIDES[last]) return TITLE_OVERRIDES[last];
   return titleCase(last);
 }
 
@@ -52,4 +56,3 @@ export default function PageTitleSync() {
 
   return null;
 }
-

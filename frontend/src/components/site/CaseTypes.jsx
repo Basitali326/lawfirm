@@ -1,16 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "@/lib/config";
-
-const CASE_TYPES = [
-  { title: "Divorce & Family", slug: "divorce", description: "Separation, custody, support, prenuptial agreements." },
-  { title: "Employment", slug: "employment", description: "Wrongful termination, harassment, unpaid wages, contracts." },
-  { title: "Injury & Accidents", slug: "injury", description: "Car accidents, slips, workplace injuries, liability claims." },
-  { title: "Real Estate & Property", slug: "real-estate", description: "Rent disputes, evictions, property purchase or sale issues." },
-  { title: "Business & Contracts", slug: "business", description: "Founder agreements, vendor disputes, contract drafting." },
-  { title: "Immigration", slug: "immigration", description: "Visas, residency, citizenship, appeals." },
-];
 
 const defaultForm = {
   full_name: "",
@@ -38,7 +29,9 @@ const DUBAI_AREAS = [
 
 export default function CaseTypes() {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(CASE_TYPES[0]);
+  const [caseTypes, setCaseTypes] = useState([]);
+  const [loadingCaseTypes, setLoadingCaseTypes] = useState(true);
+  const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
@@ -50,10 +43,50 @@ export default function CaseTypes() {
       : null;
   const firmSlug = (queryFirmSlug || process.env.NEXT_PUBLIC_FIRM_SLUG || "").trim();
 
+  useEffect(() => {
+    let active = true;
+    async function loadCaseTypes() {
+      if (!firmSlug) {
+        if (active) setLoadingCaseTypes(false);
+        return;
+      }
+      setLoadingCaseTypes(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/public/${firmSlug}/case-types/`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "omit",
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body?.success === false) {
+          throw new Error(body?.errors?.detail || body?.message || "Failed to load case types");
+        }
+        const items = Array.isArray(body?.data) ? body.data : [];
+        if (active) {
+          setCaseTypes(items);
+          setSelected(items[0] || null);
+        }
+      } catch (_) {
+        if (active) {
+          setCaseTypes([]);
+          setSelected(null);
+        }
+      } finally {
+        if (active) setLoadingCaseTypes(false);
+      }
+    }
+    loadCaseTypes();
+    return () => {
+      active = false;
+    };
+  }, [firmSlug]);
+
+  const selectedLabel = useMemo(() => selected?.name || "", [selected]);
+
   const handleSelect = (item) => {
     setSelected(item);
     setOpen(true);
-    setForm((f) => ({ ...f, case_type: item.title }));
+    setForm((f) => ({ ...f, case_type: item.code || item.name }));
     setSuccess(null);
     setError(null);
   };
@@ -73,7 +106,7 @@ export default function CaseTypes() {
         credentials: "omit",
         body: JSON.stringify({
           ...form,
-          case_type: selected?.title,
+          case_type: selected?.code || selected?.name || "",
         }),
       });
       const body = await res.json();
@@ -103,18 +136,30 @@ export default function CaseTypes() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CASE_TYPES.map((item) => (
+          {loadingCaseTypes ? (
+            <div className="col-span-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              Loading case types...
+            </div>
+          ) : caseTypes.length === 0 ? (
+            <div className="col-span-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              No case types found for this firm.
+            </div>
+          ) : (
+            caseTypes.map((item) => (
             <article
-              key={item.slug}
+              key={item.id}
               className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg shadow-emerald-500/10 transition hover:-translate-y-1 hover:border-emerald-300/40 hover:shadow-emerald-400/20"
             >
               <div className="mb-3 flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-200 text-sm font-semibold">
-                  {item.title.slice(0, 2).toUpperCase()}
+                  {(item.code || item.name || "").slice(0, 2).toUpperCase()}
                 </span>
-                <h3 className="text-lg font-semibold text-white">{item.title}</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  {item.name}
+                  {item.code ? ` (${item.code})` : ""}
+                </h3>
               </div>
-              <p className="text-sm text-slate-300">{item.description}</p>
+              <p className="text-sm text-slate-300">{item.description || "Legal case support."}</p>
               <button
                 onClick={() => handleSelect(item)}
                 className="mt-4 inline-flex cursor-pointer items-center rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 shadow hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
@@ -122,7 +167,8 @@ export default function CaseTypes() {
                 Select
               </button>
             </article>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -132,7 +178,10 @@ export default function CaseTypes() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Case intake</p>
-                <h3 className="text-xl font-semibold text-white">{selected?.title}</h3>
+                <h3 className="text-xl font-semibold text-white">
+                  {selected?.name}
+                  {selected?.code ? ` (${selected.code})` : ""}
+                </h3>
                 <p className="text-sm text-slate-300">{selected?.description}</p>
               </div>
               <button
@@ -200,7 +249,7 @@ export default function CaseTypes() {
                 <Field label="Case type">
                   <input
                     className="w-full rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white"
-                    value={selected?.title || ""}
+                    value={selectedLabel}
                     disabled
                   />
                 </Field>

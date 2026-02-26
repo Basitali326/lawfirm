@@ -18,6 +18,7 @@ from apps.intake.throttles import PublicIPMinuteThrottle, PublicIPHourThrottle, 
 from apps.intake.services import verify_recaptcha, normalize_phone, is_duplicate_recent
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
+from apps.casetypes.models import CaseType
 from apps.billing.invoice_generation_service import create_invoice_for_case_on_create
 
 
@@ -117,6 +118,25 @@ class PublicIntakeRequestView(APIView):
         if xff:
             return xff.split(",")[0].strip()
         return request.META.get("REMOTE_ADDR")
+
+
+class PublicCaseTypesAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, firm_slug):
+        firm = Firm.objects.filter(slug=firm_slug).first()
+        if not firm:
+            return api_error(
+                "Firm not found",
+                errors={"detail": "Invalid firm slug."},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        case_types = (
+            CaseType.objects.filter(firm=firm, is_deleted=False, is_active=True)
+            .order_by("sort_order", "name")
+            .values("id", "name", "code", "description")
+        )
+        return api_success("OK", data=list(case_types))
 
 
 class IntakeRequestViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):

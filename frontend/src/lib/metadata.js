@@ -6,7 +6,11 @@ export const siteMeta = {
 };
 
 export function buildMetadata({ title, description }) {
-  const fullTitle = title ? `${title} | ${siteMeta.name}` : siteMeta.name;
+  const normalizedTitle = (title || "").trim();
+  const fullTitle =
+    !normalizedTitle || normalizedTitle.toLowerCase() === siteMeta.name.toLowerCase()
+      ? siteMeta.name
+      : `${normalizedTitle} | ${siteMeta.name}`;
   const metaDescription = description || siteMeta.description;
 
   return {

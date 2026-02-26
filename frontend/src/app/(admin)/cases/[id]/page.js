@@ -69,7 +69,10 @@ export default function CaseDetailPage() {
     return <div className="text-slate-600">Case not found.</div>;
   }
 
-  const caseItem = data;
+  const caseItem = data?.data || data;
+  if (!caseItem?.id) {
+    return <div className="text-slate-600">Case not found.</div>;
+  }
   const canEdit = !meLoading && can("cases.update");
   const canDelete = !meLoading && can("cases.delete");
   const canGenerate = !meLoading && can("tasks.add");
