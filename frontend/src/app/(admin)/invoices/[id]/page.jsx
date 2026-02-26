@@ -5,11 +5,14 @@ import { useInvoiceDetail, useInvoicePayments } from "@/hooks/useInvoiceDetail";
 import AddPaymentDrawer from "@/components/billing/AddPaymentDrawer";
 import InvoiceHeader from "@/components/billing/InvoiceHeader";
 import PaymentsTable from "@/components/billing/PaymentsTable";
+import { API_BASE_URL } from "@/lib/config";
+import { tokenStore } from "@/lib/api";
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { data: invoice, isLoading } = useInvoiceDetail(id);
+  const { data: invoiceRes, isLoading } = useInvoiceDetail(id);
+  const invoice = invoiceRes?.data || invoiceRes;
   const { data: paymentsRes } = useInvoicePayments(id);
   const payments = paymentsRes?.data || paymentsRes || [];
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -34,6 +37,31 @@ export default function InvoiceDetailPage() {
             onClick={() => window.print()}
           >
             Print Invoice
+          </button>
+          <button
+            className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-800 bg-white"
+            onClick={async () => {
+              try {
+                const token = tokenStore.getAccess();
+                const firmId = tokenStore.getFirmId();
+                const headers = {};
+                if (token) headers.Authorization = `Bearer ${token}`;
+                if (firmId) headers["X-FIRM-ID"] = String(firmId);
+                const res = await fetch(`${API_BASE_URL}/api/v1/invoices/${id}/pdf/`, {
+                  method: "GET",
+                  headers,
+                  credentials: "include",
+                });
+                if (!res.ok) throw new Error("Failed to generate PDF");
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                window.open(url, "_blank", "noopener,noreferrer");
+              } catch (e) {
+                alert(e?.message || "Unable to generate invoice PDF");
+              }
+            }}
+          >
+            Download PDF
           </button>
           <button
             className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white"

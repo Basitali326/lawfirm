@@ -1,5 +1,7 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
+from io import BytesIO
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -138,6 +140,76 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 "invoice": InvoiceDetailSerializer(result["invoice"]).data,
             },
         )
+
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, HasRBACPermission.with_perms(["invoices.view"])])
+    def pdf(self, request, pk=None):
+        invoice = get_object_or_404(self.get_queryset(), id=pk)
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.pdfgen import canvas
+        except Exception:
+            return api_error("PDF library not installed", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=A4)
+        w, h = A4
+        y = h - 40
+
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(40, y, f"Invoice {invoice.invoice_number}")
+        y -= 24
+
+        p.setFont("Helvetica", 10)
+        p.drawString(40, y, f"Status: {invoice.status}")
+        p.drawString(220, y, f"Issue date: {invoice.issue_date}")
+        y -= 16
+        p.drawString(40, y, f"Client: {getattr(invoice.client, 'name', '—')}")
+        y -= 16
+        p.drawString(40, y, f"Total: {invoice.total_amount} | Paid: {invoice.paid_amount} | Balance: {invoice.balance_amount}")
+        y -= 24
+
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(40, y, "Line items")
+        y -= 16
+        p.setFont("Helvetica", 10)
+        items = invoice.line_items.all().order_by("created_at")
+        if not items:
+            p.drawString(40, y, "No line items")
+            y -= 14
+        else:
+            for item in items:
+                line = f"- {item.description} | qty {item.quantity} | unit {item.unit_amount} | total {item.total_amount}"
+                p.drawString(40, y, line[:120])
+                y -= 14
+                if y < 80:
+                    p.showPage()
+                    y = h - 40
+                    p.setFont("Helvetica", 10)
+
+        y -= 8
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(40, y, "Payments")
+        y -= 16
+        p.setFont("Helvetica", 10)
+        payments = invoice.payments.all().order_by("-created_at")
+        if not payments:
+            p.drawString(40, y, "No payments yet")
+        else:
+            for pay in payments:
+                line = f"- {pay.paid_at:%Y-%m-%d %H:%M} | {pay.payment_method} | {pay.payment_status} | {pay.amount}"
+                p.drawString(40, y, line[:120])
+                y -= 14
+                if y < 80:
+                    p.showPage()
+                    y = h - 40
+                    p.setFont("Helvetica", 10)
+
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{invoice.invoice_number}.pdf"'
+        return response
 
 
 class CaseTypeFeePolicyViewSet(viewsets.ModelViewSet):
