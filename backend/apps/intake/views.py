@@ -235,12 +235,23 @@ class IntakeConvertAPIView(APIView):
             profile.firm = instance.firm
             profile.save(update_fields=["role", "firm"])
 
-            # Ensure a CLIENT role exists in RBAC and assign it
-            client_role, _ = Role.objects.get_or_create(
-                firm=instance.firm,
-                name="Client",
-                defaults={"description": "Client role", "is_system": True},
+            # Ensure a single canonical CLIENT role exists (no "Client"/"client" duplicates)
+            client_role = (
+                Role.objects.filter(firm=instance.firm, name__iexact="CLIENT", is_deleted=False)
+                .order_by("created_at")
+                .first()
             )
+            if client_role:
+                if client_role.name != "CLIENT":
+                    client_role.name = "CLIENT"
+                    client_role.save(update_fields=["name", "updated_at"])
+            else:
+                client_role = Role.objects.create(
+                    firm=instance.firm,
+                    name="CLIENT",
+                    description="Client role",
+                    is_system=True,
+                )
             UserRole.objects.get_or_create(user=user, role=client_role)
 
             created_user_id = user.id

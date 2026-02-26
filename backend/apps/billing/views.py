@@ -190,13 +190,13 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             parent=normal,
             fontName="Helvetica-Bold",
             fontSize=7,
-            textColor=colors.HexColor("#374151"),
+            textColor=colors.HexColor("#111827"),
         )
         big_style = ParagraphStyle(
             "invoiceBig",
             parent=normal,
             fontName="Helvetica-Bold",
-            fontSize=20,
+            fontSize=13,
         )
 
         def fmt_amount(value):
@@ -207,8 +207,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         story = []
         line_items = list(invoice.line_items.all().order_by("created_at"))
-        while len(line_items) < 8:
-            line_items.append(None)
 
         firm = invoice.firm
         client = invoice.client
@@ -284,28 +282,35 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             )
         )
         story.append(summary)
+        story.append(Spacer(1, 6))
+        story.append(
+            Paragraph(
+                f"<b>CASE:</b> {getattr(getattr(invoice, 'case', None), 'case_number', '—')} "
+                f"• {getattr(getattr(invoice, 'case', None), 'title', '—')}",
+                normal,
+            )
+        )
         story.append(Spacer(1, 8))
 
         rows = [[
-            Paragraph("<b>ITEMS</b>", label_style),
+            Paragraph("<b>#</b>", label_style),
             Paragraph("<b>DESCRIPTION</b>", label_style),
             Paragraph("<b>QUANTITY</b>", label_style),
             Paragraph("<b>PRICE</b>", label_style),
             Paragraph("<b>AMOUNT</b>", label_style),
         ]]
         for idx, item in enumerate(line_items, start=1):
-            if item:
-                rows.append(
-                    [
-                        f"Item {idx}",
-                        item.description,
-                        f"{item.quantity}",
-                        fmt_amount(item.unit_amount),
-                        fmt_amount(item.total_amount),
-                    ]
-                )
-            else:
-                rows.append([f"Item {idx}", "", "", "", ""])
+            rows.append(
+                [
+                    str(idx),
+                    item.description,
+                    f"{item.quantity}",
+                    fmt_amount(item.unit_amount),
+                    fmt_amount(item.total_amount),
+                ]
+            )
+        if not line_items:
+            rows.append(["1", "Default case fee", "1", fmt_amount(0), fmt_amount(0)])
 
         items_table = Table(rows, colWidths=[24 * mm, 78 * mm, 22 * mm, 28 * mm, 30 * mm])
         items_table.setStyle(
@@ -314,8 +319,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                     ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
                     ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("TEXTCOLOR", (0, 1), (-1, -1), colors.black),
                     ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#e5e7eb")),
-                    ("LINEBELOW", (0, 8), (-1, 8), 0.5, colors.HexColor("#e5e7eb")),
+                    ("LINEBELOW", (0, -1), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
                     ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                     ("LEFTPADDING", (0, 0), (-1, -1), 6),
@@ -338,9 +344,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     Table(
                         [
                             ["SUB-TOTAL", fmt_amount(invoice.total_amount)],
-                            ["TAX RATE", "0%"],
                             ["TAX", fmt_amount(0)],
-                            ["TOTAL", fmt_amount(invoice.total_amount)],
+                            ["TOTAL PAID", fmt_amount(invoice.paid_amount)],
+                            ["REMAINING PAYMENT", fmt_amount(invoice.balance_amount)],
                         ],
                         colWidths=[36 * mm, 36 * mm],
                     ),

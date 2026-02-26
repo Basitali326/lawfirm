@@ -24,12 +24,12 @@ class RoleSerializer(serializers.ModelSerializer):
         value = (value or "").strip()
         if not value:
             raise serializers.ValidationError("Name is required.")
-        # normalize to Title Case for consistency
-        value = value.title()
+        # normalize to uppercase to avoid duplicate variants (CLIENT vs Client)
+        value = value.upper()
         from apps.cases.utils import get_user_firm
 
         firm = get_user_firm(self.context["request"].user)
-        qs = Role.objects.filter(firm=firm, name=value, is_deleted=False)
+        qs = Role.objects.filter(firm=firm, name__iexact=value, is_deleted=False)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
