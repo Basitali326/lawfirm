@@ -21,25 +21,19 @@ export default function InvoiceDetailPage() {
   if (!invoice) return <div className="p-6 text-slate-600">Invoice not found.</div>;
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-5 bg-slate-50/60 p-6">
       <button
-        className="text-sm text-slate-600 hover:text-slate-900"
+        className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
         onClick={() => router.push("/invoices")}
       >
         ← Back to invoices
       </button>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <InvoiceHeader invoice={invoice} />
         <div className="flex gap-2">
           <button
-            className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-800 bg-white"
-            onClick={() => window.print()}
-          >
-            Print Invoice
-          </button>
-          <button
-            className="inline-flex h-10 items-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-800 bg-white"
+            className="inline-flex h-10 cursor-pointer items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-100"
             onClick={async () => {
               try {
                 const token = tokenStore.getAccess();
@@ -61,10 +55,10 @@ export default function InvoiceDetailPage() {
               }
             }}
           >
-            Download PDF
+            Download Invoice PDF
           </button>
           <button
-            className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white"
+            className="inline-flex h-10 cursor-pointer items-center rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800"
             onClick={() => setDrawerOpen(true)}
           >
             Add Payment
@@ -72,16 +66,16 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-700 mb-2">Client</h2>
-        <p className="text-sm text-slate-800">{invoice.client_detail?.name || "—"}</p>
-        <p className="text-sm text-slate-500">{invoice.client_detail?.email}</p>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Client</h2>
+        <p className="text-lg font-semibold text-slate-900">{invoice.client_detail?.name || "—"}</p>
+        <p className="text-sm text-slate-600">{invoice.client_detail?.email}</p>
         <p className="text-sm text-slate-500">{invoice.client_detail?.phone}</p>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Payments</h2>
+          <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Payments</h2>
         </div>
         <PaymentsTable payments={payments} />
       </div>

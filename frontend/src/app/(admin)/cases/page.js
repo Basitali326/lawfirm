@@ -67,6 +67,7 @@ export default function CasesPage() {
       case_number: item.case_number || "—",
       title: item.title,
       status: item.status,
+      pending_invoice_status: item.pending_invoice_status || null,
       priority: item.priority,
       opened_at: item.open_date,
       assigned_to: item.assigned_lead_detail?.email || "—",
@@ -102,18 +103,36 @@ export default function CasesPage() {
       header: "Status",
       sortable: true,
       render: (row) => (
-        <span
-          className={cn(
-            "rounded-full px-3 py-1 text-xs font-semibold",
-            row.status === "CLOSED"
-              ? "bg-slate-100 text-slate-700"
-              : row.status === "HOLD"
-              ? "bg-amber-100 text-amber-800"
-              : "bg-emerald-100 text-emerald-800"
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-semibold",
+              row.status === "CLOSED"
+                ? "bg-slate-100 text-slate-700"
+                : row.status === "HOLD"
+                ? "bg-amber-100 text-amber-800"
+                : row.status === "PENDING_PAYMENT"
+                ? "bg-orange-100 text-orange-800"
+                : "bg-emerald-100 text-emerald-800"
+            )}
+          >
+            {row.status.replaceAll("_", " ")}
+          </span>
+          {row.pending_invoice_status && (
+            <span
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide",
+                row.pending_invoice_status === "PARTIAL"
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : row.pending_invoice_status === "PAID"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-slate-200 bg-slate-50 text-slate-600"
+              )}
+            >
+              Invoice: {row.pending_invoice_status.replaceAll("_", " ")}
+            </span>
           )}
-        >
-          {row.status.replace("_", " ")}
-        </span>
+        </div>
       ),
     },
     {

@@ -23,6 +23,7 @@ class CaseSerializer(serializers.ModelSerializer):
     pending_invoice_id = serializers.SerializerMethodField(read_only=True)
     pending_invoice_number = serializers.SerializerMethodField(read_only=True)
     pending_invoice_amount = serializers.SerializerMethodField(read_only=True)
+    pending_invoice_status = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Case
@@ -45,6 +46,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "pending_invoice_id",
             "pending_invoice_number",
             "pending_invoice_amount",
+            "pending_invoice_status",
             "close_date",
             "close_reason",
             "client",
@@ -242,7 +244,10 @@ class CaseSerializer(serializers.ModelSerializer):
         }
 
     def _pending_invoice(self, obj):
-        return (
+        cached = getattr(obj, "_cached_pending_invoice", None)
+        if cached is not None:
+            return cached
+        inv = (
             Invoice.objects.filter(
                 case=obj,
                 is_deleted=False,
@@ -256,6 +261,8 @@ class CaseSerializer(serializers.ModelSerializer):
             .order_by("-created_at")
             .first()
         )
+        setattr(obj, "_cached_pending_invoice", inv)
+        return inv
 
     def get_has_invoice(self, obj):
         return Invoice.objects.filter(case=obj, is_deleted=False).exists()
@@ -271,6 +278,10 @@ class CaseSerializer(serializers.ModelSerializer):
     def get_pending_invoice_amount(self, obj):
         inv = self._pending_invoice(obj)
         return str(inv.total_amount) if inv else None
+
+    def get_pending_invoice_status(self, obj):
+        inv = self._pending_invoice(obj)
+        return inv.status if inv else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

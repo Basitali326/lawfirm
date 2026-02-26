@@ -145,70 +145,257 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     def pdf(self, request, pk=None):
         invoice = get_object_or_404(self.get_queryset(), id=pk)
         try:
+            from reportlab.lib import colors
             from reportlab.lib.pagesizes import A4
-            from reportlab.pdfgen import canvas
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import mm
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
         except Exception:
             return api_error("PDF library not installed", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         buffer = BytesIO()
-        p = canvas.Canvas(buffer, pagesize=A4)
-        w, h = A4
-        y = h - 40
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            leftMargin=14 * mm,
+            rightMargin=14 * mm,
+            topMargin=14 * mm,
+            bottomMargin=14 * mm,
+            title=f"Invoice {invoice.invoice_number}",
+        )
+        styles = getSampleStyleSheet()
+        normal = ParagraphStyle(
+            "invoiceNormal",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#111827"),
+        )
+        muted = ParagraphStyle(
+            "invoiceMuted",
+            parent=normal,
+            fontSize=8,
+            textColor=colors.HexColor("#6b7280"),
+        )
+        title_style = ParagraphStyle(
+            "invoiceTitle",
+            parent=normal,
+            fontName="Helvetica-Bold",
+            fontSize=13,
+            letterSpacing=1.2,
+        )
+        label_style = ParagraphStyle(
+            "invoiceLabel",
+            parent=normal,
+            fontName="Helvetica-Bold",
+            fontSize=7,
+            textColor=colors.HexColor("#374151"),
+        )
+        big_style = ParagraphStyle(
+            "invoiceBig",
+            parent=normal,
+            fontName="Helvetica-Bold",
+            fontSize=20,
+        )
 
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(40, y, f"Invoice {invoice.invoice_number}")
-        y -= 24
+        def fmt_amount(value):
+            try:
+                return f"AED {value:,.2f}"
+            except Exception:
+                return f"AED {value}"
 
-        p.setFont("Helvetica", 10)
-        p.drawString(40, y, f"Status: {invoice.status}")
-        p.drawString(220, y, f"Issue date: {invoice.issue_date}")
-        y -= 16
-        p.drawString(40, y, f"Client: {getattr(invoice.client, 'name', '—')}")
-        y -= 16
-        p.drawString(40, y, f"Total: {invoice.total_amount} | Paid: {invoice.paid_amount} | Balance: {invoice.balance_amount}")
-        y -= 24
+        story = []
+        line_items = list(invoice.line_items.all().order_by("created_at"))
+        while len(line_items) < 8:
+            line_items.append(None)
 
-        p.setFont("Helvetica-Bold", 11)
-        p.drawString(40, y, "Line items")
-        y -= 16
-        p.setFont("Helvetica", 10)
-        items = invoice.line_items.all().order_by("created_at")
-        if not items:
-            p.drawString(40, y, "No line items")
-            y -= 14
-        else:
-            for item in items:
-                line = f"- {item.description} | qty {item.quantity} | unit {item.unit_amount} | total {item.total_amount}"
-                p.drawString(40, y, line[:120])
-                y -= 14
-                if y < 80:
-                    p.showPage()
-                    y = h - 40
-                    p.setFont("Helvetica", 10)
+        firm = invoice.firm
+        client = invoice.client
+        client_user = getattr(client, "user", None)
+        amount_due = invoice.balance_amount if invoice.balance_amount is not None else invoice.total_amount
 
-        y -= 8
-        p.setFont("Helvetica-Bold", 11)
-        p.drawString(40, y, "Payments")
-        y -= 16
-        p.setFont("Helvetica", 10)
-        payments = invoice.payments.all().order_by("-created_at")
-        if not payments:
-            p.drawString(40, y, "No payments yet")
-        else:
-            for pay in payments:
-                line = f"- {pay.paid_at:%Y-%m-%d %H:%M} | {pay.payment_method} | {pay.payment_status} | {pay.amount}"
-                p.drawString(40, y, line[:120])
-                y -= 14
-                if y < 80:
-                    p.showPage()
-                    y = h - 40
-                    p.setFont("Helvetica", 10)
+        header = Table(
+            [
+                [
+                    "",
+                    Paragraph("INVOICE", title_style),
+                    Paragraph(
+                        "<b>BILL TO:</b><br/>"
+                        f"{getattr(client, 'name', 'Client')}<br/>"
+                        f"{getattr(client_user, 'email', '—')}",
+                        normal,
+                    ),
+                ],
+                [
+                    "",
+                    Paragraph(
+                        f"<b>{getattr(firm, 'name', 'Lawfirm')}</b><br/>"
+                        f"{getattr(firm, 'address', '') or '—'}<br/>"
+                        f"{getattr(firm, 'email', '—')}<br/>"
+                        f"{getattr(firm, 'phone', '—')}",
+                        normal,
+                    ),
+                    "",
+                ],
+            ],
+            colWidths=[4 * mm, 103 * mm, 75 * mm],
+        )
+        header.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#6d28d9")),
+                    ("SPAN", (2, 0), (2, 1)),
+                    ("ALIGN", (2, 0), (2, 1), "RIGHT"),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LINEBELOW", (1, 1), (2, 1), 0.25, colors.HexColor("#d1d5db")),
+                    ("LEFTPADDING", (1, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (1, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ]
+            )
+        )
+        story.append(header)
 
-        p.showPage()
-        p.save()
+        summary = Table(
+            [
+                [
+                    Paragraph("<b>INVOICE #</b><br/><br/>" + str(invoice.invoice_number), normal),
+                    Paragraph("<b>DATE</b><br/><br/>" + str(invoice.issue_date), normal),
+                    Paragraph("<b>INVOICE DUE DATE</b><br/><br/>" + str(invoice.due_date or "—"), normal),
+                    Paragraph("<b>AMOUNT DUE</b><br/><br/>" + fmt_amount(amount_due), big_style),
+                ]
+            ],
+            colWidths=[45 * mm, 40 * mm, 45 * mm, 52 * mm],
+        )
+        summary.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (2, 0), colors.HexColor("#f3f4f6")),
+                    ("BACKGROUND", (3, 0), (3, 0), colors.HexColor("#e6eefc")),
+                    ("LINEBELOW", (0, 0), (-1, 0), 0.25, colors.HexColor("#d1d5db")),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        story.append(summary)
+        story.append(Spacer(1, 8))
+
+        rows = [[
+            Paragraph("<b>ITEMS</b>", label_style),
+            Paragraph("<b>DESCRIPTION</b>", label_style),
+            Paragraph("<b>QUANTITY</b>", label_style),
+            Paragraph("<b>PRICE</b>", label_style),
+            Paragraph("<b>AMOUNT</b>", label_style),
+        ]]
+        for idx, item in enumerate(line_items, start=1):
+            if item:
+                rows.append(
+                    [
+                        f"Item {idx}",
+                        item.description,
+                        f"{item.quantity}",
+                        fmt_amount(item.unit_amount),
+                        fmt_amount(item.total_amount),
+                    ]
+                )
+            else:
+                rows.append([f"Item {idx}", "", "", "", ""])
+
+        items_table = Table(rows, colWidths=[24 * mm, 78 * mm, 22 * mm, 28 * mm, 30 * mm])
+        items_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#e5e7eb")),
+                    ("LINEBELOW", (0, 8), (-1, 8), 0.5, colors.HexColor("#e5e7eb")),
+                    ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ]
+            )
+        )
+        story.append(items_table)
+        story.append(Spacer(1, 10))
+
+        notes = "This invoice was generated by Lawfirm platform."
+        totals_table = Table(
+            [
+                [Paragraph("<b>NOTES:</b>", label_style), ""],
+                [Paragraph(notes, muted), ""],
+                [
+                    "",
+                    Table(
+                        [
+                            ["SUB-TOTAL", fmt_amount(invoice.total_amount)],
+                            ["TAX RATE", "0%"],
+                            ["TAX", fmt_amount(0)],
+                            ["TOTAL", fmt_amount(invoice.total_amount)],
+                        ],
+                        colWidths=[36 * mm, 36 * mm],
+                    ),
+                ],
+            ],
+            colWidths=[108 * mm, 74 * mm],
+        )
+        totals_table.setStyle(
+            TableStyle(
+                [
+                    ("LINEABOVE", (0, 0), (-1, 0), 0.5, colors.HexColor("#e5e7eb")),
+                    ("LINEABOVE", (0, 2), (-1, 2), 0.5, colors.HexColor("#e5e7eb")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ]
+            )
+        )
+        story.append(totals_table)
+        story.append(Spacer(1, 10))
+
+        footer = Table(
+            [
+                [
+                    "",
+                    Paragraph(
+                        "This invoice was generated by Lawfirm platform.",
+                        muted,
+                    ),
+                    Paragraph("<b>Powered by Lawfirm</b>", muted),
+                ]
+            ],
+            colWidths=[4 * mm, 122 * mm, 56 * mm],
+        )
+        footer.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#6d28d9")),
+                    ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        story.append(footer)
+
+        doc.build(story)
         buffer.seek(0)
         response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
-        response["Content-Disposition"] = f'inline; filename="{invoice.invoice_number}.pdf"'
+        response["Content-Disposition"] = f'attachment; filename="{invoice.invoice_number}.pdf"'
         return response
 
 
@@ -223,12 +410,23 @@ class CaseTypeFeePolicyViewSet(viewsets.ModelViewSet):
             return True
         if role in {"FIRM_OWNER", "FIRM_ADMIN", "OWNER", "ADMIN", "MANAGER"}:
             return True
-        return user_has_perm(user, "invoices.update") or user_has_perm(user, "settings.update")
+        return (
+            user_has_perm(user, "case_type_fees.update")
+            or user_has_perm(user, "case_type_fees.add")
+            or user_has_perm(user, "case_type_fees.delete")
+            or user_has_perm(user, "invoices.update")
+            or user_has_perm(user, "settings.update")
+        )
 
     def _is_read_allowed(self, user):
         if self._is_write_allowed(user):
             return True
-        return user_has_perm(user, "invoices.view") or user_has_perm(user, "payments.view") or user_has_perm(user, "settings.view")
+        return (
+            user_has_perm(user, "case_type_fees.view")
+            or user_has_perm(user, "invoices.view")
+            or user_has_perm(user, "payments.view")
+            or user_has_perm(user, "settings.view")
+        )
 
     def _firm(self):
         user = self.request.user
