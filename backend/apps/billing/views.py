@@ -27,11 +27,21 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        firm_id = getattr(user, "firm_id", None) or getattr(getattr(user, "profile", None), "firm_id", None)
+        profile = getattr(user, "profile", None)
+        firm_id = (
+            getattr(user, "firm_id", None)
+            or getattr(profile, "firm_id", None)
+            or getattr(getattr(user, "owned_firm", None), "id", None)
+        )
         base_qs = Invoice.objects.filter(firm_id=firm_id, is_deleted=False)
 
-        role_upper = (getattr(user, "role", "") or "").upper()
-        is_admin = role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"} or getattr(user, "is_superuser", False)
+        role_upper = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
+        is_owner_relation = getattr(getattr(user, "owned_firm", None), "id", None) == firm_id if firm_id else False
+        is_admin = (
+            role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"}
+            or is_owner_relation
+            or getattr(user, "is_superuser", False)
+        )
         client_profile = getattr(user, "client_profile", None)
 
         if not is_admin:
@@ -78,8 +88,12 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = get_object_or_404(self.get_queryset(), id=kwargs.get("pk"))
-        role_upper = (getattr(request.user, "role", "") or "").upper()
-        is_admin = role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"} or getattr(request.user, "is_superuser", False)
+        profile = getattr(request.user, "profile", None)
+        role_upper = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").upper()
+        is_admin = (
+            role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"}
+            or getattr(request.user, "is_superuser", False)
+        )
         if not is_admin:
             if not instance.client or getattr(instance.client, "user_id", None) != request.user.id:
                 return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)

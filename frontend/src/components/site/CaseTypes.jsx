@@ -97,6 +97,9 @@ export default function CaseTypes() {
     setSuccess(null);
     setError(null);
     try {
+      if (!form.message?.trim()) {
+        throw new Error("Brief details is required.");
+      }
       if (!firmSlug) {
         throw new Error("Firm intake is not configured. Set NEXT_PUBLIC_FIRM_SLUG or pass ?firm=<slug>.");
       }
@@ -111,9 +114,12 @@ export default function CaseTypes() {
       });
       const body = await res.json();
       if (!res.ok || body?.success === false) {
-        const detail = body?.errors?.detail;
+        const errors = body?.errors || {};
+        const detail = errors?.detail;
+        const messageField = errors?.message;
         const detailMsg = Array.isArray(detail) ? detail.join(" ") : detail;
-        throw new Error(detailMsg || body?.message || "Submission failed");
+        const messageFieldMsg = Array.isArray(messageField) ? messageField.join(" ") : messageField;
+        throw new Error(detailMsg || messageFieldMsg || body?.message || "Submission failed");
       }
       setSuccess("Request received. A firm will contact you soon.");
       setForm(defaultForm);
@@ -261,6 +267,7 @@ export default function CaseTypes() {
                   value={form.message}
                   onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                   placeholder="Describe your situation. Avoid sensitive data until matched."
+                  required
                 />
               </Field>
               {error && <p className="text-sm text-rose-400">{error}</p>}
