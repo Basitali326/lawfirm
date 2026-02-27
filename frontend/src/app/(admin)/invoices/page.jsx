@@ -57,6 +57,7 @@ export default function InvoicesPage() {
           <thead className="bg-slate-50 text-slate-600">
             <tr>
               <th className="px-3 py-2 text-left">Invoice #</th>
+              <th className="px-3 py-2 text-left">Case</th>
               <th className="px-3 py-2 text-left">Client</th>
               <th className="px-3 py-2 text-left">Status</th>
               <th className="px-3 py-2 text-left">Total</th>
@@ -70,13 +71,13 @@ export default function InvoicesPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td className="px-3 py-4" colSpan={9}>
+                <td className="px-3 py-4" colSpan={10}>
                   Loading...
                 </td>
               </tr>
             ) : invoices.length === 0 ? (
               <tr>
-                <td className="px-3 py-4 text-slate-500" colSpan={9}>
+                <td className="px-3 py-4 text-slate-500" colSpan={10}>
                   No invoices found.
                 </td>
               </tr>
@@ -84,6 +85,11 @@ export default function InvoicesPage() {
               invoices.map((inv) => (
                 <tr key={inv.id} className="border-t border-slate-100">
                   <td className="px-3 py-2">{inv.invoice_number}</td>
+                  <td className="px-3 py-2">
+                    {inv.case_detail?.case_number
+                      ? `${inv.case_detail.case_number}${inv.case_detail?.title ? ` • ${inv.case_detail.title}` : ""}`
+                      : "—"}
+                  </td>
                   <td className="px-3 py-2">{inv.client_name || "—"}</td>
                   <td className="px-3 py-2">{inv.status}</td>
                   <td className="px-3 py-2">{inv.total_amount}</td>
