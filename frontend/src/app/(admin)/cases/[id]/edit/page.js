@@ -157,6 +157,7 @@ export default function EditCasePage() {
     if (!id) return;
     const payload = { ...values };
     if (!payload.assigned_lead) payload.assigned_lead = null;
+    if (!payload.open_date) payload.open_date = null;
     updateMutation.mutate({ id, payload });
   };
 
@@ -255,7 +256,7 @@ export default function EditCasePage() {
           <Field
             label="Open date"
             error={errors.open_date?.message}
-            inputProps={{ ...register("open_date", { required: true }), type: "date" }}
+            inputProps={{ ...register("open_date"), type: "date" }}
           />
         </div>
 
