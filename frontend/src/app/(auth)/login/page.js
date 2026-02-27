@@ -1,5 +1,5 @@
 import { buildMetadata } from "@/lib/metadata";
-import LoginForm from "@/components/LoginForm";
+import LoginRedirectGuard from "@/components/auth/LoginRedirectGuard";
 
 export const metadata = buildMetadata({
   title: "Login",
@@ -7,5 +7,5 @@ export const metadata = buildMetadata({
 });
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return <LoginRedirectGuard />;
 }
