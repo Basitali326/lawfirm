@@ -197,7 +197,8 @@ class MessageViewSet(viewsets.GenericViewSet):
         except PermissionError as exc:
             return api_error(str(exc), status_code=status.HTTP_403_FORBIDDEN)
         except ValueError as exc:
-            return api_error(str(exc), status_code=status.HTTP_409_CONFLICT)
+            status_code = status.HTTP_409_CONFLICT if "Duplicate client message id" in str(exc) else status.HTTP_400_BAD_REQUEST
+            return api_error(str(exc), status_code=status_code)
         return created(ChatMessageSerializer(msg).data)
 
     @action(methods=["delete"], detail=True, url_path="")
@@ -234,7 +235,12 @@ class AttachmentViewSet(viewsets.GenericViewSet):
     def create(self, request, message_pk=None):
         firm = current_firm(request)
         try:
-            message = ChatMessage.objects.get(id=message_pk, firm=firm)
+            message = ChatMessage.objects.get(
+                id=message_pk,
+                firm=firm,
+                room__memberships__user=request.user,
+                is_deleted=False,
+            )
         except ChatMessage.DoesNotExist:
             return api_error("Not found", status_code=status.HTTP_404_NOT_FOUND)
         serializer = AttachmentUploadSerializer(data=request.data)

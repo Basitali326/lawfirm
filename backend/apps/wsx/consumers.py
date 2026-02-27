@@ -3,10 +3,9 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
-from channels.db import database_sync_to_async
-from apps.chatx.models import ChatRoom, ChatRoomMember, ChatMessage, MessageReceipt
+from apps.chatx.models import ChatRoomMember, ChatMessage
 from apps.chatx.services import send_message, mark_room_read
-from apps.notifx.services import create_notifications_for_message
+from apps.notifx.services import get_notifications_for_message
 from apps.notifx.serializers import NotificationSerializer
 from apps.chatx.serializers import ChatMessageSerializer
 
@@ -22,9 +21,8 @@ def db_send_message(firm, room, sender, body, client_msg_id):
 
 
 @database_sync_to_async
-def create_notifs_and_fetch(message):
-    notifs = create_notifications_for_message(message)
-    return [NotificationSerializer(n).data for n in notifs]
+def fetch_notifs_for_message(message):
+    return [NotificationSerializer(n).data for n in get_notifications_for_message(message)]
 
 
 @database_sync_to_async
@@ -130,6 +128,9 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         except PermissionDenied:
             await self.send_json({"type": "error", "code": "forbidden", "message": "Not allowed"})
             return
+        except ValueError as exc:
+            await self.send_json({"type": "error", "code": "validation", "message": str(exc)})
+            return
         except Exception as exc:
             import logging
             logging.exception("WS message_send error: %s", exc)
@@ -143,7 +144,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "data": serialized,
             },
         )
-        notif_payloads = await create_notifs_and_fetch(msg)
+        notif_payloads = await fetch_notifs_for_message(msg)
         for payload in notif_payloads:
             user_group = f"user_{payload.get('user')}" if payload else None
             if user_group:

@@ -27,3 +27,11 @@ def create_notifications_for_message(message: ChatMessage):
     Notification.objects.bulk_create(notif_objs, ignore_conflicts=True)
     return notif_objs
 
+
+def get_notifications_for_message(message: ChatMessage):
+    return Notification.objects.filter(
+        firm=message.firm,
+        entity_type=Notification.Entity.MESSAGE,
+        entity_id=message.id,
+    ).select_related("user")
+

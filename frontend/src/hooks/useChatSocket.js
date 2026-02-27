@@ -1,6 +1,7 @@
 import { useEffect, useRef, useMemo } from "react";
 import { getSession } from "next-auth/react";
 import { API_BASE_URL, USE_NEXTAUTH } from "@/lib/config";
+import { ensureAccessToken } from "@/lib/api";
 
 export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotification }) {
   const socketRef = useRef(null);
@@ -51,7 +52,7 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
       const wsUrl = API_BASE_URL.replace(/^http/, "ws") + `/ws/chat/?token=${encodeURIComponent(wsToken)}`;
       const ws = new WebSocket(wsUrl);
       statusRef.current = "connecting";
-      console.log("[WS] connecting", wsUrl);
+      console.log("[WS] connecting");
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);

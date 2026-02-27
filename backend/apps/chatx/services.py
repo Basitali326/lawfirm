@@ -8,6 +8,7 @@ from apps.notifx.services import create_notifications_for_message
 from .models import ChatRoom, ChatRoomMember, ChatMessage, MessageReceipt
 
 User = get_user_model()
+MAX_TEXT_MESSAGE_LEN = 4000
 
 
 def _ensure_same_firm(firm: Firm, *users):
@@ -108,12 +109,18 @@ def send_message(firm: Firm, room: ChatRoom, sender: User, body: str, client_msg
     membership = ChatRoomMember.objects.filter(firm=firm, room=room, user=sender).first()
     if not membership:
         raise PermissionError("Not a member of this room")
+    clean_body = (body or "").strip()
+    if message_type == ChatMessage.MessageType.TEXT and not clean_body:
+        raise ValueError("Message body cannot be empty")
+    if len(clean_body) > MAX_TEXT_MESSAGE_LEN:
+        raise ValueError(f"Message body exceeds {MAX_TEXT_MESSAGE_LEN} characters")
+
     try:
         msg = ChatMessage.objects.create(
             firm=firm,
             room=room,
             sender=sender,
-            body=body,
+            body=clean_body,
             client_msg_id=client_msg_id,
             message_type=message_type,
         )
@@ -126,9 +133,12 @@ def send_message(firm: Firm, room: ChatRoom, sender: User, body: str, client_msg
 
 
 def mark_room_read(firm: Firm, room: ChatRoom, user: User, last_message_id=None):
-    qs = ChatMessage.objects.filter(room=room, firm=firm)
+    qs = ChatMessage.objects.filter(room=room, firm=firm, is_deleted=False)
     if last_message_id:
-        qs = qs.filter(id__lte=last_message_id)
+        anchor = ChatMessage.objects.filter(id=last_message_id, room=room, firm=firm).values("created_at").first()
+        if not anchor:
+            return 0
+        qs = qs.filter(created_at__lte=anchor["created_at"])
     messages = qs.values_list("id", flat=True)
     existing = MessageReceipt.objects.filter(firm=firm, user=user, message_id__in=messages)
     existing_ids = set(existing.values_list("message_id", flat=True))

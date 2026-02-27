@@ -1,4 +1,6 @@
 from django.contrib.auth import get_user_model
+from pathlib import Path
+from django.conf import settings
 from rest_framework import serializers
 from .models import ChatRoom, ChatRoomMember, ChatMessage, ChatAttachment
 
@@ -68,6 +70,12 @@ class MessageCreateSerializer(serializers.Serializer):
     body = serializers.CharField(allow_blank=True, required=False)
     client_msg_id = serializers.CharField(required=False, allow_blank=True)
 
+    def validate_body(self, value):
+        clean = (value or "").strip()
+        if clean and len(clean) > 4000:
+            raise serializers.ValidationError("Message body exceeds 4000 characters.")
+        return clean
+
 
 class RoomCreateSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=ChatRoom.RoomType.choices)
@@ -85,3 +93,20 @@ class RoomCreateSerializer(serializers.Serializer):
 class AttachmentUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
     caption = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_file(self, value):
+        max_size = getattr(settings, "DOCUMENT_MAX_SIZE_BYTES", 5 * 1024 * 1024)
+        allowed_mime = set(getattr(settings, "DOCUMENT_ALLOWED_MIME_TYPES", []))
+        allowed_ext = set(getattr(settings, "DOCUMENT_ALLOWED_EXTENSIONS", []))
+
+        if value.size > max_size:
+            raise serializers.ValidationError(f"File too large. Max allowed is {max_size // (1024 * 1024)}MB.")
+
+        ext = Path(value.name or "").suffix.lower().lstrip(".")
+        mime = (getattr(value, "content_type", None) or "").lower()
+
+        if allowed_ext and ext not in allowed_ext:
+            raise serializers.ValidationError("File extension not allowed.")
+        if allowed_mime and mime and mime not in allowed_mime:
+            raise serializers.ValidationError("File type not allowed.")
+        return value
