@@ -64,6 +64,19 @@ export default function CaseDetailPage() {
   const deleteMutation = useDeleteCaseMutation({
     onSuccess: () => router.push("/cases"),
   });
+  const caseItem = data?.data || data || null;
+  const docsQuery = useCaseDocumentsQuery(
+    caseItem?.id,
+    { page: docsPage, page_size: 20 },
+    { enabled: !!caseItem?.id && tab === "documents" }
+  );
+  const uploadDocMutation = useUploadCaseDocumentMutation(caseItem?.id);
+  const deleteDocMutation = useDeleteDocumentMutation();
+  const docs = docsQuery?.data?.data || [];
+  const docsMeta = docsQuery?.data?.meta || null;
+  const invoiceStatus = caseItem?.latest_invoice_status || caseItem?.pending_invoice_status || null;
+  const canUploadDocs = caseItem?.status === "OPEN" && ["PAID", "PARTIAL"].includes(invoiceStatus);
+
   const handleDelete = () => {
     const confirmed = window.confirm(
       `Delete this case? This is a soft delete and can be restored server-side.`
@@ -80,21 +93,9 @@ export default function CaseDetailPage() {
     return <div className="text-slate-600">Case not found.</div>;
   }
 
-  const caseItem = data?.data || data;
   if (!caseItem?.id) {
     return <div className="text-slate-600">Case not found.</div>;
   }
-  const docsQuery = useCaseDocumentsQuery(
-    caseItem.id,
-    { page: docsPage, page_size: 20 },
-    { enabled: tab === "documents" }
-  );
-  const uploadDocMutation = useUploadCaseDocumentMutation(caseItem.id);
-  const deleteDocMutation = useDeleteDocumentMutation();
-  const docs = docsQuery?.data?.data || [];
-  const docsMeta = docsQuery?.data?.meta || null;
-  const invoiceStatus = caseItem.latest_invoice_status || caseItem.pending_invoice_status || null;
-  const canUploadDocs = caseItem.status === "OPEN" && ["PAID", "PARTIAL"].includes(invoiceStatus);
   const canEdit = !meLoading && can("cases.update");
   const canDelete = !meLoading && can("cases.delete");
   const canManageHearings =
