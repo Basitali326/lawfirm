@@ -35,7 +35,8 @@ export default function EditCasePage() {
   const router = useRouter();
   const id = params?.id;
 
-  const { data: caseItem, isLoading, error } = useCaseQuery(id);
+  const { data: caseItemResponse, isLoading, error } = useCaseQuery(id);
+  const caseItem = caseItemResponse?.data || caseItemResponse || null;
   const updateMutation = useUpdateCaseMutation({
     onSuccess: () => router.push(`/cases/${id}`),
   });
@@ -128,7 +129,7 @@ export default function EditCasePage() {
   const caseTypeOptions = useMemo(() => {
     const seen = new Set();
     const search = caseTypeSearch.trim().toLowerCase();
-    return (caseTypesData || [])
+    const options = (caseTypesData || [])
       .filter((ct) => {
         if (!ct?.id || seen.has(ct.id)) return false;
         seen.add(ct.id);
@@ -137,11 +138,20 @@ export default function EditCasePage() {
         return text.includes(search);
       })
       .map((ct) => ({ value: ct.id, label: formatCaseTypeLabel(ct) || ct.id }));
-  }, [caseTypesData, caseTypeSearch]);
+
+    // Keep current case type visible even if lookup API returns empty
+    if (caseItem?.case_type_detail?.id && !seen.has(caseItem.case_type_detail.id)) {
+      options.unshift({
+        value: caseItem.case_type_detail.id,
+        label: formatCaseTypeLabel(caseItem.case_type_detail) || caseItem.case_type_detail.id,
+      });
+    }
+    return options;
+  }, [caseTypesData, caseTypeSearch, caseItem]);
 
   const userOptions = useMemo(() => {
     const search = userSearch.trim().toLowerCase();
-    return (usersData || [])
+    const options = (usersData || [])
       .filter((u) => {
         if (!search) return true;
         const text = `${u.email || ""} ${u.name || ""}`.toLowerCase();
@@ -151,7 +161,19 @@ export default function EditCasePage() {
         value: u.id,
         label: `${u.email || ""} ${u.name ? " | " + u.name : ""}`.trim(),
       }));
-  }, [usersData, userSearch]);
+
+    // Keep currently assigned lead visible even if users list API is empty/filtered
+    const assignedId = caseItem?.assigned_lead_detail?.id;
+    const assignedEmail = caseItem?.assigned_lead_detail?.email;
+    if (
+      assignedId &&
+      assignedEmail &&
+      !options.some((opt) => String(opt.value) === String(assignedId))
+    ) {
+      options.unshift({ value: assignedId, label: assignedEmail });
+    }
+    return options;
+  }, [usersData, userSearch, caseItem]);
 
   const onSubmit = (values) => {
     if (!id) return;
