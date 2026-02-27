@@ -1,4 +1,5 @@
 import json
+import uuid
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
@@ -39,6 +40,16 @@ def get_firm_for_user(user):
 @database_sync_to_async
 def serialize_message(msg):
     return ChatMessageSerializer(msg).data
+
+
+def _normalize_for_channel(value):
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _normalize_for_channel(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_normalize_for_channel(v) for v in value]
+    return value
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
@@ -136,7 +147,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             logging.exception("WS message_send error: %s", exc)
             await self.send_json({"type": "error", "code": "server_error", "message": str(exc)})
             return
-        serialized = await serialize_message(msg)
+        serialized = _normalize_for_channel(await serialize_message(msg))
         await self.channel_layer.group_send(
             f"room_{room_id}",
             {
@@ -146,12 +157,18 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
         notif_payloads = await fetch_notifs_for_message(msg)
         for payload in notif_payloads:
-            user_group = f"user_{payload.get('user')}" if payload else None
-            if user_group:
-                await self.channel_layer.group_send(
-                    user_group,
-                    {"type": "notification_event", "data": payload},
-                )
+            try:
+                normalized = _normalize_for_channel(payload)
+                user_id = str(normalized.get("user")) if normalized and normalized.get("user") is not None else None
+                user_group = f"user_{user_id}" if user_id else None
+                if user_group:
+                    await self.channel_layer.group_send(
+                        user_group,
+                        {"type": "notification_event", "data": normalized},
+                    )
+            except Exception:
+                # Do not break message realtime flow if notification fanout fails.
+                continue
 
     async def broadcast_message(self, event):
         await self.send_json({"type": "message.new", "message": event["data"]})
