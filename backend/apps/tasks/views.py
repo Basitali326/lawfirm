@@ -257,6 +257,10 @@ class OpenCasesTasksView(APIView):
                 )
                 if not template:
                     continue
+                # Auto-generate once when case is paid/open and has not generated template tasks yet.
+                if not case.tasks_generated_at:
+                    generate_tasks_for_case(case, triggered_by_user=request.user, force=False)
+                    continue
                 needs_regen = False
                 if case.tasks_generated_at and template.updated_at and template.updated_at > case.tasks_generated_at:
                     needs_regen = True
@@ -289,13 +293,10 @@ class OpenCasesTasksView(APIView):
         for c_data in case_serializer.data:
             cid = c_data["id"]
             case_tasks = tasks_by_case.get(uuid.UUID(cid) if isinstance(cid, str) else cid, [])
-            # Return only cases that actually have tasks generated.
-            if not case_tasks:
-                continue
             t_ser = CaseTaskSerializer(case_tasks, many=True)
             payload.append({"case": c_data, "tasks": t_ser.data})
 
-        return api_success("Open cases with tasks", data=payload)
+        return api_success("Open paid cases with tasks", data=payload)
 
 
 class TaskNoteCreateView(APIView):

@@ -4,10 +4,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
-import { useCaseQuery, useDeleteCaseMutation, useGenerateCaseTasksMutation } from "@/features/cases/cases.hooks";
+import { useCaseQuery, useDeleteCaseMutation } from "@/features/cases/cases.hooks";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { useRBAC } from "@/lib/rbac";
 import CaseHearingsSection from "@/features/hearings/CaseHearingsSection";
 
@@ -40,19 +39,6 @@ export default function CaseDetailPage() {
   const deleteMutation = useDeleteCaseMutation({
     onSuccess: () => router.push("/cases"),
   });
-  const generateMutation = useGenerateCaseTasksMutation({
-    onSuccess: () => {
-      toast.success("Tasks generated from template");
-      router.refresh?.();
-    },
-  });
-
-  const handleGenerate = () => {
-    const confirmed = window.confirm("Generate default tasks for this case from its template?");
-    if (!confirmed) return;
-    generateMutation.mutate(id);
-  };
-
   const handleDelete = () => {
     const confirmed = window.confirm(
       `Delete this case? This is a soft delete and can be restored server-side.`
@@ -75,7 +61,6 @@ export default function CaseDetailPage() {
   }
   const canEdit = !meLoading && can("cases.update");
   const canDelete = !meLoading && can("cases.delete");
-  const canGenerate = !meLoading && can("tasks.add");
   const canManageHearings =
     !meLoading &&
     (can("case.hearings.manage") ||
@@ -106,20 +91,6 @@ export default function CaseDetailPage() {
               <Pencil className="h-4 w-4" />
               Edit
             </Link>
-          )}
-          {canGenerate && (
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={generateMutation.isPending || !!caseItem.tasks_generated_at}
-              className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-            >
-              {generateMutation.isPending
-                ? "Generating..."
-                : caseItem.tasks_generated_at
-                ? "Tasks Generated"
-                : "Generate Tasks"}
-            </button>
           )}
           {canDelete && (
             <button

@@ -316,8 +316,8 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {filteredTasks.length === 0 ? (
-        <EmptyState title="No tasks found" description="Try adjusting search or create a new task." />
+      {filteredCases.length === 0 ? (
+        <EmptyState title="No open paid cases" description="Paid open cases will appear here automatically." />
       ) : (
         <div className="grid gap-4 lg:grid-cols-[20%_1fr] min-h-[70vh]">
           {/* Left: cases list (select case to view tasks) */}
