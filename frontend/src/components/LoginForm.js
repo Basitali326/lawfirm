@@ -13,7 +13,7 @@ import { loginSchema } from "@/lib/schemas/auth";
 import { login } from "@/lib/auth";
 import { USE_NEXTAUTH } from "@/lib/config";
 import { mapFieldErrors, normalizeError } from "@/lib/errors";
-import { ensureDeviceId } from "@/lib/device";
+import { tokenStore } from "@/lib/api";
 import AppButton from "@/components/AppButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -70,10 +70,8 @@ export default function LoginForm() {
       setFormError("");
       if (USE_NEXTAUTH) {
         tokenStore.clear();
-        const deviceId = ensureDeviceId();
         const result = await signIn("credentials", {
           ...values,
-          device_id: deviceId,
           callbackUrl: "/admin",
           redirect: false,
         });

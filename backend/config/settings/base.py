@@ -76,7 +76,6 @@ INSTALLED_APPS = [
     'apps.intake',
     'apps.rbac',
     'apps.billing',
-    'apps.sessionsx',
     'apps.hearings',
     'apps.dashboard',
     'apps.documents',

@@ -25,7 +25,6 @@ from core.responses import api_success as envelope_success, api_error as envelop
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from apps.rbac.services import get_effective_permissions
 from apps.rbac.models import Role
-from apps.sessionsx.utils import get_user_firm
 
 logger = logging.getLogger(__name__)
 
