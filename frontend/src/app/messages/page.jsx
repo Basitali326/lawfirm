@@ -169,6 +169,29 @@ export default function MessagesPage() {
     onMessage: (msg) => {
       const isMine = String(msg.sender?.id) === String(currentUserId);
       queryClient.setQueryData(["chat-messages", msg.room], (old) => {
+        const incomingId = String(msg.id || "");
+        const incomingClientId = String(msg.client_msg_id || "");
+
+        const mergeFirstPage = (items) => {
+          let replaced = false;
+          const next = (items || []).map((item) => {
+            const itemId = String(item?.id || "");
+            const itemClientId = String(item?.client_msg_id || "");
+            const sameServerId = incomingId && itemId && incomingId === itemId;
+            const sameOptimisticId = incomingClientId && itemId && incomingClientId === itemId;
+            const sameClientId = incomingClientId && itemClientId && incomingClientId === itemClientId;
+            if (sameServerId || sameOptimisticId || sameClientId) {
+              replaced = true;
+              return msg;
+            }
+            return item;
+          });
+          if (!replaced) {
+            return [msg, ...next];
+          }
+          return next;
+        };
+
         // if no cache yet, seed with a single page
         if (!old) {
           return {
@@ -177,7 +200,7 @@ export default function MessagesPage() {
           };
         }
         const pages = old.pages.map((p, idx) =>
-          idx === 0 ? { ...p, results: [msg, ...(p.results || p.data || [])] } : p
+          idx === 0 ? { ...p, results: mergeFirstPage(p.results || p.data || []) } : p
         );
         return { ...old, pages };
       });
@@ -226,6 +249,7 @@ export default function MessagesPage() {
         queryClient.setQueryData(["chat-messages", activeRoomId], (old) => {
           const myMsg = {
             id: clientId,
+            client_msg_id: clientId,
             room: activeRoomId,
             sender: { id: currentUserId },
             body,
