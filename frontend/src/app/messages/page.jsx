@@ -70,6 +70,11 @@ function StartChatModal({ open, onClose, users, onStart }) {
 }
 
 const LAST_ROOM_KEY = "chat:lastRoomId";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(value) {
+  return typeof value === "string" && UUID_RE.test(value);
+}
 
 export default function MessagesPage() {
   const [search, setSearch] = useState("");
@@ -188,7 +193,9 @@ export default function MessagesPage() {
           return { ...old, results: nextList, data: nextList };
         });
       } else {
-        socket?.sendRead?.(activeRoomId, msg.id);
+        if (isUuid(msg.id)) {
+          socket?.sendRead?.(activeRoomId, msg.id);
+        }
         updateRoomUnread(msg.room, 0);
       }
       updateRoomLast(msg.room, msg.body, msg.created_at);
@@ -257,7 +264,7 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!activeRoomId || !messagesPages.length || !socket) return;
     const newest = messagesPages[0]?.results?.[0] || messagesPages[0]?.data?.[0];
-    if (newest) {
+    if (newest && isUuid(newest.id)) {
       socket.sendRead(activeRoomId, newest.id);
       updateRoomUnread(activeRoomId, 0);
       queryClient.setQueryData(["chat-messages", activeRoomId], (old) => {

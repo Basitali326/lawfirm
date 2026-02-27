@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction, IntegrityError
 from django.db.models import Q, Max
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.authx.models import Firm
@@ -135,7 +136,10 @@ def send_message(firm: Firm, room: ChatRoom, sender: User, body: str, client_msg
 def mark_room_read(firm: Firm, room: ChatRoom, user: User, last_message_id=None):
     qs = ChatMessage.objects.filter(room=room, firm=firm, is_deleted=False)
     if last_message_id:
-        anchor = ChatMessage.objects.filter(id=last_message_id, room=room, firm=firm).values("created_at").first()
+        try:
+            anchor = ChatMessage.objects.filter(id=last_message_id, room=room, firm=firm).values("created_at").first()
+        except (ValidationError, ValueError, TypeError):
+            return 0
         if not anchor:
             return 0
         qs = qs.filter(created_at__lte=anchor["created_at"])
