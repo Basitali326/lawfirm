@@ -104,20 +104,6 @@ export default function AddCasePage() {
     queryFn: fetchCaseTypes,
     staleTime: 60_000,
   });
-  const { data: caseTypeFeePreview } = useQuery({
-    queryKey: ["case-type-fee-preview", selectedCaseTypeId],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: "1",
-        page_size: "1",
-        case_type_id: selectedCaseTypeId,
-        is_active: "true",
-      });
-      return localFetch(`/api/v1/billing/case-type-fees/?${params.toString()}`, { cache: "no-store" });
-    },
-    enabled: !!selectedCaseTypeId,
-    staleTime: 60_000,
-  });
   const filteredCaseTypes = useMemo(() => {
     const q = caseTypeSearch.trim().toLowerCase();
     if (!q) return caseTypes || [];
@@ -262,15 +248,7 @@ export default function AddCasePage() {
               </p>
             )}
             {errors.case_type && <p className="text-xs text-rose-600 mt-1">{errors.case_type.message}</p>}
-            {selectedCaseTypeId && (
-              <p className="mt-1 text-xs text-slate-500">
-                Default fee:{" "}
-                {caseTypeFeePreview?.data?.[0]
-                  ? `${caseTypeFeePreview.data[0].default_amount} ${caseTypeFeePreview.data[0].currency}`
-                  : "Not configured (invoice will be pending review)"}
-              </p>
-            )}
-          </div>
+            </div>
           <SelectField
             label="Status"
             value={watch("status")}
