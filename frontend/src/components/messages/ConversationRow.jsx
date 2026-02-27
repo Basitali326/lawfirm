@@ -25,7 +25,7 @@ export default function ConversationRow({ room, isActive, onClick }) {
       onClick={onClick}
       className={clsx(
         "w-full px-4 py-3 text-left transition-colors border-b border-slate-100 dark:border-slate-800",
-        isActive ? "bg-slate-900 text-white" : "hover:bg-slate-100 dark:hover:bg-slate-800"
+        isActive ? "bg-slate-100 text-slate-900" : "hover:bg-slate-100 dark:hover:bg-slate-800"
       )}
     >
       <div className="flex items-start gap-3">
@@ -34,7 +34,7 @@ export default function ConversationRow({ room, isActive, onClick }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-semibold truncate flex items-center gap-2">
+            <span className="text-base font-semibold truncate flex items-center gap-2">
               {title}
               {isOnline && <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" title="Online" />}
             </span>
@@ -48,7 +48,7 @@ export default function ConversationRow({ room, isActive, onClick }) {
             </div>
           </div>
           <div className="mt-1 flex items-center gap-2">
-            <span className="text-sm text-slate-500 dark:text-slate-400 truncate">
+            <span className="text-[13px] text-slate-500 dark:text-slate-400 truncate">
               {room.typing ? "... is typing" : room.last_message_preview || "No messages yet"}
             </span>
           </div>

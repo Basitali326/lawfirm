@@ -6,7 +6,7 @@ export default function Sidebar({ rooms, activeRoomId, onSelectRoom, onSearch, o
     <div className="w-80 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full bg-slate-50 dark:bg-slate-900">
       <div className="border-b border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-semibold tracking-tight text-slate-900">Messages</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Messages</h2>
           <div className="flex items-center gap-1">
             <button
               type="button"
