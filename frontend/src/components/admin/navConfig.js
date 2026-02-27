@@ -18,7 +18,6 @@ export const navItems = [
   { label: "Case Type Payments", href: "/settings/billing/case-type-payments", parent: "/settings", perm: "invoices.view" },
   { label: "Roles", href: "/settings/roles", parent: "/settings", perm: "roles.view" },
   { label: "Permissions", href: "/settings/permissions", parent: "/settings", perm: "permissions.view" },
-  { label: "Sessions", href: "/settings/sessions", parent: "/settings", perm: "sessions.approve" },
   { label: "Profile", href: "/profile", perm: null },
 ];
 

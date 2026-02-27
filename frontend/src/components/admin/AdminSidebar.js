@@ -53,7 +53,6 @@ const iconMap = {
   "/settings/billing/case-type-payments": CreditCard,
   "/settings/roles": ShieldCheck,
   "/settings/permissions": ShieldCheck,
-  "/settings/sessions": ShieldCheck,
   "/roles": ShieldCheck,
   "/permissions": ShieldCheck,
   "/profile": Settings,

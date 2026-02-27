@@ -2,13 +2,11 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
     LoginSerializer,
@@ -27,9 +25,7 @@ from core.responses import api_success as envelope_success, api_error as envelop
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from apps.rbac.services import get_effective_permissions
 from apps.rbac.models import Role
-from apps.sessionsx.services import handle_login, is_exempt
-from apps.sessionsx.utils import require_device_id, get_client_ip, get_user_agent, get_user_firm
-from apps.sessionsx.models import SessionStatus
+from apps.sessionsx.utils import get_user_firm
 
 logger = logging.getLogger(__name__)
 
@@ -64,33 +60,7 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
-        device_id = None
-        sess = None
-        firm = get_user_firm(user)
-        if not is_exempt(user):
-            device_id = require_device_id(request)
         access, refresh = build_tokens(user)
-        if not is_exempt(user):
-            decision, sess = handle_login(
-                user,
-                firm,
-                device_id,
-                get_client_ip(request),
-                get_user_agent(request),
-            )
-            if decision != "ALLOW":
-                return envelope_error(
-                    "Admin approval required",
-                    data={"pending_session_id": str(sess.id)},
-                    status_code=status.HTTP_403_FORBIDDEN,
-                )
-            if sess and refresh:
-                try:
-                    sess.refresh_jti = RefreshToken(refresh)["jti"]
-                    sess.last_seen_at = timezone.now()
-                    sess.save(update_fields=["refresh_jti", "last_seen_at"])
-                except Exception:
-                    pass
         data = build_auth_body(user, access, refresh_token=refresh)
         response = api_success(data, status=status.HTTP_200_OK)
         set_refresh_cookie(response, refresh)
