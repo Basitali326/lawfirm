@@ -47,3 +47,13 @@ CORS for Next.js
 Email delivery
 - Dev: default console backend prints emails to the terminal.
 - Prod: set EMAIL_BACKEND to an SMTP backend and configure EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_USE_TLS.
+
+Document uploads (local now, S3-ready later)
+- Files are stored under MEDIA_ROOT (default: backend/media).
+- Nginx should serve /media/ from MEDIA_ROOT in production.
+- Key env vars:
+  - STORAGE_BACKEND=local
+  - MEDIA_ROOT=/var/www/lawfirm/media
+  - DOCUMENT_MAX_SIZE_MB=5
+  - DOCUMENT_ALLOWED_EXTENSIONS=pdf,jpg,jpeg,png,doc,docx,ppt,pptx
+- To switch to S3 later, set STORAGE_BACKEND=s3 and DEFAULT_FILE_STORAGE to your S3 backend.

@@ -29,6 +29,9 @@ env = environ.Env(
     OTP_EMAIL_ENABLED=(bool, False),
     INVITE_EXPIRE_HOURS=(int, 24),
     DEFAULT_USER_PASSWORD=(str, 'Welcome@12345'),
+    STORAGE_BACKEND=(str, 'local'),
+    DOCUMENT_MAX_SIZE_MB=(int, 5),
+    DOCUMENT_ALLOWED_EXTENSIONS=(list, ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'ppt', 'pptx']),
 )
 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
@@ -75,6 +78,7 @@ INSTALLED_APPS = [
     'apps.sessionsx',
     'apps.hearings',
     'apps.dashboard',
+    'apps.documents',
 ]
 
 MIDDLEWARE = [
@@ -225,6 +229,24 @@ CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
 
 # File storage (local default; S3 via django-storages if configured)
+STORAGE_BACKEND = env('STORAGE_BACKEND', default='local')
 DEFAULT_FILE_STORAGE = env('DEFAULT_FILE_STORAGE', default='django.core.files.storage.FileSystemStorage')
+if STORAGE_BACKEND == 's3':
+    DEFAULT_FILE_STORAGE = env(
+        'DEFAULT_FILE_STORAGE',
+        default='storages.backends.s3boto3.S3Boto3Storage',
+    )
 MEDIA_ROOT = env('MEDIA_ROOT', default=BASE_DIR / 'media')
 MEDIA_URL = '/media/'
+DOCUMENT_MAX_SIZE_MB = env('DOCUMENT_MAX_SIZE_MB', default=5)
+DOCUMENT_MAX_SIZE_BYTES = DOCUMENT_MAX_SIZE_MB * 1024 * 1024
+DOCUMENT_ALLOWED_EXTENSIONS = [e.lower() for e in env('DOCUMENT_ALLOWED_EXTENSIONS', default=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'ppt', 'pptx'])]
+DOCUMENT_ALLOWED_MIME_TYPES = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+]

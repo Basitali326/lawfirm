@@ -108,8 +108,10 @@ function drainRefresh(err, access) {
 export async function apiFetch(path, options = {}, { retry = true } = {}) {
   const url = `${API_BASE_URL}${path}`;
   const isPublic = path.startsWith("/public/");
+  const isFormData =
+    typeof FormData !== "undefined" && options?.body && options.body instanceof FormData;
   const headers = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers || {}),
   };
 

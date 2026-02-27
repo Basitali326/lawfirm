@@ -15,6 +15,7 @@ from apps.tasks.services import generate_tasks_for_case
 from apps.task_templates.models import CaseTaskTemplate
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
+from apps.billing.models import InvoiceStatus
 
 
 class TaskPagination(PageNumberPagination):
@@ -211,9 +212,11 @@ class OpenCasesTasksView(APIView):
 
         qs = Case.objects.filter(
             firm_id=firm_id,
-            status__in=[CaseStatus.OPEN, CaseStatus.PENDING_PAYMENT],
+            status=CaseStatus.OPEN,
+            invoices__is_deleted=False,
+            invoices__status__in=[InvoiceStatus.PAID, InvoiceStatus.PARTIAL],
             is_deleted=False,
-        )
+        ).distinct()
         profile = getattr(request.user, "profile", None)
         role_raw = getattr(request.user, "role", "") or getattr(profile, "role", "") or ""
         role = role_raw.replace(" ", "_").replace("-", "_").upper()
@@ -286,6 +289,9 @@ class OpenCasesTasksView(APIView):
         for c_data in case_serializer.data:
             cid = c_data["id"]
             case_tasks = tasks_by_case.get(uuid.UUID(cid) if isinstance(cid, str) else cid, [])
+            # Return only cases that actually have tasks generated.
+            if not case_tasks:
+                continue
             t_ser = CaseTaskSerializer(case_tasks, many=True)
             payload.append({"case": c_data, "tasks": t_ser.data})
 

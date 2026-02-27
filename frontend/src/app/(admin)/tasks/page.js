@@ -77,6 +77,8 @@ export default function TasksPage() {
       title: item.case.title,
       case_type: item.case.case_type_detail || { name: "" },
       status: item.case.status,
+      pending_invoice_status: item.case.pending_invoice_status || null,
+      pending_invoice_amount: item.case.pending_invoice_amount || null,
       assigned_lead_id:
         item.case.assigned_lead_detail?.id ||
         item.case.assigned_lead?.id ||
