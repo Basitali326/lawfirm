@@ -1,4 +1,5 @@
 import { formatISO } from "date-fns";
+import { safeRandomId } from "@/lib/uid";
 
 export const actions = {
   SET_FILTERS: "SET_FILTERS",
@@ -58,12 +59,12 @@ export default function tasksReducer(state, action) {
         if (c.id !== caseId) return c;
         const newTask = {
           ...task,
-          id: task.id || crypto.randomUUID(),
+          id: task.id || safeRandomId("task"),
           created_at: task.created_at || formatISO(new Date(), { representation: "date" }),
           notes: note
             ? [
                 {
-                  id: crypto.randomUUID(),
+                  id: safeRandomId("note"),
                   body: note,
                   created_at: new Date().toISOString(),
                   created_by: "You",
@@ -97,7 +98,7 @@ export default function tasksReducer(state, action) {
                 ...t,
                 notes: [
                   ...(t.notes || []),
-                  { id: crypto.randomUUID(), body: noteBody, created_at: new Date().toISOString(), created_by: "You" },
+                  { id: safeRandomId("note"), body: noteBody, created_at: new Date().toISOString(), created_by: "You" },
                 ],
               }
             : t

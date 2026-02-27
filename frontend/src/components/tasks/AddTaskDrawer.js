@@ -6,6 +6,7 @@ import { addDays, formatISO } from "date-fns";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import localFetch from "@/lib/api";
+import { safeRandomId } from "@/lib/uid";
 
 const formatCaseTypeLabel = (caseType) => {
   if (!caseType) return "";
@@ -83,7 +84,7 @@ export default function AddTaskDrawer({
       assigned_to:
         users.find((u) => String(u.id) === String(currentUser?.id)) ||
         (currentUser?.id ? { id: currentUser.id, name: currentUser.name, email: currentUser.email } : null),
-      id: crypto.randomUUID(),
+      id: safeRandomId("task"),
       created_at: formatISO(new Date(), { representation: "date" }),
       case_id: caseItem.id,
       case: { id: caseItem.id, title: caseItem.title },

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useFirmUsers } from "@/hooks/messages/useFirmUsers";
 import { useMutation } from "@tanstack/react-query";
 import useMe from "@/hooks/useMe";
+import { safeRandomId } from "@/lib/uid";
 function StartChatModal({ open, onClose, users, onStart }) {
   const [search, setSearch] = useState("");
   if (!open) return null;
@@ -210,7 +211,7 @@ export default function MessagesPage() {
 
   const handleSend = async (body) => {
     if (!activeRoomId) return;
-    const clientId = crypto.randomUUID();
+    const clientId = safeRandomId("msg");
     try {
       if (socket) {
         socket.sendMessage(activeRoomId, body, clientId);
