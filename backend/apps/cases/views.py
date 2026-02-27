@@ -405,8 +405,19 @@ class GenerateTasksAPIView(APIView):
             logger.exception("generate_tasks_for_case failed: case=%s user=%s", case.id, user.id)
             return api_error("Server error", errors={"detail": str(exc)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        if result.get("reason") == "no_template":
-            return api_error("No default template found for this case type", status_code=status.HTTP_404_NOT_FOUND)
+        if result.get("reason") in {"no_template", "no_items"}:
+            return api_success(
+                "No template tasks found. You can add tasks manually.",
+                data={
+                    "case_id": str(case.id),
+                    "template_id": result.get("template_id"),
+                    "created_count": 0,
+                    "tasks_generated_at": case.tasks_generated_at,
+                    "reason": result.get("reason"),
+                    "manual_task_entry_allowed": True,
+                },
+                status_code=status.HTTP_200_OK,
+            )
         return api_success(
             "Tasks generated",
             data={
