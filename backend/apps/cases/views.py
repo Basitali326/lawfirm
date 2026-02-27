@@ -471,6 +471,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from core.responses import api_success
 from .models import ClientProfile
+from django.db.models import Q
 
 
 class ClientListAPIView(APIView):
@@ -478,7 +479,15 @@ class ClientListAPIView(APIView):
 
     def get(self, request):
         firm_id = getattr(request.user, "firm_id", None) or getattr(getattr(request.user, "profile", None), "firm_id", None)
-        qs = ClientProfile.objects.filter(firm_id=firm_id)
+        qs = (
+            ClientProfile.objects.filter(firm_id=firm_id)
+            .select_related("user", "user__profile")
+            .filter(
+                Q(user__profile__role__iexact="CLIENT")
+                | Q(user__user_roles__role__name__iexact="CLIENT")
+            )
+            .distinct()
+        )
         data = [
             {
                 "id": str(c.id),

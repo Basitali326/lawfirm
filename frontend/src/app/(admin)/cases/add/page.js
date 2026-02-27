@@ -35,6 +35,11 @@ async function fetchUsers() {
   return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
 }
 
+async function fetchClients() {
+  const json = await localFetch("/api/v1/clients/", { cache: "no-store" });
+  return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+}
+
 async function fetchCaseTypes() {
   const params = new URLSearchParams({ is_active: "true", page: "1", page_size: "100", sort: "name" });
   const json = await localFetch(`/api/v1/settings/case-types?${params.toString()}`, { cache: "no-store" });
@@ -74,6 +79,7 @@ export default function AddCasePage() {
         status: "OPEN",
         priority: "MEDIUM",
         description: "",
+        client: "",
         court_name: "",
         judge_name: "",
         open_date: todayISO(),
@@ -86,6 +92,11 @@ export default function AddCasePage() {
   const { data: users } = useQuery({
     queryKey: ["users-list"],
     queryFn: fetchUsers,
+    staleTime: 60_000,
+  });
+  const { data: clients } = useQuery({
+    queryKey: ["clients-list"],
+    queryFn: fetchClients,
     staleTime: 60_000,
   });
   const { data: caseTypes } = useQuery({
@@ -273,6 +284,19 @@ export default function AddCasePage() {
             error={errors.priority?.message}
             options={PRIORITY_OPTIONS}
             registerProps={register("priority")}
+          />
+          <SelectField
+            label="Client email"
+            value={watch("client")}
+            error={errors.client?.message}
+            options={[
+              { value: "", label: "No client selected" },
+              ...(clients || []).map((c) => ({
+                value: c.id,
+                label: c.email ? `${c.email}${c.name ? ` (${c.name})` : ""}` : c.name || c.id,
+              })),
+            ]}
+            registerProps={register("client")}
           />
           <SelectField
             label="Assign user"
