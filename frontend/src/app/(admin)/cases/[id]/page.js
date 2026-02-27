@@ -193,12 +193,20 @@ export default function CaseDetailPage() {
               {caseItem?.has_invoice ? (
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-800">
                   <span>
-                    Pending invoice: {caseItem.pending_invoice_number || "Available"}
-                    {caseItem.pending_invoice_amount ? ` • ${caseItem.pending_invoice_amount} AED` : ""}
+                    Invoice:{" "}
+                    {caseItem.pending_invoice_number ||
+                      caseItem.latest_invoice_number ||
+                      "Available"}
+                    {(caseItem.pending_invoice_amount || caseItem.latest_invoice_amount)
+                      ? ` • ${caseItem.pending_invoice_amount || caseItem.latest_invoice_amount} AED`
+                      : ""}
+                    {(caseItem.pending_invoice_status || caseItem.latest_invoice_status)
+                      ? ` • ${caseItem.pending_invoice_status || caseItem.latest_invoice_status}`
+                      : ""}
                   </span>
-                  {caseItem.pending_invoice_id ? (
+                  {caseItem.pending_invoice_id || caseItem.latest_invoice_id ? (
                     <Link
-                      href={`/invoices/${caseItem.pending_invoice_id}`}
+                      href={`/invoices/${caseItem.pending_invoice_id || caseItem.latest_invoice_id}`}
                       className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
                       View Invoice
