@@ -24,6 +24,11 @@ class CaseSerializer(serializers.ModelSerializer):
     pending_invoice_number = serializers.SerializerMethodField(read_only=True)
     pending_invoice_amount = serializers.SerializerMethodField(read_only=True)
     pending_invoice_status = serializers.SerializerMethodField(read_only=True)
+    latest_invoice_id = serializers.SerializerMethodField(read_only=True)
+    latest_invoice_number = serializers.SerializerMethodField(read_only=True)
+    latest_invoice_amount = serializers.SerializerMethodField(read_only=True)
+    latest_invoice_status = serializers.SerializerMethodField(read_only=True)
+    latest_invoice_balance = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Case
@@ -47,6 +52,11 @@ class CaseSerializer(serializers.ModelSerializer):
             "pending_invoice_number",
             "pending_invoice_amount",
             "pending_invoice_status",
+            "latest_invoice_id",
+            "latest_invoice_number",
+            "latest_invoice_amount",
+            "latest_invoice_status",
+            "latest_invoice_balance",
             "close_date",
             "close_reason",
             "client",
@@ -264,6 +274,18 @@ class CaseSerializer(serializers.ModelSerializer):
         setattr(obj, "_cached_pending_invoice", inv)
         return inv
 
+    def _latest_invoice(self, obj):
+        cached = getattr(obj, "_cached_latest_invoice", None)
+        if cached is not None:
+            return cached
+        inv = (
+            Invoice.objects.filter(case=obj, is_deleted=False)
+            .order_by("-created_at")
+            .first()
+        )
+        setattr(obj, "_cached_latest_invoice", inv)
+        return inv
+
     def get_has_invoice(self, obj):
         return Invoice.objects.filter(case=obj, is_deleted=False).exists()
 
@@ -282,6 +304,26 @@ class CaseSerializer(serializers.ModelSerializer):
     def get_pending_invoice_status(self, obj):
         inv = self._pending_invoice(obj)
         return inv.status if inv else None
+
+    def get_latest_invoice_id(self, obj):
+        inv = self._latest_invoice(obj)
+        return str(inv.id) if inv else None
+
+    def get_latest_invoice_number(self, obj):
+        inv = self._latest_invoice(obj)
+        return inv.invoice_number if inv else None
+
+    def get_latest_invoice_amount(self, obj):
+        inv = self._latest_invoice(obj)
+        return str(inv.total_amount) if inv else None
+
+    def get_latest_invoice_status(self, obj):
+        inv = self._latest_invoice(obj)
+        return inv.status if inv else None
+
+    def get_latest_invoice_balance(self, obj):
+        inv = self._latest_invoice(obj)
+        return str(inv.balance_amount) if inv else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

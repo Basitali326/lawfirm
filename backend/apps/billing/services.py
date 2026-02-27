@@ -27,15 +27,17 @@ def refresh_invoice_totals(invoice: Invoice):
         paid = Payment.objects.filter(invoice=inv, payment_status="SUCCEEDED").aggregate(total=models.Sum("amount"))[
             "total"
         ] or Decimal("0.00")
+        total_amount = inv.total_amount or Decimal("0.00")
+        raw_balance = total_amount - paid
         inv.paid_amount = paid
-        inv.balance_amount = (inv.total_amount or Decimal("0.00")) - paid
+        inv.balance_amount = max(raw_balance, Decimal("0.00"))
         if (
             inv.status == InvoiceStatus.PENDING_REVIEW
-            and (inv.total_amount or Decimal("0.00")) <= Decimal("0.00")
+            and total_amount <= Decimal("0.00")
             and paid <= Decimal("0.00")
         ):
             inv.status = InvoiceStatus.PENDING_REVIEW
-        elif inv.balance_amount <= Decimal("0.00"):
+        elif paid >= total_amount:
             inv.status = InvoiceStatus.PAID
         elif paid > Decimal("0.00"):
             inv.status = InvoiceStatus.PARTIAL
