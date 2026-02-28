@@ -7,6 +7,7 @@ export default function ChatHeader({ room, onCall, onView }) {
 
   const title = room.displayName || room.name || "Direct chat";
   const isOnline = room.is_online;
+  const subtitle = room.typing ? "typing..." : "Secure chat";
 
   return (
     <div className="h-16 border-b border-slate-200 flex items-center justify-between px-4 gap-3 bg-white">
@@ -19,7 +20,7 @@ export default function ChatHeader({ room, onCall, onView }) {
             <div className="font-semibold text-slate-900 truncate">{title}</div>
             {isOnline && <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" title="Online" />}
           </div>
-          <div className="text-xs text-slate-500 truncate">Secure chat</div>
+          <div className={room.typing ? "text-xs text-emerald-600 truncate font-medium" : "text-xs text-slate-500 truncate"}>{subtitle}</div>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">

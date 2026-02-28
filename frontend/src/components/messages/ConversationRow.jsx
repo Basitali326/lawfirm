@@ -48,8 +48,8 @@ export default function ConversationRow({ room, isActive, onClick }) {
             </div>
           </div>
           <div className="mt-1 flex items-center gap-2">
-            <span className="text-[13px] text-slate-500 dark:text-slate-400 truncate">
-              {room.typing ? "... is typing" : room.last_message_preview || "No messages yet"}
+            <span className={clsx("text-[13px] truncate", room.typing ? "text-emerald-600 font-medium" : "text-slate-500 dark:text-slate-400")}>
+              {room.typing ? "typing..." : room.last_message_preview || "No messages yet"}
             </span>
           </div>
         </div>

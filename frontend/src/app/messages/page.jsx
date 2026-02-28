@@ -78,6 +78,7 @@ function isUuid(value) {
 
 export default function MessagesPage() {
   const [search, setSearch] = useState("");
+  const [typingByRoom, setTypingByRoom] = useState({});
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [showPicker, setShowPicker] = useState(false);
@@ -124,7 +125,12 @@ export default function MessagesPage() {
       .slice(0, 2)
       .map((w) => w[0]?.toUpperCase())
       .join("");
-    return { ...room, displayName, avatarInitials };
+    return {
+      ...room,
+      displayName,
+      avatarInitials,
+      typing: !!typingByRoom[String(room.id)],
+    };
   };
 
   const rooms = baseRooms.map(decorateRoom);
@@ -167,6 +173,7 @@ export default function MessagesPage() {
   const socket = useChatSocket({
     token,
     onMessage: (msg) => {
+      setTypingByRoom((prev) => ({ ...prev, [String(msg.room)]: false }));
       const isMine = String(msg.sender?.id) === String(currentUserId);
       queryClient.setQueryData(["chat-messages", msg.room], (old) => {
         const incomingId = String(msg.id || "");
@@ -222,6 +229,12 @@ export default function MessagesPage() {
         updateRoomUnread(msg.room, 0);
       }
       updateRoomLast(msg.room, msg.body, msg.created_at);
+    },
+    onTyping: (payload) => {
+      const roomId = String(payload?.room_id || "");
+      const typingUserId = String(payload?.user_id || "");
+      if (!roomId || typingUserId === String(currentUserId)) return;
+      setTypingByRoom((prev) => ({ ...prev, [roomId]: !!payload?.is_typing }));
     },
   });
 
@@ -342,6 +355,8 @@ export default function MessagesPage() {
         activeRoomId={activeRoomId}
         onSelectRoom={(id) => {
           setActiveRoomId(id);
+          updateRoomUnread(id, 0);
+          setTypingByRoom((prev) => ({ ...prev, [String(id)]: false }));
           if (typeof window !== "undefined") window.localStorage.setItem(LAST_ROOM_KEY, id);
         }}
         onSearch={setSearch}
