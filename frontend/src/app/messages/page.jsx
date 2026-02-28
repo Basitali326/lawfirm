@@ -70,6 +70,8 @@ function StartChatModal({ open, onClose, users, onStart }) {
 }
 
 const LAST_ROOM_KEY = "chat:lastRoomId";
+const HIDDEN_ROOMS_KEY = "chat:hiddenRoomsByUser";
+const CLEARED_ROOMS_KEY = "chat:clearedRoomsByUser";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isUuid(value) {
@@ -79,6 +81,8 @@ function isUuid(value) {
 export default function MessagesPage() {
   const [search, setSearch] = useState("");
   const [typingByRoom, setTypingByRoom] = useState({});
+  const [hiddenRooms, setHiddenRooms] = useState({});
+  const [clearedRooms, setClearedRooms] = useState({});
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [showPicker, setShowPicker] = useState(false);
@@ -134,16 +138,76 @@ export default function MessagesPage() {
   };
 
   const rooms = baseRooms.map(decorateRoom);
-  const currentRoom = rooms.find((r) => String(r.id) === String(activeRoomId)) || null;
 
   useEffect(() => {
-    if (!activeRoomId && rooms.length > 0) {
+    if (typeof window === "undefined" || !currentUserId) return;
+    try {
+      const hiddenRaw = window.localStorage.getItem(`${HIDDEN_ROOMS_KEY}:${currentUserId}`);
+      const clearedRaw = window.localStorage.getItem(`${CLEARED_ROOMS_KEY}:${currentUserId}`);
+      setHiddenRooms(hiddenRaw ? JSON.parse(hiddenRaw) : {});
+      setClearedRooms(clearedRaw ? JSON.parse(clearedRaw) : {});
+    } catch (_) {
+      setHiddenRooms({});
+      setClearedRooms({});
+    }
+  }, [currentUserId]);
+
+  const persistHiddenRooms = (next) => {
+    setHiddenRooms(next);
+    if (typeof window !== "undefined" && currentUserId) {
+      window.localStorage.setItem(`${HIDDEN_ROOMS_KEY}:${currentUserId}`, JSON.stringify(next));
+    }
+  };
+
+  const persistClearedRooms = (next) => {
+    setClearedRooms(next);
+    if (typeof window !== "undefined" && currentUserId) {
+      window.localStorage.setItem(`${CLEARED_ROOMS_KEY}:${currentUserId}`, JSON.stringify(next));
+    }
+  };
+
+  const visibleRooms = rooms.filter((room) => {
+    const roomId = String(room.id);
+    const hiddenAt = hiddenRooms[roomId];
+    if (!hiddenAt) return true;
+    const hiddenMs = new Date(hiddenAt).getTime();
+    const lastMs = room.last_message_at ? new Date(room.last_message_at).getTime() : 0;
+    const hasNewAfterHide = (room.unread_count || 0) > 0 || (Number.isFinite(lastMs) && Number.isFinite(hiddenMs) && lastMs > hiddenMs);
+    return hasNewAfterHide;
+  });
+
+  useEffect(() => {
+    if (!Object.keys(hiddenRooms).length) return;
+    let changed = false;
+    const next = { ...hiddenRooms };
+    for (const room of rooms) {
+      const roomId = String(room.id);
+      const hiddenAt = hiddenRooms[roomId];
+      if (!hiddenAt) continue;
+      const hiddenMs = new Date(hiddenAt).getTime();
+      const lastMs = room.last_message_at ? new Date(room.last_message_at).getTime() : 0;
+      const hasNewAfterHide = (room.unread_count || 0) > 0 || (Number.isFinite(lastMs) && Number.isFinite(hiddenMs) && lastMs > hiddenMs);
+      if (hasNewAfterHide) {
+        delete next[roomId];
+        changed = true;
+      }
+    }
+    if (changed) {
+      persistHiddenRooms(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rooms]);
+
+  const currentRoom = visibleRooms.find((r) => String(r.id) === String(activeRoomId)) || null;
+
+  useEffect(() => {
+    if (!activeRoomId && visibleRooms.length > 0) {
       // try to restore last opened room if it exists
       const saved = typeof window !== "undefined" ? window.localStorage.getItem(LAST_ROOM_KEY) : null;
-      const found = saved && rooms.find((r) => String(r.id) === String(saved));
-      setActiveRoomId(found ? found.id : rooms[0].id);
+      const found = saved && visibleRooms.find((r) => String(r.id) === String(saved));
+      setActiveRoomId(found ? found.id : visibleRooms[0].id);
     }
-  }, [rooms, activeRoomId]);
+  }, [visibleRooms, activeRoomId]);
 
   const token = useMemo(() => tokenStore.getAccess() || session?.access || session?.token?.access, [session]);
 
@@ -213,6 +277,11 @@ export default function MessagesPage() {
       });
       // increment unread if not active and message is from someone else
       if (String(msg.room) !== String(activeRoomId) && !isMine) {
+        if (hiddenRooms[String(msg.room)]) {
+          const nextHidden = { ...hiddenRooms };
+          delete nextHidden[String(msg.room)];
+          persistHiddenRooms(nextHidden);
+        }
         queryClient.setQueryData(["chat-rooms", search], (old) => {
           if (!old) return old;
           const list = Array.isArray(old) ? old : old?.results || old?.data || [];
@@ -341,11 +410,34 @@ export default function MessagesPage() {
     });
   };
 
-  const displayRooms = (() => {
-    if (pendingRoom && !rooms.find((r) => String(r.id) === String(pendingRoom.id))) {
-      return [pendingRoom, ...rooms];
+  const handleDeleteChatForMe = (room) => {
+    const roomId = String(room?.id || "");
+    if (!roomId) return;
+    const nowIso = new Date().toISOString();
+    persistHiddenRooms({ ...hiddenRooms, [roomId]: nowIso });
+    persistClearedRooms({ ...clearedRooms, [roomId]: nowIso });
+    if (String(activeRoomId) === roomId) {
+      socket?.leaveRoom?.(roomId);
+      setJoinedRoomId(null);
+      const nextRoom = visibleRooms.find((r) => String(r.id) !== roomId);
+      setActiveRoomId(nextRoom ? nextRoom.id : null);
+      if (typeof window !== "undefined") {
+        if (nextRoom?.id) {
+          window.localStorage.setItem(LAST_ROOM_KEY, String(nextRoom.id));
+        } else {
+          window.localStorage.removeItem(LAST_ROOM_KEY);
+        }
+      }
     }
-    return rooms;
+    queryClient.removeQueries({ queryKey: ["chat-messages", roomId], exact: true });
+    toast.success("Chat removed for you");
+  };
+
+  const displayRooms = (() => {
+    if (pendingRoom && !visibleRooms.find((r) => String(r.id) === String(pendingRoom.id))) {
+      return [pendingRoom, ...visibleRooms];
+    }
+    return visibleRooms;
   })();
 
   return (
@@ -367,6 +459,8 @@ export default function MessagesPage() {
         onTypingStop={() => socket?.sendTyping?.(activeRoomId, false)}
         onOpenPicker={() => setShowPicker(true)}
         currentRoom={currentRoom}
+        onDeleteChat={handleDeleteChatForMe}
+        messageCutoff={activeRoomId ? clearedRooms[String(activeRoomId)] : null}
       />
       <StartChatModal
         open={showPicker}

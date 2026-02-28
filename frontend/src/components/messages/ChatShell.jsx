@@ -10,9 +10,13 @@ export default function ChatShell({
   messagesPages,
   currentUserId,
   onSend,
+  onTypingStart,
+  onTypingStop,
   onSearch,
   onOpenPicker,
   currentRoom,
+  onDeleteChat,
+  messageCutoff,
 }) {
   const hasRooms = !!activeRoomId;
   return (
@@ -25,13 +29,13 @@ export default function ChatShell({
         onOpenPicker={onOpenPicker}
       />
       <div className="flex-1 flex flex-col">
-        <ChatHeader room={currentRoom} onCall={() => {}} onView={() => {}} />
+        <ChatHeader room={currentRoom} onCall={() => {}} onView={() => {}} onDeleteChat={onDeleteChat} />
         {hasRooms ? (
           <>
             <div className="flex-1 min-h-0">
-              <MessageList pages={messagesPages} currentUserId={currentUserId} />
+              <MessageList pages={messagesPages} currentUserId={currentUserId} cutoffIso={messageCutoff} />
             </div>
-            <Composer onSend={onSend} />
+            <Composer onSend={onSend} onTypingStart={onTypingStart} onTypingStop={onTypingStop} />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-center text-slate-500 bg-gradient-to-br from-slate-50 to-white">
