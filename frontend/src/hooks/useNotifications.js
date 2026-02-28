@@ -21,6 +21,11 @@ function shouldToastNotification(notification) {
   return ["HIGH", "URGENT"].includes(priority) || ["TASK_ASSIGNED", "CHAT_MENTION", "CHAT_MESSAGE"].includes(type);
 }
 
+function isChatNotification(notification) {
+  const type = String(notification?.type || "").toUpperCase();
+  return type === "CHAT_MENTION" || type === "CHAT_MESSAGE";
+}
+
 export function NotificationsProvider({ children }) {
   const pathname = usePathname();
   const [items, setItems] = useState([]);
@@ -165,7 +170,6 @@ export function NotificationsProvider({ children }) {
         seenIdsRef.current.add(id);
 
         setItems((prev) => {
-          if (!hasLoadedList) return prev;
           if (unreadOnly && notification.read_at) return prev;
           return [notification, ...prev];
         });
@@ -181,6 +185,22 @@ export function NotificationsProvider({ children }) {
             description: notification.body || undefined,
           });
         }
+
+        // For dashboard/other pages, message badge should update in real-time.
+        if (isChatNotification(notification)) {
+          try {
+            window.dispatchEvent(
+              new CustomEvent("chat:new-message", {
+                detail: {
+                  roomId: notification?.data?.room_id || null,
+                  messageId: notification?.data?.message_id || null,
+                },
+              })
+            );
+          } catch (_) {
+            // no-op
+          }
+        }
       }
       if (type === "notification.badge") {
         setUnreadCount(Number(event.unread_count || 0));
@@ -194,7 +214,7 @@ export function NotificationsProvider({ children }) {
         }, 400);
       }
     },
-    [hasLoadedList, hydrateUnreadCount, pathname, unreadOnly]
+    [hydrateUnreadCount, pathname, unreadOnly]
   );
 
   useEffect(() => {
@@ -251,6 +271,14 @@ export function NotificationsProvider({ children }) {
   useEffect(() => {
     hydrateUnreadCount();
   }, [hydrateUnreadCount]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const baseTitle = document.title.replace(/^\(\d+\)\s+/, "");
+    const messageUnreadFromApi = (items || []).filter((item) => !item?.read_at && isChatNotification(item)).length;
+    const totalMessageUnread = messageUnreadFromApi + messageAlertUnread;
+    document.title = totalMessageUnread > 0 ? `(${totalMessageUnread}) ${baseTitle}` : baseTitle;
+  }, [items, messageAlertUnread]);
 
   const value = useMemo(
     () => ({
