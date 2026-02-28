@@ -22,6 +22,7 @@ from apps.rbac.services import user_has_perm
 from apps.cases.utils import get_user_firm
 from apps.billing.invoice_generation_service import create_invoice_for_case_on_create
 from apps.billing.models import Invoice, InvoiceStatus
+from apps.notifx.services import notify_case_assigned, notify_case_status_changed
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,12 @@ class CaseViewSet(
         except IntegrityError as exc:
             logger.warning("case update integrity error: %s", exc)
             return api_error("Case number must be unique within firm.", errors={"case_number": ["Already exists"]}, status_code=status.HTTP_409_CONFLICT)
+        new_status = serializer.instance.status
+        new_assigned_lead_id = serializer.instance.assigned_lead_id
+        if new_status != old_status:
+            notify_case_status_changed(serializer.instance, old_status, new_status, actor=request.user)
+        if new_assigned_lead_id and new_assigned_lead_id != old_lead:
+            notify_case_assigned(serializer.instance, new_assigned_lead_id, actor=request.user)
         try:
             action = AuditAction.UPDATED
             message = f"Case updated: {instance.title}"

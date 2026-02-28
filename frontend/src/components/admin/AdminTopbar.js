@@ -1,46 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Bell, CheckCheck, ChevronDown } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
 import { USE_NEXTAUTH } from "@/lib/config";
-
-const seedNotifications = [
-  {
-    id: "n1",
-    title: "New message from Basit Ali",
-    meta: "40 min ago",
-    read: false,
-  },
-  {
-    id: "n2",
-    title: "Case status updated to OPEN",
-    meta: "1 hr ago",
-    read: false,
-  },
-  {
-    id: "n3",
-    title: "Invoice #INV-204 paid",
-    meta: "3 hrs ago",
-    read: true,
-  },
-];
+import { useNotifications } from "@/hooks/useNotifications";
 
 export default function AdminTopbar() {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(seedNotifications);
+  const {
+    items,
+    unreadCount,
+    fetchNotifications,
+    markRead,
+    markAllRead,
+    loadingList,
+    hasLoadedList,
+  } = useNotifications();
   const router = useRouter();
   const displayName = session?.user?.name || "";
   const emailFallback = session?.user?.email || "";
   const nameForBadge = displayName || emailFallback || "";
   const role = session?.role || session?.user?.role || "";
-  const unreadCount = notifications.filter((item) => !item.read).length;
+
+  const previewItems = useMemo(() => (items || []).slice(0, 8), [items]);
 
   const handleProfile = () => {
     setOpen(false);
@@ -62,14 +53,12 @@ export default function AdminTopbar() {
     }
   };
 
-  const markNotificationRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, read: true } : item))
-    );
-  };
-
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
+  const handleOpenNotifications = async () => {
+    setNotifOpen((prev) => !prev);
+    setOpen(false);
+    if (!hasLoadedList && !loadingList) {
+      await fetchNotifications({ reset: true, unread: false });
+    }
   };
 
   return (
@@ -80,16 +69,13 @@ export default function AdminTopbar() {
         <div className="relative">
           <button
             type="button"
-            onClick={() => {
-              setNotifOpen((prev) => !prev);
-              setOpen(false);
-            }}
+            onClick={handleOpenNotifications}
             className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50"
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
               <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
-                {unreadCount > 9 ? "9+" : unreadCount}
+                {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
           </button>
@@ -99,7 +85,13 @@ export default function AdminTopbar() {
                 <div className="text-sm font-semibold text-slate-900">Notifications</div>
                 <button
                   type="button"
-                  onClick={markAllRead}
+                  onClick={async () => {
+                    try {
+                      await markAllRead();
+                    } catch (err) {
+                      toast.error(err?.message || "Failed to mark notifications as read");
+                    }
+                  }}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
@@ -107,28 +99,51 @@ export default function AdminTopbar() {
                 </button>
               </div>
               <div className="max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
+                {loadingList ? (
+                  <div className="space-y-2 px-2 py-3">
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                      <div key={idx} className="h-12 animate-pulse rounded-lg bg-slate-100" />
+                    ))}
+                  </div>
+                ) : previewItems.length === 0 ? (
                   <div className="px-3 py-6 text-center text-sm text-slate-500">No notifications</div>
                 ) : (
-                  notifications.map((item) => (
+                  previewItems.map((item) => (
                     <div
                       key={item.id}
                       className={cn(
                         "rounded-lg px-3 py-2",
-                        item.read ? "bg-white" : "bg-slate-50"
+                        item.read_at ? "bg-white" : "bg-slate-50"
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className={cn("text-sm", item.read ? "text-slate-700" : "font-medium text-slate-900")}>
-                            {item.title}
-                          </div>
-                          <div className="mt-0.5 text-xs text-slate-500">{item.meta}</div>
-                        </div>
-                        {!item.read && (
                           <button
                             type="button"
-                            onClick={() => markNotificationRead(item.id)}
+                            onClick={() => {
+                              setNotifOpen(false);
+                              router.push("/notifications");
+                            }}
+                            className={cn("text-left text-sm", item.read_at ? "text-slate-700" : "font-medium text-slate-900")}
+                          >
+                            {item.title}
+                          </button>
+                          <div className="mt-0.5 text-xs text-slate-500">
+                            {item.created_at
+                              ? `${formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}`
+                              : "Just now"}
+                          </div>
+                        </div>
+                        {!item.read_at && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await markRead(item.id);
+                              } catch (err) {
+                                toast.error(err?.message || "Failed to mark notification as read");
+                              }
+                            }}
                             className="shrink-0 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-white"
                           >
                             Mark read
@@ -138,6 +153,18 @@ export default function AdminTopbar() {
                     </div>
                   ))
                 )}
+              </div>
+              <div className="px-2 pb-1 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotifOpen(false);
+                    router.push("/notifications");
+                  }}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  View all notifications
+                </button>
               </div>
             </div>
           )}

@@ -6,8 +6,6 @@ from django.utils import timezone
 from django.core.exceptions import PermissionDenied
 from apps.chatx.models import ChatRoomMember, ChatMessage
 from apps.chatx.services import send_message, mark_room_read
-from apps.notifx.services import get_notifications_for_message
-from apps.notifx.serializers import NotificationSerializer
 from apps.chatx.serializers import ChatMessageSerializer
 
 
@@ -19,11 +17,6 @@ def user_room_member(room_id, user):
 @database_sync_to_async
 def db_send_message(firm, room, sender, body, client_msg_id):
     return send_message(firm, room, sender, body, client_msg_id=client_msg_id, message_type=ChatMessage.MessageType.TEXT)
-
-
-@database_sync_to_async
-def fetch_notifs_for_message(message):
-    return [NotificationSerializer(n).data for n in get_notifications_for_message(message)]
 
 
 @database_sync_to_async
@@ -155,21 +148,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "data": serialized,
             },
         )
-        notif_payloads = await fetch_notifs_for_message(msg)
-        for payload in notif_payloads:
-            try:
-                normalized = _normalize_for_channel(payload)
-                user_id = str(normalized.get("user")) if normalized and normalized.get("user") is not None else None
-                user_group = f"user_{user_id}" if user_id else None
-                if user_group:
-                    await self.channel_layer.group_send(
-                        user_group,
-                        {"type": "notification_event", "data": normalized},
-                    )
-            except Exception:
-                # Do not break message realtime flow if notification fanout fails.
-                continue
-
     async def broadcast_message(self, event):
         await self.send_json({"type": "message.new", "message": event["data"]})
 
@@ -210,4 +188,17 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({"type": "receipt.updated", **event["data"]})
 
     async def notification_event(self, event):
-        await self.send_json({"type": "notification.new", "notification": event["data"]})
+        # Backward compatibility for old notification sender.
+        await self.send_json({"type": "notification.new", "notification": event.get("data")})
+
+    async def notification_new_event(self, event):
+        payload = event.get("payload") or {}
+        await self.send_json(payload)
+
+    async def notification_badge_event(self, event):
+        payload = event.get("payload") or {}
+        await self.send_json(payload)
+
+    async def notification_badge_stale_event(self, event):
+        payload = event.get("payload") or {}
+        await self.send_json(payload)

@@ -16,6 +16,7 @@ from apps.task_templates.models import CaseTaskTemplate
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
 from apps.billing.models import InvoiceStatus
+from apps.notifx.services import notify_task_assigned
 
 
 class TaskPagination(PageNumberPagination):
@@ -131,10 +132,13 @@ class TaskViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         task = self.get_object()
         old_status = task.status
+        old_assigned_to_id = task.assigned_to_id
         serializer = self.get_serializer(task, data=request.data, partial=True, context={"request": request})
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         serializer.save()
+        if task.assigned_to_id and task.assigned_to_id != old_assigned_to_id:
+            notify_task_assigned(task, actor=request.user)
         try:
             action = AuditAction.UPDATED
             meta = {"changes": serializer.validated_data, "case_id": str(task.case_id)}
@@ -356,6 +360,8 @@ class CaseTaskCreateView(APIView):
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         task = serializer.save(created_by=request.user, firm=case.firm, case=case)
+        if task.assigned_to_id:
+            notify_task_assigned(task, actor=request.user)
         # Optional linkage for manual tasks created from suggestion card.
         if template_item_id:
             try:

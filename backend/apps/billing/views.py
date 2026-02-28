@@ -18,6 +18,7 @@ from .serializers import (
     PaymentCreateSerializer,
     CaseTypeFeePolicySerializer,
 )
+from apps.notifx.services import notify_invoice_created, notify_payment_received
 from .pagination import BillingPagination
 
 
@@ -110,6 +111,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         invoice = serializer.save()
+        notify_invoice_created(invoice, actor=request.user)
         return api_success("OK", data=InvoiceDetailSerializer(invoice).data, message="Invoice created")
 
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, HasRBACPermission.with_perms(["payments.view"])])
@@ -133,6 +135,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         result = serializer.save()
+        notify_payment_received(result["payment"], actor=request.user)
         return api_success(
             "Payment recorded",
             data={

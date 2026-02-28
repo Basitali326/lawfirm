@@ -12,6 +12,7 @@ from apps.hearings.models import CaseHearing, HearingStatus
 from apps.rbac.services import user_has_perm
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
+from apps.notifx.services import notify_hearing_scheduled
 
 MANAGE_CODE = "case.hearings.manage"
 VIEW_CODE = "hearings.view"
@@ -75,6 +76,7 @@ def create_hearing(user, case_id, payload):
             updated_by=user,
             **payload,
         )
+        notify_hearing_scheduled(hearing, actor=user)
         try:
             log_audit_event(
                 request=None,

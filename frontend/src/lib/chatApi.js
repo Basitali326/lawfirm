@@ -1,4 +1,5 @@
 import localFetch from "@/lib/api";
+import { listNotifications } from "@/lib/notificationsApi";
 
 export async function fetchRooms(search = "") {
   const params = search ? `?search=${encodeURIComponent(search)}` : "";
@@ -36,7 +37,7 @@ export async function uploadAttachment(messageId, file) {
 }
 
 export async function fetchNotifications() {
-  return localFetch(`/api/v1/notifications/`);
+  return listNotifications({ unreadOnly: false, pageSize: 20 });
 }
 
 export async function createDirectRoom(userId) {

@@ -60,7 +60,7 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
           if (data.type === "message.new" && mH) mH(data.message);
           if (data.type === "typing" && tH) tH(data);
           if (data.type === "receipt.updated" && rH) rH(data);
-          if (data.type === "notification.new" && nH) nH(data.notification);
+          if (String(data.type || "").startsWith("notification.") && nH) nH(data);
         } catch (err) {
           console.error("WS parse error", err);
         }
