@@ -2,7 +2,7 @@ import { useState } from "react";
 import { MoreVertical, Trash2 } from "lucide-react";
 import UserAvatar from "@/components/UserAvatar";
 
-export default function ChatHeader({ room, onCall, onView, onDeleteChat }) {
+export default function ChatHeader({ room, onCall, onView, onDeleteChat, onOpenGroupInfo }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   if (!room) return (
@@ -13,7 +13,7 @@ export default function ChatHeader({ room, onCall, onView, onDeleteChat }) {
 
   const title = room.displayName || room.name || "Direct chat";
   const isOnline = room.is_online;
-  const subtitle = room.typing ? "typing..." : "";
+  const subtitle = room.typing ? "typing..." : room.type === "GROUP" ? `${room.member_count || 0} members` : "";
 
   return (
     <div className="h-16 border-b border-slate-200 flex items-center justify-between px-4 gap-3 bg-white">
@@ -53,12 +53,21 @@ export default function ChatHeader({ room, onCall, onView, onDeleteChat }) {
             </div>
           )}
         </div>
-        <button
-          className="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-700 hover:bg-slate-100"
-          onClick={onView}
-        >
-          View profile
-        </button>
+        {room.type === "GROUP" ? (
+          <button
+            className="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-700 hover:bg-slate-100"
+            onClick={onOpenGroupInfo}
+          >
+            Group info
+          </button>
+        ) : (
+          <button
+            className="rounded-full border border-slate-200 px-3 py-1 text-sm text-slate-700 hover:bg-slate-100"
+            onClick={onView}
+          >
+            View profile
+          </button>
+        )}
       </div>
     </div>
   );

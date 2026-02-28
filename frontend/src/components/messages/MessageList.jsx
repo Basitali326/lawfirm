@@ -9,7 +9,7 @@ function DayLabel({ date }) {
   );
 }
 
-export default function MessageList({ pages, currentUserId, cutoffIso }) {
+export default function MessageList({ pages, currentUserId, cutoffIso, onReply }) {
   const messages = useMemo(() => {
     if (!pages) return [];
     const items = [];
@@ -54,7 +54,11 @@ export default function MessageList({ pages, currentUserId, cutoffIso }) {
         return (
           <Fragment key={message.id}>
             {showLabel && <DayLabel date={day} />}
-            <MessageBubble message={message} isMine={String(message.sender?.id) === String(currentUserId)} />
+            <MessageBubble
+              message={message}
+              isMine={String(message.sender?.id) === String(currentUserId)}
+              onReply={onReply}
+            />
           </Fragment>
         );
       })}

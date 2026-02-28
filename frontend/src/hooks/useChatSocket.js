@@ -3,18 +3,18 @@ import { getSession } from "next-auth/react";
 import { API_BASE_URL, USE_NEXTAUTH } from "@/lib/config";
 import { ensureAccessToken } from "@/lib/api";
 
-export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotification }) {
+export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotification, onGroupEvent }) {
   const socketRef = useRef(null);
   const statusRef = useRef("idle");
-  const handlersRef = useRef({ onMessage, onTyping, onReceipt, onNotification });
+  const handlersRef = useRef({ onMessage, onTyping, onReceipt, onNotification, onGroupEvent });
   const pendingJoinRef = useRef(null);
   const lastJoinRef = useRef(null);
   const reconnectTimer = useRef(null);
 
   // keep latest handlers without recreating socket
   useEffect(() => {
-    handlersRef.current = { onMessage, onTyping, onReceipt, onNotification };
-  }, [onMessage, onTyping, onReceipt, onNotification]);
+    handlersRef.current = { onMessage, onTyping, onReceipt, onNotification, onGroupEvent };
+  }, [onMessage, onTyping, onReceipt, onNotification, onGroupEvent]);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,11 +56,13 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          const { onMessage: mH, onTyping: tH, onReceipt: rH, onNotification: nH } = handlersRef.current;
+          const { onMessage: mH, onTyping: tH, onReceipt: rH, onNotification: nH, onGroupEvent: gH } = handlersRef.current;
           if (data.type === "message.new" && mH) mH(data.message);
           if (data.type === "typing" && tH) tH(data);
           if (data.type === "receipt.updated" && rH) rH(data);
           if (String(data.type || "").startsWith("notification.") && nH) nH(data);
+          if (String(data.type || "").startsWith("group.") && gH) gH(data);
+          if (data.type === "message.deleted" && gH) gH(data);
         } catch (err) {
           console.error("WS parse error", err);
         }
@@ -122,9 +124,19 @@ export function useChatSocket({ token, onMessage, onTyping, onReceipt, onNotific
     socketRef.current?.send(JSON.stringify({ type: "room.leave", room_id: roomId }));
   };
 
-  const sendMessage = (roomId, body, clientMsgId) => {
+  const sendMessage = (conversationId, text, clientMsgId, replyToId) => {
     if (statusRef.current !== "open") return;
-    socketRef.current?.send(JSON.stringify({ type: "message.send", room_id: roomId, body, client_msg_id: clientMsgId }));
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "message.send",
+        conversation_id: conversationId,
+        client_msg_id: clientMsgId,
+        payload: {
+          text,
+          reply_to_id: replyToId || null,
+        },
+      })
+    );
   };
 
   const sendTyping = (roomId, isTyping) => {

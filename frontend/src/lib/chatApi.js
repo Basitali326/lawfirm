@@ -47,3 +47,48 @@ export async function createDirectRoom(userId) {
     body: JSON.stringify({ user_id: userId }),
   });
 }
+
+export async function createGroup(payload) {
+  return localFetch(`/api/v1/chat/groups/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getGroupInfo(conversationId) {
+  return localFetch(`/api/v1/chat/groups/${conversationId}/`);
+}
+
+export async function updateGroupInfo(conversationId, payload) {
+  return localFetch(`/api/v1/chat/groups/${conversationId}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function addGroupMembers(conversationId, memberIds) {
+  return localFetch(`/api/v1/chat/groups/${conversationId}/members/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ member_ids: memberIds }),
+  });
+}
+
+export async function removeGroupMember(conversationId, userId) {
+  return localFetch(`/api/v1/chat/groups/${conversationId}/members/${userId}/`, {
+    method: "DELETE",
+  });
+}
+
+export async function exitGroup(conversationId) {
+  return localFetch(`/api/v1/chat/groups/${conversationId}/exit/`, {
+    method: "POST",
+  });
+}
+
+export async function mentionSuggestions(conversationId, q) {
+  const query = q ? `?q=${encodeURIComponent(q)}` : "";
+  return localFetch(`/api/v1/chat/groups/${conversationId}/mention-suggestions/${query}`);
+}

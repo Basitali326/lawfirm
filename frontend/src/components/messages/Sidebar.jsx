@@ -1,7 +1,7 @@
 import ConversationRow from "./ConversationRow";
-import { MoreVertical, PenSquare, Search } from "lucide-react";
+import { MoreVertical, PenSquare, Search, Users } from "lucide-react";
 
-export default function Sidebar({ rooms, activeRoomId, onSelectRoom, onSearch, onOpenPicker }) {
+export default function Sidebar({ rooms, activeRoomId, onSelectRoom, onSearch, onOpenPicker, onOpenCreateGroup }) {
   return (
     <div className="w-80 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full bg-slate-50 dark:bg-slate-900">
       <div className="border-b border-slate-200 bg-white p-4">
@@ -16,6 +16,15 @@ export default function Sidebar({ rooms, activeRoomId, onSelectRoom, onSearch, o
               aria-label="New message"
             >
               <PenSquare size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={onOpenCreateGroup}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              title="Create group"
+              aria-label="Create group"
+            >
+              <Users size={18} />
             </button>
             <button
               type="button"

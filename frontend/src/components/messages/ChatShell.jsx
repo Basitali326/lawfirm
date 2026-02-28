@@ -17,6 +17,15 @@ export default function ChatShell({
   currentRoom,
   onDeleteChat,
   messageCutoff,
+  onOpenCreateGroup,
+  onOpenGroupInfo,
+  mentionItems,
+  mentionOpen,
+  onMentionQuery,
+  onMentionSelect,
+  replyTo,
+  onReply,
+  onClearReply,
 }) {
   const hasRooms = !!activeRoomId;
   return (
@@ -27,15 +36,32 @@ export default function ChatShell({
         onSelectRoom={onSelectRoom}
         onSearch={onSearch}
         onOpenPicker={onOpenPicker}
+        onOpenCreateGroup={onOpenCreateGroup}
       />
       <div className="flex-1 flex flex-col">
-        <ChatHeader room={currentRoom} onCall={() => {}} onView={() => {}} onDeleteChat={onDeleteChat} />
+        <ChatHeader
+          room={currentRoom}
+          onCall={() => {}}
+          onView={() => {}}
+          onDeleteChat={onDeleteChat}
+          onOpenGroupInfo={onOpenGroupInfo}
+        />
         {hasRooms ? (
           <>
             <div className="flex-1 min-h-0">
-              <MessageList pages={messagesPages} currentUserId={currentUserId} cutoffIso={messageCutoff} />
+              <MessageList pages={messagesPages} currentUserId={currentUserId} cutoffIso={messageCutoff} onReply={onReply} />
             </div>
-            <Composer onSend={onSend} onTypingStart={onTypingStart} onTypingStop={onTypingStop} />
+            <Composer
+              onSend={onSend}
+              onTypingStart={onTypingStart}
+              onTypingStop={onTypingStop}
+              mentionItems={mentionItems}
+              mentionOpen={mentionOpen}
+              onMentionQuery={onMentionQuery}
+              onMentionSelect={onMentionSelect}
+              replyTo={replyTo}
+              onClearReply={onClearReply}
+            />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-center text-slate-500 bg-gradient-to-br from-slate-50 to-white">

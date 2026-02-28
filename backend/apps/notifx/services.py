@@ -196,7 +196,7 @@ def enqueue_notification_event(
 def create_notifications_for_message(message):
     room = message.room
     firm = message.firm
-    members = ChatRoomMember.objects.filter(room=room, firm=firm).exclude(user=message.sender)
+    members = ChatRoomMember.objects.filter(room=room, firm=firm, is_active=True).exclude(user=message.sender)
     recipient_ids = list(members.values_list("user_id", flat=True))
     if not recipient_ids:
         return []

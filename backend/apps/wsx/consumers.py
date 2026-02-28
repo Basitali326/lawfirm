@@ -11,12 +11,20 @@ from apps.chatx.serializers import ChatMessageSerializer
 
 @database_sync_to_async
 def user_room_member(room_id, user):
-    return ChatRoomMember.objects.filter(room_id=room_id, user=user).select_related("room").first()
+    return ChatRoomMember.objects.filter(room_id=room_id, user=user, is_active=True).select_related("room").first()
 
 
 @database_sync_to_async
-def db_send_message(firm, room, sender, body, client_msg_id):
-    return send_message(firm, room, sender, body, client_msg_id=client_msg_id, message_type=ChatMessage.MessageType.TEXT)
+def db_send_message(firm, room, sender, body, client_msg_id, reply_to_id=None):
+    return send_message(
+        firm,
+        room,
+        sender,
+        body,
+        client_msg_id=client_msg_id,
+        message_type=ChatMessage.MessageType.TEXT,
+        reply_to_id=reply_to_id,
+    )
 
 
 @database_sync_to_async
@@ -120,15 +128,23 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"type": "error", "code": "throttled", "message": "Too many messages"})
             return
         self._send_timestamps.append(now_ts)
-        room_id = content.get("room_id")
+        room_id = content.get("room_id") or content.get("conversation_id")
+        payload = content.get("payload") or {}
         body = content.get("body", "")
+        if payload:
+            body = payload.get("text", body)
         client_msg_id = content.get("client_msg_id")
+        if not client_msg_id and payload:
+            client_msg_id = payload.get("client_msg_id")
+        reply_to_id = content.get("reply_to_id")
+        if payload and payload.get("reply_to_id"):
+            reply_to_id = payload.get("reply_to_id")
         member = await user_room_member(room_id, self.user)
         if not member:
             await self.send_json({"type": "error", "code": "forbidden", "message": "Not a room member"})
             return
         try:
-            msg = await db_send_message(self.firm, member.room, self.user, body, client_msg_id)
+            msg = await db_send_message(self.firm, member.room, self.user, body, client_msg_id, reply_to_id=reply_to_id)
         except PermissionDenied:
             await self.send_json({"type": "error", "code": "forbidden", "message": "Not allowed"})
             return
@@ -150,6 +166,9 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
     async def broadcast_message(self, event):
         await self.send_json({"type": "message.new", "message": event["data"]})
+
+    async def chat_event(self, event):
+        await self.send_json(event.get("payload") or {})
 
     async def broadcast_typing(self, content, is_typing: bool):
         room_id = content.get("room_id")

@@ -14,14 +14,18 @@ class ChatRoom(models.Model):
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="chat_rooms")
     type = models.CharField(max_length=10, choices=RoomType.choices)
     name = models.CharField(max_length=255, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="created_chat_rooms")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_message_at = models.DateTimeField(db_index=True, null=True, blank=True)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         indexes = [
             models.Index(fields=["firm", "last_message_at"]),
+            models.Index(fields=["firm", "type"]),
+            models.Index(fields=["firm", "updated_at"]),
         ]
         ordering = ["-last_message_at", "-created_at"]
 
@@ -41,12 +45,24 @@ class ChatRoomMember(models.Model):
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.MEMBER)
     is_muted = models.BooleanField(default=False)
     joined_at = models.DateTimeField(auto_now_add=True)
+    left_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    last_read_message = models.ForeignKey(
+        "ChatMessage",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="last_read_by_members",
+    )
+    muted_until = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ("room", "user")
         indexes = [
             models.Index(fields=["firm", "room"]),
             models.Index(fields=["firm", "user"]),
+            models.Index(fields=["room", "is_active"]),
+            models.Index(fields=["user", "is_active"]),
         ]
 
     def __str__(self):
@@ -69,11 +85,16 @@ class ChatMessage(models.Model):
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    reply_to = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replies")
+    mentioned_user_ids = models.JSONField(default=list, blank=True)
 
     class Meta:
         indexes = [
             models.Index(fields=["firm", "room", "created_at"]),
             models.Index(fields=["room", "created_at"]),
+            models.Index(fields=["firm", "created_at"]),
         ]
         ordering = ["created_at"]
         constraints = [

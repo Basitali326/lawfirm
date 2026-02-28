@@ -31,7 +31,7 @@ class ChatRoomMemberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChatRoomMember
-        fields = ["id", "user", "role", "is_muted", "joined_at"]
+        fields = ["id", "user", "role", "is_muted", "joined_at", "left_at", "is_active", "muted_until"]
 
 
 class ChatRoomSerializer(serializers.ModelSerializer):
@@ -39,10 +39,25 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     last_message_at = serializers.DateTimeField(required=False)
     last_message_preview = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
+    member_count = serializers.SerializerMethodField()
+    user_role = serializers.SerializerMethodField()
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = ChatRoom
-        fields = ["id", "type", "name", "created_at", "last_message_at", "last_message_preview", "unread_count", "members"]
+        fields = [
+            "id",
+            "type",
+            "name",
+            "description",
+            "created_at",
+            "last_message_at",
+            "last_message_preview",
+            "unread_count",
+            "member_count",
+            "user_role",
+            "members",
+        ]
         read_only_fields = ["created_at", "last_message_at", "last_message_preview", "unread_count", "members"]
 
     def get_last_message_preview(self, obj):
@@ -53,16 +68,61 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         user = self.context.get("request").user if self.context.get("request") else None
         if not user:
             return 0
-        return obj.messages.filter(is_deleted=False).exclude(receipts__user=user, receipts__status="READ").count()
+        membership = obj.memberships.filter(user=user).only("last_read_message_id").first()
+        qs = obj.messages.filter(is_deleted=False)
+        if membership and membership.last_read_message_id:
+            anchor = obj.messages.filter(id=membership.last_read_message_id).values("created_at").first()
+            if anchor:
+                qs = qs.filter(created_at__gt=anchor["created_at"])
+        return qs.exclude(sender=user).count()
+
+    def get_member_count(self, obj):
+        return obj.memberships.filter(is_active=True).count()
+
+    def get_user_role(self, obj):
+        user = self.context.get("request").user if self.context.get("request") else None
+        if not user:
+            return None
+        membership = obj.memberships.filter(user=user, is_active=True).only("role").first()
+        return membership.role if membership else None
+
+
+class ReplyPreviewSerializer(serializers.ModelSerializer):
+    sender_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatMessage
+        fields = ["id", "body", "sender_name"]
+
+    def get_sender_name(self, obj):
+        full = f"{obj.sender.first_name or ''} {obj.sender.last_name or ''}".strip()
+        return full or obj.sender.email
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     sender = UserLiteSerializer(read_only=True)
     attachments = serializers.SerializerMethodField()
+    reply_to = ReplyPreviewSerializer(read_only=True)
+    mentioned_users = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
-        fields = ["id", "room", "sender", "message_type", "body", "client_msg_id", "created_at", "is_deleted", "attachments"]
+        fields = [
+            "id",
+            "room",
+            "sender",
+            "message_type",
+            "body",
+            "client_msg_id",
+            "created_at",
+            "is_deleted",
+            "edited_at",
+            "deleted_at",
+            "reply_to",
+            "mentioned_user_ids",
+            "mentioned_users",
+            "attachments",
+        ]
         read_only_fields = ["id", "sender", "created_at", "attachments"]
 
     def get_attachments(self, obj):
@@ -78,10 +138,18 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             for att in obj.attachments.filter(is_deleted=False)
         ]
 
+    def get_mentioned_users(self, obj):
+        mentioned_ids = [str(item) for item in (obj.mentioned_user_ids or [])]
+        if not mentioned_ids:
+            return []
+        users = User.objects.filter(id__in=mentioned_ids)
+        return UserLiteSerializer(users, many=True, context=self.context).data
+
 
 class MessageCreateSerializer(serializers.Serializer):
     body = serializers.CharField(allow_blank=True, required=False)
     client_msg_id = serializers.CharField(required=False, allow_blank=True)
+    reply_to_id = serializers.UUIDField(required=False, allow_null=True)
 
     def validate_body(self, value):
         clean = (value or "").strip()
@@ -101,6 +169,21 @@ class RoomCreateSerializer(serializers.Serializer):
         if room_type == ChatRoom.RoomType.GROUP and not name:
             raise serializers.ValidationError({"name": "Group name required"})
         return attrs
+
+
+class GroupCreateSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    member_ids = serializers.ListField(child=serializers.UUIDField(), required=False, allow_empty=True)
+
+
+class GroupUpdateSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255, required=False)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class GroupMembersUpdateSerializer(serializers.Serializer):
+    member_ids = serializers.ListField(child=serializers.UUIDField(), required=True, allow_empty=False)
 
 
 class AttachmentUploadSerializer(serializers.Serializer):

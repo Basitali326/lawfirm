@@ -50,3 +50,33 @@ class ChatRoomTests(TestCase):
         res2 = client2.post(url, {"body": "hack"})
         self.assertEqual(res2.status_code, 404)
 
+    def test_group_admin_add_member(self):
+        room = ChatRoom.objects.create(
+            firm=self.firm,
+            type=ChatRoom.RoomType.GROUP,
+            name="Team",
+            created_by=self.user_a,
+        )
+        ChatRoomMember.objects.create(firm=self.firm, room=room, user=self.user_a, role=ChatRoomMember.Role.ADMIN)
+        url = reverse("chat-group-members", kwargs={"conversation_id": room.id})
+        res = self.client.post(url, {"member_ids": [str(self.user_b.id)]}, format="json")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(ChatRoomMember.objects.filter(room=room, user=self.user_b, is_active=True).exists())
+
+    def test_group_exit(self):
+        room = ChatRoom.objects.create(
+            firm=self.firm,
+            type=ChatRoom.RoomType.GROUP,
+            name="Team",
+            created_by=self.user_a,
+        )
+        ChatRoomMember.objects.create(firm=self.firm, room=room, user=self.user_a, role=ChatRoomMember.Role.ADMIN)
+        ChatRoomMember.objects.create(firm=self.firm, room=room, user=self.user_b, role=ChatRoomMember.Role.MEMBER)
+        client_b = APIClient()
+        client_b.force_authenticate(self.user_b)
+        url = reverse("chat-group-exit", kwargs={"conversation_id": room.id})
+        res = client_b.post(url)
+        self.assertEqual(res.status_code, 200)
+        member = ChatRoomMember.objects.get(room=room, user=self.user_b)
+        self.assertFalse(member.is_active)
+
