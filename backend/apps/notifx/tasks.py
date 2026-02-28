@@ -73,7 +73,7 @@ def process_notification_outbox(self, outbox_id):
         with transaction.atomic():
             outbox = (
                 NotificationOutbox.objects.select_for_update()
-                .select_related("firm", "source_user")
+                .select_related("firm")
                 .get(id=outbox_id)
             )
             if outbox.status == NotificationOutbox.Status.DONE:
