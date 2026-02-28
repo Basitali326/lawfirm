@@ -118,16 +118,9 @@ export default function AdminTopbar() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setNotifOpen(false);
-                              router.push("/notifications");
-                            }}
-                            className={cn("text-left text-sm", item.read_at ? "text-slate-700" : "font-medium text-slate-900")}
-                          >
+                          <div className={cn("text-left text-sm", item.read_at ? "text-slate-700" : "font-medium text-slate-900")}>
                             {item.title}
-                          </button>
+                          </div>
                           <div className="mt-0.5 text-xs text-slate-500">
                             {item.created_at
                               ? `${formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}`
@@ -155,16 +148,9 @@ export default function AdminTopbar() {
                 )}
               </div>
               <div className="px-2 pb-1 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNotifOpen(false);
-                    router.push("/notifications");
-                  }}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  View all notifications
-                </button>
+                <div className="px-1 pb-1 text-xs text-slate-500">
+                  Real-time updates are shown here.
+                </div>
               </div>
             </div>
           )}

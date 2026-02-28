@@ -4,7 +4,6 @@ export const navItems = [
   { label: "Tasks", href: "/tasks", perm: "tasks.view" },
   { label: "Hearings", href: "/hearings", perm: "hearings.view" },
   { label: "Messages", href: "/messages", perm: "messages.view" },
-  { label: "Notifications", href: "/notifications", perm: null },
   { label: "Requests", href: "/requests", perm: "intake.view" },
   { label: "Calendar", href: "/calendar", perm: "hearings.view" },
   { label: "Invoices", href: "/invoices", perm: "invoices.view" },

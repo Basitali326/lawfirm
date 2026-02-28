@@ -20,7 +20,6 @@ import {
   User2,
   ShieldCheck,
   MessageSquare,
-  Bell,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -39,7 +38,6 @@ const iconMap = {
   "/tasks": CheckSquare,
   "/hearings": CalendarDays,
   "/messages": MessageSquare,
-  "/notifications": Bell,
   "/requests": FileText,
   "/documents": FileText,
   "/calendar": CalendarDays,
