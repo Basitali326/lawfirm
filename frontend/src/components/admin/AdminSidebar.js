@@ -30,6 +30,7 @@ import { navItems as baseNavItems } from "@/components/admin/navConfig";
 import { useRBAC } from "@/lib/rbac";
 import useMe from "@/hooks/useMe";
 import { useRouter } from "next/navigation";
+import { useRoomsQuery } from "@/hooks/messages/useRoomsQuery";
 
 const iconMap = {
   "/dashboard": LayoutDashboard,
@@ -75,6 +76,11 @@ export default function AdminSidebar() {
   const dispatch = useAppDispatch();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const roomsQuery = useRoomsQuery("");
+  const roomsRaw = roomsQuery.data;
+  const rooms = Array.isArray(roomsRaw) ? roomsRaw : roomsRaw?.results || roomsRaw?.data || [];
+  const totalUnreadMessages = rooms.reduce((sum, room) => sum + Number(room?.unread_count || 0), 0);
+  const hideMessageBadge = pathname.startsWith("/messages");
 
   const primaryRole = meData?.data?.user?.role || meData?.user?.role || "";
   const rbacRoles = meData?.data?.roles || meData?.roles || [];
@@ -190,6 +196,11 @@ export default function AdminSidebar() {
                       <Icon className="h-4 w-4" />
                       {sidebarOpen && item.label}
                     </span>
+                    {item.href === "/messages" && !hideMessageBadge && totalUnreadMessages > 0 && (
+                      <span className="ml-2 inline-flex min-w-[20px] items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                        {totalUnreadMessages > 99 ? "99+" : totalUnreadMessages}
+                      </span>
+                    )}
                   </Link>
                 )}
 
