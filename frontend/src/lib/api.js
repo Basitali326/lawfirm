@@ -2,9 +2,14 @@ import { getSession } from "next-auth/react";
 
 import { API_BASE_URL, AUTH_MODE, USE_NEXTAUTH } from "@/lib/config";
 
-const ACCESS_KEY = "access_token";
-const REFRESH_KEY = "refresh_token";
-const FIRM_KEY = "firm_id";
+// const ACCESS_KEY = "access_token";
+// const REFRESH_KEY = "refresh_token";
+// const FIRM_KEY = "firm_id";
+
+const ACCESS_KEY = "lf_access_token";
+const REFRESH_KEY = "lf_refresh_token";
+const FIRM_KEY = "lf_firm_id";
+
 
 function cookiesAvailable() {
   return typeof document !== "undefined";
@@ -93,6 +98,35 @@ function extractErrorMessage(payload) {
 
 let isRefreshing = false;
 let refreshWaiters = [];
+const ACCESS_REFRESH_SKEW_MS = 60 * 1000;
+
+function decodeBase64Url(input) {
+  if (!input) return "";
+  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  if (typeof atob === "function") return atob(padded);
+  if (typeof Buffer !== "undefined") return Buffer.from(padded, "base64").toString("utf-8");
+  return "";
+}
+
+function getJwtExpMs(token) {
+  if (!token || typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const payload = JSON.parse(decodeBase64Url(parts[1]));
+    if (!payload?.exp) return null;
+    return payload.exp * 1000;
+  } catch (_) {
+    return null;
+  }
+}
+
+function isAccessExpiredOrNear(token) {
+  const expMs = getJwtExpMs(token);
+  if (!expMs) return false;
+  return Date.now() >= expMs - ACCESS_REFRESH_SKEW_MS;
+}
 
 function queueRefresh() {
   return new Promise((resolve, reject) => {
@@ -117,7 +151,12 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
 
   if (!isPublic) {
     if (AUTH_MODE === "token") {
-      let token = tokenStore.getAccess();
+      let token = null;
+      try {
+        token = await ensureAccessToken();
+      } catch (err) {
+        token = null;
+      }
       if (!token && USE_NEXTAUTH) {
         try {
           const session = await getSession();
@@ -126,16 +165,7 @@ export async function apiFetch(path, options = {}, { retry = true } = {}) {
           token = null;
         }
       }
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      } else {
-        try {
-          const refreshed = await ensureAccessToken();
-          if (refreshed) headers.Authorization = `Bearer ${refreshed}`;
-        } catch (err) {
-          // ignore; 401 will be handled below
-        }
-      }
+      if (token) headers.Authorization = `Bearer ${token}`;
     }
 
     const firmId = tokenStore.getFirmId();
@@ -312,7 +342,14 @@ async function refreshAccessToken() {
 }
 
 export async function ensureAccessToken() {
-  if (tokenStore.hasAccess()) return tokenStore.getAccess();
+  const access = tokenStore.getAccess();
+  if (access && !isAccessExpiredOrNear(access)) return access;
+
+  if (!tokenStore.getRefresh() && access) {
+    tokenStore.clear();
+    throw new Error("Access token expired and no refresh token available");
+  }
+
   try {
     const newAccess = await refreshAccessToken();
     return newAccess;
