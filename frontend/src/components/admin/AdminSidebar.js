@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -81,6 +81,16 @@ export default function AdminSidebar() {
   const rooms = Array.isArray(roomsRaw) ? roomsRaw : roomsRaw?.results || roomsRaw?.data || [];
   const totalUnreadMessages = rooms.reduce((sum, room) => sum + Number(room?.unread_count || 0), 0);
   const hideMessageBadge = pathname.startsWith("/messages");
+
+  useEffect(() => {
+    const onNewMessage = () => {
+      roomsQuery.refetch();
+    };
+    window.addEventListener("chat:new-message", onNewMessage);
+    return () => {
+      window.removeEventListener("chat:new-message", onNewMessage);
+    };
+  }, [roomsQuery]);
 
   const primaryRole = meData?.data?.user?.role || meData?.user?.role || "";
   const rbacRoles = meData?.data?.roles || meData?.roles || [];

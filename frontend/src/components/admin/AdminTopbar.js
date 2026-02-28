@@ -31,7 +31,10 @@ export default function AdminTopbar() {
   const nameForBadge = displayName || emailFallback || "";
   const role = session?.role || session?.user?.role || "";
 
-  const previewItems = useMemo(() => (items || []).slice(0, 8), [items]);
+  const previewItems = useMemo(
+    () => (items || []).filter((item) => !item.read_at).slice(0, 8),
+    [items]
+  );
 
   const handleProfile = () => {
     setOpen(false);
@@ -106,7 +109,7 @@ export default function AdminTopbar() {
                     ))}
                   </div>
                 ) : previewItems.length === 0 ? (
-                  <div className="px-3 py-6 text-center text-sm text-slate-500">No notifications</div>
+                  <div className="px-3 py-6 text-center text-sm text-slate-500">No new notifications</div>
                 ) : (
                   previewItems.map((item) => (
                     <div
