@@ -22,6 +22,13 @@ def build_tokens(user: User) -> Tuple[str, str]:
 def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None, refresh_token: Optional[str] = None) -> dict:
     profile = _get_profile(user)
     firm = firm or profile.firm or Firm.objects.filter(owner=user).first()
+    profile_image_url = None
+    profile_image = getattr(profile, "profile_image", None)
+    if profile_image and getattr(profile_image, "name", None):
+        try:
+            profile_image_url = profile_image.url
+        except Exception:
+            profile_image_url = None
 
     def _normalize(role_value: Optional[str]) -> Optional[str]:
         if not role_value:
@@ -47,7 +54,7 @@ def build_auth_body(user: User, access_token: str, firm: Optional[Firm] = None, 
             'role': role_value,
             'email_verified': profile.email_verified,
             'must_change_password': getattr(profile, "must_change_password", False),
-            'profile_image_url': getattr(getattr(profile, "profile_image", None), "url", None),
+            'profile_image_url': profile_image_url,
         },
         'firm': {
             'id': firm.id,
