@@ -4,12 +4,14 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
+import logging
 
 from apps.cases.utils import get_user_firm
 from apps.chatx.models import ChatRoomMember
 from apps.notifx.models import Notification, NotificationOutbox
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 TASK_ASSIGNED = "TASK_ASSIGNED"
@@ -17,6 +19,7 @@ TASK_OVERDUE = "TASK_OVERDUE"
 CASE_ASSIGNED = "CASE_ASSIGNED"
 CASE_STATUS_CHANGED = "CASE_STATUS_CHANGED"
 CHAT_MENTION = "CHAT_MENTION"
+CHAT_MESSAGE = "CHAT_MESSAGE"
 INVOICE_CREATED = "INVOICE_CREATED"
 PAYMENT_RECEIVED = "PAYMENT_RECEIVED"
 HEARING_SCHEDULED = "HEARING_SCHEDULED"
@@ -27,6 +30,7 @@ VALID_TYPES = {
     CASE_ASSIGNED,
     CASE_STATUS_CHANGED,
     CHAT_MENTION,
+    CHAT_MESSAGE,
     INVOICE_CREATED,
     PAYMENT_RECEIVED,
     HEARING_SCHEDULED,
@@ -214,7 +218,43 @@ def create_notifications_for_message(message):
             priority=Notification.Priority.MEDIUM,
             event_key=event_key,
         )
-    except (IntegrityError, ValueError):
+    except (IntegrityError, ValueError) as exc:
+        logger.warning("Failed to enqueue CHAT_MENTION notification for message=%s: %s", message.id, exc)
+        return []
+    return recipient_ids
+
+
+def create_group_message_notifications(message, exclude_user_ids=None):
+    room = message.room
+    firm = message.firm
+    excluded = {str(message.sender_id)}
+    for uid in (exclude_user_ids or []):
+        excluded.add(str(uid))
+
+    recipient_ids = list(
+        ChatRoomMember.objects.filter(room=room, firm=firm, is_active=True)
+        .exclude(user_id=message.sender_id)
+        .values_list("user_id", flat=True)
+    )
+    recipient_ids = [uid for uid in recipient_ids if str(uid) not in excluded]
+    if not recipient_ids:
+        return []
+
+    event_key = f"CHAT_MESSAGE:message:{message.id}"
+    try:
+        enqueue_notification_event(
+            firm=firm,
+            type=CHAT_MESSAGE,
+            title=room.name or "New group message",
+            body=(message.body or "").strip()[:200] or None,
+            data={"room_id": str(room.id), "conversation_id": str(room.id), "message_id": str(message.id)},
+            recipients=recipient_ids,
+            source_user=message.sender,
+            priority=Notification.Priority.MEDIUM,
+            event_key=event_key,
+        )
+    except (IntegrityError, ValueError) as exc:
+        logger.warning("Failed to enqueue CHAT_MESSAGE notification for message=%s: %s", message.id, exc)
         return []
     return recipient_ids
 

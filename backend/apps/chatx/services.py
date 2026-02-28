@@ -379,9 +379,11 @@ def send_message(
 
     ChatRoom.objects.filter(id=room.id).update(last_message_at=msg.created_at)
 
-    from apps.notifx.services import create_notifications_for_message
+    from apps.notifx.services import create_notifications_for_message, create_group_message_notifications
     if room.type == ChatRoom.RoomType.DIRECT:
         create_notifications_for_message(msg)
+    else:
+        create_group_message_notifications(msg, exclude_user_ids=mentioned_ids)
 
     if room.type == ChatRoom.RoomType.GROUP and mentioned_ids:
         try:
