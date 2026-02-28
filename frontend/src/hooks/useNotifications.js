@@ -18,7 +18,7 @@ const NotificationsContext = createContext(null);
 function shouldToastNotification(notification) {
   const priority = String(notification?.priority || "").toUpperCase();
   const type = String(notification?.type || "").toUpperCase();
-  return ["HIGH", "URGENT"].includes(priority) || ["TASK_ASSIGNED", "CHAT_MENTION"].includes(type);
+  return ["HIGH", "URGENT"].includes(priority) || ["TASK_ASSIGNED", "CHAT_MENTION", "CHAT_MESSAGE"].includes(type);
 }
 
 export function NotificationsProvider({ children }) {
@@ -251,4 +251,3 @@ export function useNotifications() {
   }
   return context;
 }
-
