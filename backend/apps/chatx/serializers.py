@@ -161,7 +161,7 @@ class MessageCreateSerializer(serializers.Serializer):
 class RoomCreateSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=ChatRoom.RoomType.choices)
     name = serializers.CharField(required=False, allow_blank=True)
-    member_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
+    member_ids = serializers.ListField(child=serializers.CharField(), required=False)
 
     def validate(self, attrs):
         room_type = attrs.get("type")
@@ -174,7 +174,7 @@ class RoomCreateSerializer(serializers.Serializer):
 class GroupCreateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    member_ids = serializers.ListField(child=serializers.UUIDField(), required=False, allow_empty=True)
+    member_ids = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
 
 class GroupUpdateSerializer(serializers.Serializer):
@@ -183,7 +183,7 @@ class GroupUpdateSerializer(serializers.Serializer):
 
 
 class GroupMembersUpdateSerializer(serializers.Serializer):
-    member_ids = serializers.ListField(child=serializers.UUIDField(), required=True, allow_empty=False)
+    member_ids = serializers.ListField(child=serializers.CharField(), required=True, allow_empty=False)
 
 
 class AttachmentUploadSerializer(serializers.Serializer):

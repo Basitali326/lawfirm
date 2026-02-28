@@ -29,7 +29,7 @@ urlpatterns = [
     path("chat/groups/", GroupView.as_view(), name="chat-group-create"),
     path("chat/groups/<uuid:conversation_id>/", GroupDetailView.as_view(), name="chat-group-detail"),
     path("chat/groups/<uuid:conversation_id>/members/", GroupMembersView.as_view(), name="chat-group-members"),
-    path("chat/groups/<uuid:conversation_id>/members/<uuid:user_id>/", GroupMemberDeleteView.as_view(), name="chat-group-member-delete"),
+    path("chat/groups/<uuid:conversation_id>/members/<str:user_id>/", GroupMemberDeleteView.as_view(), name="chat-group-member-delete"),
     path("chat/groups/<uuid:conversation_id>/exit/", GroupExitView.as_view(), name="chat-group-exit"),
     path("chat/groups/<uuid:conversation_id>/mention-suggestions/", MentionSuggestionsView.as_view(), name="chat-group-mention-suggestions"),
 ]
