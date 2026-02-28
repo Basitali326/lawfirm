@@ -43,10 +43,14 @@ function MentionText({ text, mentions = [], isMine }) {
   );
 }
 
-export default function MessageBubble({ message, isMine, onReply }) {
+export default function MessageBubble({ message, isMine, onReply, isGroup = false }) {
   const attachments = message.attachments || [];
   const status = message.status || message.receipt_status || null;
   const reply = message.reply_to;
+  const senderName =
+    `${message?.sender?.first_name || ""} ${message?.sender?.last_name || ""}`.trim() ||
+    message?.sender?.email ||
+    "User";
 
   return (
     <div className={clsx("flex", isMine ? "justify-end" : "justify-start")} id={`msg-${message.id}`}>
@@ -56,6 +60,9 @@ export default function MessageBubble({ message, isMine, onReply }) {
           isMine ? "bg-emerald-600 text-white" : "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
         )}
       >
+        {isGroup && !isMine && message.message_type !== "SYSTEM" && (
+          <div className="text-[11px] font-semibold text-emerald-700">{senderName}</div>
+        )}
         {reply && (
           <button
             type="button"

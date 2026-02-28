@@ -49,7 +49,13 @@ export default function ChatShell({
         {hasRooms ? (
           <>
             <div className="flex-1 min-h-0">
-              <MessageList pages={messagesPages} currentUserId={currentUserId} cutoffIso={messageCutoff} onReply={onReply} />
+              <MessageList
+                pages={messagesPages}
+                currentUserId={currentUserId}
+                cutoffIso={messageCutoff}
+                onReply={onReply}
+                isGroup={currentRoom?.type === "GROUP"}
+              />
             </div>
             <Composer
               onSend={onSend}

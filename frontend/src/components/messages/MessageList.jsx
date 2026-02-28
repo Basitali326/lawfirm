@@ -9,7 +9,7 @@ function DayLabel({ date }) {
   );
 }
 
-export default function MessageList({ pages, currentUserId, cutoffIso, onReply }) {
+export default function MessageList({ pages, currentUserId, cutoffIso, onReply, isGroup = false }) {
   const messages = useMemo(() => {
     if (!pages) return [];
     const items = [];
@@ -58,6 +58,7 @@ export default function MessageList({ pages, currentUserId, cutoffIso, onReply }
               message={message}
               isMine={String(message.sender?.id) === String(currentUserId)}
               onReply={onReply}
+              isGroup={isGroup}
             />
           </Fragment>
         );
