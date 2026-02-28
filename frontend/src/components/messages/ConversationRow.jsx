@@ -1,22 +1,8 @@
 import clsx from "clsx";
-
-function avatarProps(name = "Chat") {
-  const clean = name.trim() || "Chat";
-  const initials = clean
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
-  // simple hash to pick a color
-  const palette = ["bg-emerald-500", "bg-sky-500", "bg-amber-500", "bg-indigo-500", "bg-rose-500", "bg-teal-500"];
-  const idx = clean.charCodeAt(0) % palette.length;
-  return { initials, color: palette[idx] };
-}
+import UserAvatar from "@/components/UserAvatar";
 
 export default function ConversationRow({ room, isActive, onClick }) {
   const title = room.displayName || room.name || "Chat";
-  const { initials, color } = avatarProps(title);
   const time = room.last_message_at ? new Date(room.last_message_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
   const unread = room.unread_count || 0;
   const isOnline = !!room.is_online;
@@ -29,9 +15,7 @@ export default function ConversationRow({ room, isActive, onClick }) {
       )}
     >
       <div className="flex items-start gap-3">
-        <div className={clsx("h-10 w-10 shrink-0 rounded-full text-white flex items-center justify-center font-semibold", color)}>
-          {initials}
-        </div>
+        <UserAvatar name={title} imageUrl={room.avatar_url || null} size="md" className="h-10 w-10" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <span className="text-base font-semibold truncate flex items-center gap-2">

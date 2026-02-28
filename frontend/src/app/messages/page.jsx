@@ -109,6 +109,7 @@ export default function MessagesPage() {
     const members = room.members || [];
     const others = members.filter((m) => String(m.user?.id || m.user_id) !== String(currentUserId));
     const firstOther = others[0]?.user || others[0];
+    const avatarUrl = firstOther?.profile_image_url || null;
     const nameFromOther =
       firstOther?.first_name || firstOther?.last_name
         ? `${firstOther?.first_name || ""} ${firstOther?.last_name || ""}`.trim()
@@ -133,6 +134,7 @@ export default function MessagesPage() {
       ...room,
       displayName,
       avatarInitials,
+      avatar_url: avatarUrl,
       typing: !!typingByRoom[String(room.id)],
     };
   };

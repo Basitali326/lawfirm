@@ -8,9 +8,22 @@ User = get_user_model()
 
 
 class UserLiteSerializer(serializers.ModelSerializer):
+    profile_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["id", "first_name", "last_name", "email"]
+        fields = ["id", "first_name", "last_name", "email", "profile_image_url"]
+
+    def get_profile_image_url(self, obj):
+        request = self.context.get("request") if hasattr(self, "context") else None
+        profile = getattr(obj, "profile", None)
+        image = getattr(profile, "profile_image", None) if profile else None
+        if not image:
+            return None
+        try:
+            return request.build_absolute_uri(image.url) if request else image.url
+        except Exception:
+            return None
 
 
 class ChatRoomMemberSerializer(serializers.ModelSerializer):

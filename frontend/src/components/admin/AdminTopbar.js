@@ -11,9 +11,12 @@ import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
 import { USE_NEXTAUTH } from "@/lib/config";
 import { useNotifications } from "@/hooks/useNotifications";
+import useMe from "@/hooks/useMe";
+import UserAvatar from "@/components/UserAvatar";
 
 export default function AdminTopbar() {
   const { data: session } = useSession();
+  const { data: meData } = useMe();
   const [open, setOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const {
@@ -28,7 +31,12 @@ export default function AdminTopbar() {
   const router = useRouter();
   const displayName = session?.user?.name || "";
   const emailFallback = session?.user?.email || "";
-  const nameForBadge = displayName || emailFallback || "";
+  const profileName =
+    `${meData?.data?.user?.first_name || meData?.user?.first_name || ""} ${meData?.data?.user?.last_name || meData?.user?.last_name || ""}`.trim() ||
+    displayName ||
+    emailFallback ||
+    "";
+  const profileImageUrl = meData?.data?.user?.profile_image_url || meData?.user?.profile_image_url || null;
   const role = session?.role || session?.user?.role || "";
 
   const previewItems = useMemo(
@@ -168,9 +176,7 @@ export default function AdminTopbar() {
             }}
             className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-700"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-              {(nameForBadge || "A").charAt(0).toUpperCase()}
-            </span>
+            <UserAvatar name={profileName || "User"} imageUrl={profileImageUrl} size="sm" className="h-8 w-8" />
             <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} />
           </button>
           {open && (

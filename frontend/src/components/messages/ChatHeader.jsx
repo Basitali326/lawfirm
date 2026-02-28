@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MoreVertical, Trash2 } from "lucide-react";
+import UserAvatar from "@/components/UserAvatar";
 
 export default function ChatHeader({ room, onCall, onView, onDeleteChat }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -17,9 +18,7 @@ export default function ChatHeader({ room, onCall, onView, onDeleteChat }) {
   return (
     <div className="h-16 border-b border-slate-200 flex items-center justify-between px-4 gap-3 bg-white">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="h-10 w-10 rounded-full bg-emerald-500 text-white font-semibold flex items-center justify-center">
-          {(title[0] || "C").toUpperCase()}
-        </div>
+        <UserAvatar name={title} imageUrl={room.avatar_url || null} size="md" className="h-10 w-10" />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <div className="font-semibold text-slate-900 truncate">{title}</div>

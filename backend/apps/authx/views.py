@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .serializers import (
@@ -271,6 +272,12 @@ class MeView(APIView):
           role_names = [profile.role.replace(" ", "_").replace("-", "_").upper()]
         # Present a single primary role for backward compatibility: first RBAC role if present, else legacy role_value
         primary_role = "SUPER_ADMIN" if getattr(request.user, "is_superuser", False) else (role_names[0] if role_names else role_value)
+        profile_image_url = None
+        if getattr(profile, "profile_image", None):
+            try:
+                profile_image_url = request.build_absolute_uri(profile.profile_image.url)
+            except Exception:
+                profile_image_url = profile.profile_image.url
         return api_success(
             {
                 'user': {
@@ -279,6 +286,7 @@ class MeView(APIView):
                     'first_name': request.user.first_name,
                     'last_name': request.user.last_name,
                     'role': primary_role,
+                    'profile_image_url': profile_image_url,
                 },
                 'firm': {
                     'id': firm.id,
@@ -291,6 +299,73 @@ class MeView(APIView):
                 'roles': role_names,
                 'permissions': effective_perms,
             }
+        )
+
+
+class ProfileImageUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    MAX_SIZE_BYTES = 5 * 1024 * 1024
+    ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+    ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+    def post(self, request):
+        image = request.FILES.get("image")
+        if not image:
+            return envelope_error(
+                "Validation error",
+                errors={"image": ["Image file is required."]},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if image.size > self.MAX_SIZE_BYTES:
+            return envelope_error(
+                "Validation error",
+                errors={"image": ["Image must be 5MB or smaller."]},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        content_type = (getattr(image, "content_type", "") or "").lower()
+        if content_type and content_type not in self.ALLOWED_MIME_TYPES:
+            return envelope_error(
+                "Validation error",
+                errors={"image": ["Only JPG, PNG, and WEBP images are allowed."]},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        import os
+
+        ext = os.path.splitext(image.name or "")[1].lower()
+        if ext and ext not in self.ALLOWED_EXTENSIONS:
+            return envelope_error(
+                "Validation error",
+                errors={"image": ["Only JPG, PNG, and WEBP images are allowed."]},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile = ensure_profile(request.user)
+        old_name = getattr(getattr(profile, "profile_image", None), "name", None)
+        profile.profile_image = image
+        profile.save(update_fields=["profile_image"])
+
+        if old_name and old_name != getattr(profile.profile_image, "name", None):
+            try:
+                profile.profile_image.storage.delete(old_name)
+            except Exception:
+                pass
+
+        profile_image_url = None
+        if getattr(profile, "profile_image", None):
+            try:
+                profile_image_url = request.build_absolute_uri(profile.profile_image.url)
+            except Exception:
+                profile_image_url = profile.profile_image.url
+
+        return envelope_success(
+            "Profile image updated successfully",
+            data={"profile_image_url": profile_image_url},
+            status_code=status.HTTP_200_OK,
         )
 
 
