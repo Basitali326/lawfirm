@@ -14,7 +14,7 @@ from apps.ecommerce.models import (
     ProductVariant,
 )
 from apps.ecommerce.pagination import EcommercePagination
-from apps.ecommerce.permissions import IsAdminStaffOrSuperAdmin
+from apps.ecommerce.permissions import HasEcommerceAccess, IsAdminStaffOrSuperAdmin
 from apps.ecommerce.serializers import (
     CartItemInputSerializer,
     CartItemUpdateSerializer,
@@ -44,7 +44,6 @@ from apps.ecommerce.services import (
     serialize_order,
     update_cart_item_quantity,
 )
-from apps.rbac.permissions import HasRBACPermission
 from core.responses import api_error, api_success
 
 
@@ -76,15 +75,15 @@ class EcommerceAdminMixin:
 
 class CollectionViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
     serializer_class = CollectionSerializer
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["collections.view"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["collections.view"])]
 
     def get_permissions(self):
         if self.action == "create":
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["collections.add"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["collections.add"])]
         elif self.action in {"update", "partial_update"}:
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["collections.update"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["collections.update"])]
         elif self.action == "destroy":
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["collections.delete"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["collections.delete"])]
         return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
@@ -129,15 +128,15 @@ class CollectionViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
 
 class CategoryViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["categories.view"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["categories.view"])]
 
     def get_permissions(self):
         if self.action == "create":
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["categories.add"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["categories.add"])]
         elif self.action in {"update", "partial_update"}:
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["categories.update"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["categories.update"])]
         elif self.action == "destroy":
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["categories.delete"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["categories.delete"])]
         return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
@@ -181,15 +180,15 @@ class CategoryViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
 
 
 class ProductViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.view"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.view"])]
 
     def get_permissions(self):
         if self.action == "create":
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.add"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.add"])]
         elif self.action in {"update", "partial_update"}:
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.update"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.update"])]
         elif self.action == "destroy":
-            self.permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.delete"])]
+            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.delete"])]
         return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):
@@ -263,7 +262,7 @@ class ProductViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
 
 
 class ProductMediaListCreateView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.update"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.update"])]
 
     def get(self, request, product_id):
         firm = self.get_firm()
@@ -302,7 +301,7 @@ class ProductMediaListCreateView(EcommerceAdminMixin, APIView):
 
 
 class ProductMediaDetailView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.update"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.update"])]
 
     def delete(self, request, product_id, media_id):
         firm = self.get_firm()
@@ -314,7 +313,7 @@ class ProductMediaDetailView(EcommerceAdminMixin, APIView):
 
 
 class ProductMediaReorderView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.update"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.update"])]
 
     def post(self, request, product_id):
         firm = self.get_firm()
@@ -337,7 +336,7 @@ class ProductMediaReorderView(EcommerceAdminMixin, APIView):
 
 
 class ProductVariantListCreateView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.update"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.update"])]
 
     def get(self, request, product_id):
         product = get_object_or_404(Product.objects.filter(firm=self.get_firm(), deleted_at__isnull=True), id=product_id)
@@ -355,7 +354,7 @@ class ProductVariantListCreateView(EcommerceAdminMixin, APIView):
 
 
 class ProductVariantDetailView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["products.update"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.update"])]
 
     def patch(self, request, product_id, variant_id):
         variant = get_object_or_404(
@@ -571,7 +570,7 @@ class CheckoutView(APIView):
 
 
 class AdminOrderListView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["orders.view"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["orders.view"])]
 
     def get(self, request):
         queryset = Order.objects.filter(firm=self.get_firm()).prefetch_related("items").order_by("-placed_at")
@@ -600,7 +599,7 @@ class AdminOrderListView(EcommerceAdminMixin, APIView):
 
 
 class AdminOrderDetailView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["orders.view"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["orders.view"])]
 
     def get(self, request, order_id):
         order = get_object_or_404(Order.objects.filter(firm=self.get_firm()).prefetch_related("items"), id=order_id)
@@ -608,7 +607,7 @@ class AdminOrderDetailView(EcommerceAdminMixin, APIView):
 
 
 class AdminOrderStatusView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["orders.update"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["orders.update"])]
 
     def patch(self, request, order_id):
         order = get_object_or_404(Order.objects.filter(firm=self.get_firm()), id=order_id)
@@ -621,7 +620,7 @@ class AdminOrderStatusView(EcommerceAdminMixin, APIView):
 
 
 class AdminOrderPaymentStatusView(EcommerceAdminMixin, APIView):
-    permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["orders.update"])]
+    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["orders.update"])]
 
     def patch(self, request, order_id):
         order = get_object_or_404(Order.objects.filter(firm=self.get_firm()), id=order_id)
