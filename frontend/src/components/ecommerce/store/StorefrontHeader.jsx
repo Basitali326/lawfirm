@@ -19,7 +19,7 @@ export default function StorefrontHeader() {
           <Link href="/" className="text-xl font-semibold tracking-tight text-slate-950">Lawfirm Store</Link>
           <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
             <Link href="/products" className="hover:text-slate-950">Products</Link>
-            <Link href="/checkout" className="hover:text-slate-950">Checkout</Link>
+            <Link href="/checkout" className="hover:text-slate-950">Cart & Checkout</Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">
@@ -27,9 +27,6 @@ export default function StorefrontHeader() {
             <ShoppingBag className="h-4 w-4" />
             Cart
             {itemsCount ? <span className="rounded-full bg-slate-950 px-2 py-0.5 text-xs text-white">{itemsCount}</span> : null}
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/login">Admin</Link>
           </Button>
         </div>
       </div>

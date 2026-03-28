@@ -44,12 +44,12 @@ export default function ProductsPage() {
           <p className="text-sm text-slate-500">Manage your catalog with Shopify-style workflows adapted to your dashboard.</p>
         </div>
         <Button asChild>
-          <Link href="/products/add">Add Product</Link>
+          <Link href="/dashboard/products/add">Add Product</Link>
         </Button>
       </div>
 
       {!productsQuery.isLoading && rows.length === 0 && !search && !status && !collection && !category ? (
-        <EmptyState title="No products yet" actionLabel="Create your first product" onAction={() => window.location.assign("/products/add")} />
+        <EmptyState title="No products yet" actionLabel="Create your first product" onAction={() => window.location.assign("/dashboard/products/add")} />
       ) : (
         <ProductTable
           rows={rows}
@@ -94,6 +94,10 @@ export default function ProductsPage() {
         confirmLabel="Delete"
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => {
+          if (!pendingDelete?.id) {
+            setPendingDelete(null);
+            return;
+          }
           remove.mutate(pendingDelete.id);
           setPendingDelete(null);
         }}
@@ -101,4 +105,3 @@ export default function ProductsPage() {
     </div>
   );
 }
-

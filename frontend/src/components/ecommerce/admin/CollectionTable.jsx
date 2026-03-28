@@ -34,7 +34,7 @@ export default function CollectionTable({
       header: "Actions",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <Link className="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/collections/${row.id}/edit`}>
+          <Link className="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/dashboard/collections/${row.id}/edit`}>
             Edit
           </Link>
           <button className="font-medium text-rose-600 underline-offset-4 hover:underline" onClick={() => onDelete(row)}>
@@ -56,4 +56,3 @@ export default function CollectionTable({
     />
   );
 }
-

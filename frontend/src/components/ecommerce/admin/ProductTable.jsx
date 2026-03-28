@@ -56,7 +56,7 @@ export default function ProductTable({
       header: "Actions",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <Link href={`/products/${row.id}/edit`} className="font-medium text-slate-900 underline-offset-4 hover:underline">
+          <Link href={`/dashboard/products/${row.id}/edit`} className="font-medium text-slate-900 underline-offset-4 hover:underline">
             Edit
           </Link>
           <button onClick={() => onDelete(row)} className="font-medium text-rose-600 underline-offset-4 hover:underline">
@@ -80,4 +80,3 @@ export default function ProductTable({
     />
   );
 }
-

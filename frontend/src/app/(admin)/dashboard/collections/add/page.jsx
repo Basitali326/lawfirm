@@ -26,7 +26,7 @@ export default function AddCollectionPage() {
           try {
             setServerErrors({});
             const result = await create.mutateAsync(values);
-            router.push(`/collections/${result.data?.id || result.id}/edit`);
+            router.push(`/dashboard/collections/${result.data?.id || result.id}/edit`);
           } catch (error) {
             const normalized = normalizeError(error);
             setServerErrors(collectFieldErrors(normalized));

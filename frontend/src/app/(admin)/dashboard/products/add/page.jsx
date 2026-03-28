@@ -37,7 +37,7 @@ export default function AddProductPage() {
             for (const variant of values.variants || []) {
               await mutations.createVariant.mutateAsync({ productId, payload: variant });
             }
-            router.push(`/products/${productId}/edit`);
+            router.push(`/dashboard/products/${productId}/edit`);
           } catch (error) {
             const normalized = normalizeError(error);
             setServerErrors(collectFieldErrors(normalized));

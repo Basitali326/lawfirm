@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -48,9 +48,9 @@ const iconMap = {
   "/invoices": CreditCard,
   "/reports": BarChart3,
   "/audit-logs": ShieldCheck,
-  "/products": Package2,
-  "/collections": Boxes,
-  "/orders": ShoppingBag,
+  "/dashboard/products": Package2,
+  "/dashboard/collections": Boxes,
+  "/dashboard/orders": ShoppingBag,
   "/trash": Trash2,
   "/settings": Settings,
   "/settings/firms": ShieldCheck,
@@ -107,6 +107,11 @@ export default function AdminSidebar() {
     primaryRole === "OWNER" ||
     primaryRole === "SUPER_ADMIN" ||
     rbacRoles.some((r) => ["firm owner", "firm admin", "super admin"].includes(String(r).toLowerCase()));
+  const isAdminLike =
+    isOwnerOrSuper ||
+    primaryRole === "ADMIN" ||
+    primaryRole === "FIRM_ADMIN" ||
+    rbacRoles.some((r) => ["admin", "firm admin"].includes(String(r).toLowerCase()));
 
   const rootItems = navItems.filter((i) => !i.parent);
   const childrenByParent = useMemo(() => {
@@ -169,12 +174,14 @@ export default function AdminSidebar() {
           rootItems
             .filter((item) => {
               if (item.href === "/trash") return isOwnerOrSuper;
+              if (item.href === "/dashboard/products") return isAdminLike;
               return !item.perm || can(item.perm);
             })
           .map((item) => {
             const Icon = item.icon;
             const children = (childrenByParent[item.href] || []).filter((child) => {
               if (child.href === "/settings/firms") return isSuper;
+              if (item.href === "/dashboard/products") return isAdminLike;
               return !child.perm || can(child.perm);
             });
             const hasChildren = children.length > 0;

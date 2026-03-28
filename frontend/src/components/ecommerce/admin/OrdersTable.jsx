@@ -38,7 +38,7 @@ export default function OrdersTable({ rows, meta, loading, onPageChange, onSortC
       key: "actions",
       header: "Actions",
       render: (row) => (
-        <Link href={`/orders/${row.id}`} className="font-medium text-slate-900 underline-offset-4 hover:underline">
+        <Link href={`/dashboard/orders/${row.id}`} className="font-medium text-slate-900 underline-offset-4 hover:underline">
           View details
         </Link>
       ),
@@ -58,4 +58,3 @@ export default function OrdersTable({ rows, meta, loading, onPageChange, onSortC
     />
   );
 }
-

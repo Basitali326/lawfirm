@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = "Run all RBAC seed/cleanup commands in one step."
+    help = "Run platform seed commands in one step."
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Running normalize_roles..."))
@@ -15,5 +15,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE("Running seed_permissions..."))
         call_command("seed_permissions")
 
-        self.stdout.write(self.style.SUCCESS("All seed commands completed."))
+        self.stdout.write(self.style.NOTICE("Running seed_ecommerce_permissions..."))
+        call_command("seed_ecommerce_permissions")
 
+        self.stdout.write(self.style.NOTICE("Running seed_superadmin..."))
+        call_command("seed_superadmin")
+
+        self.stdout.write(self.style.SUCCESS("All seed commands completed."))

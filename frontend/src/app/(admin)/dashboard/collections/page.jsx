@@ -30,12 +30,12 @@ export default function CollectionsPage() {
           <p className="text-sm text-slate-500">Organize storefront products into polished merchandising groups.</p>
         </div>
         <Button asChild>
-          <Link href="/collections/add">Add Collection</Link>
+          <Link href="/dashboard/collections/add">Add Collection</Link>
         </Button>
       </div>
 
       {!isLoading && rows.length === 0 && !search ? (
-        <EmptyState title="No collections yet" actionLabel="Create your first collection" onAction={() => router.push("/collections/add")} />
+        <EmptyState title="No collections yet" actionLabel="Create your first collection" onAction={() => router.push("/dashboard/collections/add")} />
       ) : (
         <CollectionTable
           rows={rows}
@@ -66,4 +66,3 @@ export default function CollectionsPage() {
     </div>
   );
 }
-
