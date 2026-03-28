@@ -5,17 +5,12 @@ import { useMemo, useState } from "react";
 import EmptyState from "@/components/admin/EmptyState";
 import ProductCard from "@/components/ecommerce/store/ProductCard";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { useCartMutations, useStoreCategoriesQuery, useStoreCollectionsQuery, useStoreProductsQuery } from "@/features/ecommerce/ecommerce.hooks";
+import { useCartMutations, useStoreProductsQuery } from "@/features/ecommerce/ecommerce.hooks";
 
 export default function StoreProductsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [collection, setCollection] = useState("");
-  const [category, setCategory] = useState("");
-  const productsQuery = useStoreProductsQuery({ page, search, collection, category });
-  const collectionsQuery = useStoreCollectionsQuery();
-  const categoriesQuery = useStoreCategoriesQuery();
+  const productsQuery = useStoreProductsQuery({ page, search });
   const cartMutations = useCartMutations();
   const products = useMemo(() => productsQuery.data?.data || [], [productsQuery.data]);
   const meta = productsQuery.data?.meta || {};
@@ -28,16 +23,8 @@ export default function StoreProductsPage() {
           <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">Shop active products</h1>
         </div>
       </div>
-      <div className="mb-8 grid gap-3 rounded-[2rem] border border-slate-200 bg-white p-4 md:grid-cols-3">
+      <div className="mb-8 rounded-[2rem] border border-slate-200 bg-white p-4">
         <Input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <Select value={collection} onChange={(e) => setCollection(e.target.value)}>
-          <option value="">All collections</option>
-          {(collectionsQuery.data?.data || []).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-        </Select>
-        <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="">All categories</option>
-          {(categoriesQuery.data?.data || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </Select>
       </div>
       {productsQuery.isLoading ? <p className="text-sm text-slate-500">Loading products...</p> : null}
       {!productsQuery.isLoading && products.length === 0 ? (

@@ -265,8 +265,8 @@ export default function ProductForm({
           </SectionCard>
 
           <SectionCard
-            title="Attributes"
-            description="Add reusable merchandising details like size, color, or material."
+            title="Attributes (Optional)"
+            description="Optional reusable merchandising details like size, color, or material."
             actions={
               <Button type="button" variant="outline" size="sm" onClick={() => attributesArray.append({ key: "", value: "" })}>
                 <Plus className="h-4 w-4" /> Add attribute
@@ -287,7 +287,7 @@ export default function ProductForm({
           </SectionCard>
 
           <SectionCard
-            title="Variants"
+            title="Variants (Optional)"
             description="Optional variants for colors, sizes, or other combinations."
             actions={
               <Button

@@ -5,14 +5,12 @@ import Link from "next/link";
 import EmptyState from "@/components/admin/EmptyState";
 import ProductCard from "@/components/ecommerce/store/ProductCard";
 import { Button } from "@/components/ui/button";
-import { useCartMutations, useFeaturedProductsQuery, useStoreProductsQuery } from "@/features/ecommerce/ecommerce.hooks";
+import { useCartMutations, useStoreProductsQuery } from "@/features/ecommerce/ecommerce.hooks";
 
 export default function StoreHomePage() {
-  const featuredQuery = useFeaturedProductsQuery({ page: 1, page_size: 4 });
   const latestQuery = useStoreProductsQuery({ page: 1, page_size: 8 });
   const cartMutations = useCartMutations();
 
-  const featured = featuredQuery.data?.data || [];
   const latest = latestQuery.data?.data || [];
 
   return (
@@ -41,9 +39,9 @@ export default function StoreHomePage() {
           </div>
 
           <div className="rounded-[2rem] border border-slate-200 bg-white/75 p-6 shadow-sm backdrop-blur">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Featured right now</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Available now</p>
             <div className="mt-5 space-y-4">
-              {(featured.length ? featured : latest.slice(0, 3)).map((product) => (
+              {latest.slice(0, 3).map((product) => (
                 <button
                   key={product.id}
                   type="button"

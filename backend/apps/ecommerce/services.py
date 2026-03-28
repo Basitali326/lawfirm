@@ -42,6 +42,9 @@ def resolve_firm(request, *, allow_public=False):
         firm_slug = request.query_params.get("firm_slug")
         if firm_slug:
             return Firm.objects.filter(slug=firm_slug).first()
+        public_firm = Firm.objects.filter(status="ACTIVE").order_by("created_at").first()
+        if public_firm:
+            return public_firm
     return None
 
 
@@ -78,10 +81,12 @@ def product_queryset_for_store(firm):
             firm=firm,
             deleted_at__isnull=True,
             status=ProductStatus.ACTIVE,
-            collection__deleted_at__isnull=True,
-            collection__is_active=True,
-            category__deleted_at__isnull=True,
-            category__is_active=True,
+        )
+        .filter(
+            Q(collection__isnull=True) | Q(collection__deleted_at__isnull=True, collection__is_active=True)
+        )
+        .filter(
+            Q(category__isnull=True) | Q(category__deleted_at__isnull=True, category__is_active=True)
         )
         .select_related("collection", "category")
         .prefetch_related(
