@@ -23,6 +23,10 @@ PERMISSION_MATRIX = {
     "case_types": ["view", "add", "update", "delete"],
     "task_templates": ["view", "add", "update", "delete"],
     "case_type_fees": ["view", "add", "update", "delete"],
+    "collections": ["view", "add", "update", "delete"],
+    "categories": ["view", "add", "update", "delete"],
+    "products": ["view", "add", "update", "delete"],
+    "orders": ["view", "update"],
 }
 
 

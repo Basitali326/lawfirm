@@ -63,6 +63,10 @@ class Command(BaseCommand):
             "requests",
             "case_types",
             "task_templates",
+            "products",
+            "orders",
+            "collections",
+            "categories",
         ]
         for m, acts in PERMISSION_MATRIX.items():
             if m in keep_modules:
@@ -87,6 +91,8 @@ class Command(BaseCommand):
             if m == "requests":
                 para_codes.extend([f"requests.{a}" for a in acts if a in ["view", "add", "update"]])
             if m in ["case_types", "task_templates"]:
+                para_codes.extend([f"{m}.{a}" for a in acts if a in ["view"]])
+            if m in ["products", "orders", "collections", "categories"]:
                 para_codes.extend([f"{m}.{a}" for a in acts if a in ["view"]])
         assign_permissions_to_role(para, para_codes)
 

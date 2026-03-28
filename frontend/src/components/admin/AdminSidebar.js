@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -20,6 +20,9 @@ import {
   User2,
   ShieldCheck,
   MessageSquare,
+  ShoppingBag,
+  Package2,
+  Boxes,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -45,6 +48,9 @@ const iconMap = {
   "/invoices": CreditCard,
   "/reports": BarChart3,
   "/audit-logs": ShieldCheck,
+  "/products": Package2,
+  "/collections": Boxes,
+  "/orders": ShoppingBag,
   "/trash": Trash2,
   "/settings": Settings,
   "/settings/firms": ShieldCheck,
@@ -91,6 +97,7 @@ export default function AdminSidebar() {
       window.removeEventListener("chat:new-message", onNewMessage);
     };
   }, [roomsQuery]);
+  const [menuOpen, setMenuOpen] = useState({});
 
   const primaryRole = meData?.data?.user?.role || meData?.user?.role || "";
   const rbacRoles = meData?.data?.roles || meData?.roles || [];
@@ -102,9 +109,14 @@ export default function AdminSidebar() {
     rbacRoles.some((r) => ["firm owner", "firm admin", "super admin"].includes(String(r).toLowerCase()));
 
   const rootItems = navItems.filter((i) => !i.parent);
-  const settingsChildren = navItems
-    .filter((i) => i.parent === "/settings")
-    .filter((child) => (child.href === "/settings/firms" ? isSuper : true));
+  const childrenByParent = useMemo(() => {
+    return navItems.reduce((acc, item) => {
+      if (!item.parent) return acc;
+      if (!acc[item.parent]) acc[item.parent] = [];
+      acc[item.parent].push(item);
+      return acc;
+    }, {});
+  }, []);
 
   const navigate = (href) => (e) => {
     e.preventDefault();
@@ -159,17 +171,30 @@ export default function AdminSidebar() {
               if (item.href === "/trash") return isOwnerOrSuper;
               return !item.perm || can(item.perm);
             })
-            .map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+          .map((item) => {
             const Icon = item.icon;
-            const isSettings = item.href === "/settings";
+            const children = (childrenByParent[item.href] || []).filter((child) => {
+              if (child.href === "/settings/firms") return isSuper;
+              return !child.perm || can(child.perm);
+            });
+            const hasChildren = children.length > 0;
+            const isActive =
+              pathname === item.href ||
+              pathname.startsWith(`${item.href}/`) ||
+              children.some((child) => pathname === child.href || pathname.startsWith(`${child.href}/`));
+            const isOpen = item.href === "/settings" ? settingsOpen : (menuOpen[item.href] ?? pathname.startsWith(`${item.href}/`));
             return (
               <div key={item.href} className="space-y-1">
-                {isSettings ? (
+                {hasChildren ? (
                   <button
                     type="button"
-                    onClick={() => setSettingsOpen((v) => !v)}
+                    onClick={() => {
+                      if (item.href === "/settings") {
+                        setSettingsOpen((v) => !v);
+                        return;
+                      }
+                      setMenuOpen((current) => ({ ...current, [item.href]: !isOpen }));
+                    }}
                     className={cn(
                       "flex w-full items-center justify-between rounded-xl px-3 py-3 text-sm transition",
                       isActive
@@ -185,7 +210,7 @@ export default function AdminSidebar() {
                       <ChevronDown
                         className={cn(
                           "h-4 w-4 transition-transform",
-                          settingsOpen ? "rotate-180" : ""
+                          isOpen ? "rotate-180" : ""
                         )}
                       />
                     )}
@@ -214,9 +239,9 @@ export default function AdminSidebar() {
                   </Link>
                 )}
 
-                {isSettings && sidebarOpen && settingsChildren.length > 0 && settingsOpen && (
+                {hasChildren && sidebarOpen && isOpen && (
                   <div className="ml-8 space-y-1">
-                    {settingsChildren.map((child) => {
+                    {children.map((child) => {
                       const childActive =
                         pathname === child.href ||
                         pathname.startsWith(`${child.href}/`);

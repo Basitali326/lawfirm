@@ -1,5 +1,4 @@
 import { buildMetadata } from "@/lib/metadata";
-import Navbar from "@/components/site/Navbar";
 import Hero from "@/components/site/Hero";
 import CaseTypes from "@/components/site/CaseTypes";
 import HowItWorks from "@/components/site/HowItWorks";
@@ -16,8 +15,7 @@ export const metadata = buildMetadata({
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <Navbar />
+    <main className="min-h-screen bg-[#f6f4ee] text-slate-950">
       <Hero />
       <CaseTypes />
       <HowItWorks />

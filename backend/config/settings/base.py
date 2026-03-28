@@ -33,6 +33,8 @@ env = environ.Env(
     STORAGE_BACKEND=(str, 'local'),
     DOCUMENT_MAX_SIZE_MB=(int, 5),
     DOCUMENT_ALLOWED_EXTENSIONS=(list, ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'ppt', 'pptx']),
+    ECOMMERCE_MAX_IMAGE_SIZE_MB=(int, 5),
+    ECOMMERCE_ALLOWED_IMAGE_EXTENSIONS=(list, ['png', 'jpg', 'jpeg', 'webp']),
 )
 
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
@@ -79,6 +81,7 @@ INSTALLED_APPS = [
     'apps.hearings',
     'apps.dashboard',
     'apps.documents',
+    'apps.ecommerce',
 ]
 
 MIDDLEWARE = [
@@ -179,7 +182,8 @@ FRONTEND_URL = env('FRONTEND_URL')
 OTP_EMAIL_ENABLED = env('OTP_EMAIL_ENABLED')
 INVITE_EXPIRE_HOURS = env('INVITE_EXPIRE_HOURS')
 DEFAULT_USER_PASSWORD = env('DEFAULT_USER_PASSWORD')
-WEBSOCKET_ALLOWED_ORIGINS = env('WEBSOCKET_ALLOWED_ORIGINS') or []
+ECOMMERCE_MAX_IMAGE_SIZE_MB = env('ECOMMERCE_MAX_IMAGE_SIZE_MB')
+ECOMMERCE_ALLOWED_IMAGE_EXTENSIONS = env('ECOMMERCE_ALLOWED_IMAGE_EXTENSIONS')
 
 RECAPTCHA_ENABLED = env.bool('RECAPTCHA_ENABLED', default=False)
 RECAPTCHA_SECRET_KEY = env('RECAPTCHA_SECRET_KEY', default='')
