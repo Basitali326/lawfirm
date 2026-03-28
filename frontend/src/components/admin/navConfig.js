@@ -12,6 +12,7 @@ export const navItems = [
   { label: "Products", href: "/dashboard/products", perm: "products.view" },
   { label: "All Products", href: "/dashboard/products", parent: "/dashboard/products", perm: "products.view" },
   { label: "Collections", href: "/dashboard/collections", parent: "/dashboard/products", perm: "collections.view" },
+  { label: "Categories", href: "/dashboard/categories", parent: "/dashboard/products", perm: "categories.view" },
   { label: "Orders", href: "/dashboard/orders", parent: "/dashboard/products", perm: "orders.view" },
   { label: "Trash", href: "/trash", perm: null },
   { label: "Settings", href: "/settings", perm: "settings.view" },

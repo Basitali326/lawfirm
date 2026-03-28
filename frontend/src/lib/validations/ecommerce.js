@@ -17,6 +17,12 @@ export const collectionSchema = z.object({
   is_active: z.boolean(),
 });
 
+export const categorySchema = z.object({
+  name: z.string().min(1, "Name is required."),
+  description: z.string().optional().nullable(),
+  is_active: z.boolean(),
+});
+
 export const productAttributeSchema = z.object({
   key: z.string().min(1, "Attribute key is required."),
   value: z.string().min(1, "Attribute value is required."),
@@ -40,8 +46,8 @@ export const productSchema = z.object({
   slug: z.string().optional(),
   short_description: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
-  category: z.string().min(1, "Category is required."),
-  collection: z.string().min(1, "Collection is required."),
+  category: z.string().optional().nullable(),
+  collection: z.string().optional().nullable(),
   vendor: z.string().optional().nullable(),
   product_type: z.string().optional().nullable(),
   price_aed: decimalField("Price"),

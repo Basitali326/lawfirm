@@ -7,14 +7,17 @@ import {
   addCartItem,
   createCheckout,
   createCollection,
+  createCategory,
   createProduct,
   createProductVariant,
   deleteCartItem,
+  deleteCategory,
   deleteCollection,
   deleteProduct,
   deleteProductMedia,
   deleteProductVariant,
   getCart,
+  getCategory,
   getCollection,
   getOrder,
   getOrderSuccess,
@@ -30,6 +33,7 @@ import {
   listStoreProducts,
   reorderProductMedia,
   updateCartItem,
+  updateCategory,
   updateCollection,
   updateOrderPaymentStatus,
   updateOrderStatus,
@@ -119,6 +123,46 @@ export function useAdminCategoriesQuery(params = {}, options = {}) {
     queryFn: () => listCategories(params),
     ...options,
   });
+}
+
+export function useAdminCategoryQuery(id, options = {}) {
+  return useQuery({
+    queryKey: ["ecommerce", "category", id],
+    queryFn: () => getCategory(id),
+    enabled: !!id,
+    ...options,
+  });
+}
+
+export function useCategoryMutations() {
+  const queryClient = useQueryClient();
+  return {
+    create: useMutation({
+      mutationFn: createCategory,
+      onSuccess: () => {
+        toast.success("Category created");
+        queryClient.invalidateQueries({ queryKey: ["ecommerce", "categories"] });
+      },
+      onError: (error) => toast.error(normalizeError(shapeAxiosError(error)).message),
+    }),
+    update: useMutation({
+      mutationFn: ({ id, payload }) => updateCategory(id, payload),
+      onSuccess: (_, variables) => {
+        toast.success("Category updated");
+        queryClient.invalidateQueries({ queryKey: ["ecommerce", "categories"] });
+        queryClient.invalidateQueries({ queryKey: ["ecommerce", "category", variables.id] });
+      },
+      onError: (error) => toast.error(normalizeError(shapeAxiosError(error)).message),
+    }),
+    remove: useMutation({
+      mutationFn: deleteCategory,
+      onSuccess: () => {
+        toast.success("Category deleted");
+        queryClient.invalidateQueries({ queryKey: ["ecommerce", "categories"] });
+      },
+      onError: (error) => toast.error(normalizeError(shapeAxiosError(error)).message),
+    }),
+  };
 }
 
 export function useAdminProductsQuery(params = {}, options = {}) {

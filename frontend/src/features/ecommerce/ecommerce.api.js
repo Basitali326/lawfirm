@@ -62,6 +62,22 @@ export function listCategories(params = {}) {
   return localFetch(withQuery("/api/v1/categories/", params));
 }
 
+export function createCategory(payload) {
+  return localFetch("/api/v1/categories/", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function getCategory(id) {
+  return localFetch(`/api/v1/categories/${id}/`);
+}
+
+export function updateCategory(id, payload) {
+  return localFetch(`/api/v1/categories/${id}/`, { method: "PATCH", body: JSON.stringify(payload) });
+}
+
+export function deleteCategory(id) {
+  return localFetch(`/api/v1/categories/${id}/`, { method: "DELETE" });
+}
+
 export function listProducts(params = {}) {
   return localFetch(withQuery("/api/v1/products/", params));
 }

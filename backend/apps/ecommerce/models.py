@@ -122,8 +122,8 @@ class ProductStatus(models.TextChoices):
 class Product(SoftDeleteModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="ecommerce_products")
-    collection = models.ForeignKey(Collection, on_delete=models.PROTECT, related_name="products")
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
+    collection = models.ForeignKey(Collection, on_delete=models.PROTECT, related_name="products", null=True, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products", null=True, blank=True)
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255)
     short_description = models.CharField(max_length=500, blank=True, null=True)

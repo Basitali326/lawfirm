@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -105,25 +106,25 @@ export default function ProductForm({
           <SectionCard title="Basic Information" description="Primary product content used throughout the admin and storefront.">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title">Title <span className="text-rose-600">*</span></Label>
                 <Input id="title" {...register("title")} />
                 <FieldMessage error={errors.title?.message || serverErrors.title} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="slug">Slug</Label>
+                <Label htmlFor="slug">Slug <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="slug" {...register("slug")} onFocus={() => setAutoSlug(false)} />
                 <FieldMessage error={errors.slug?.message || serverErrors.slug} hint="Leave generated automatically or adjust manually." />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="product_type">Product Type</Label>
+                <Label htmlFor="product_type">Product Type <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="product_type" {...register("product_type")} />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="short_description">Short Description</Label>
+                <Label htmlFor="short_description">Short Description <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Textarea id="short_description" className="min-h-24" {...register("short_description")} />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="description">Full Description</Label>
+                <Label htmlFor="description">Full Description <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Textarea id="description" className="min-h-40" {...register("description")} />
               </div>
             </div>
@@ -181,27 +182,33 @@ export default function ProductForm({
           <SectionCard title="Organization" description="Place the product in the right collection and category for storefront filtering.">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="category">Category <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Select id="category" {...register("category")}>
                   <option value="">Select category</option>
                   {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </Select>
                 <FieldMessage error={errors.category?.message || serverErrors.category} />
+                <p className="text-xs text-slate-500">
+                  Need one? <Link href="/dashboard/categories/add" className="font-medium text-slate-700 underline-offset-4 hover:underline">Add category</Link>
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="collection">Collection</Label>
+                <Label htmlFor="collection">Collection <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Select id="collection" {...register("collection")}>
                   <option value="">Select collection</option>
                   {collections.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
                 </Select>
                 <FieldMessage error={errors.collection?.message || serverErrors.collection} />
+                <p className="text-xs text-slate-500">
+                  Need one? <Link href="/dashboard/collections/add" className="font-medium text-slate-700 underline-offset-4 hover:underline">Add collection</Link>
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vendor">Vendor</Label>
+                <Label htmlFor="vendor">Vendor <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="vendor" {...register("vendor")} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tags">Tags</Label>
+                <Label htmlFor="tags">Tags <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="tags" defaultValue={(defaults.tags || []).join(", ")} {...register("tags")} placeholder="civil, featured, summer" />
               </div>
             </div>
@@ -210,29 +217,29 @@ export default function ProductForm({
           <SectionCard title="Pricing & Inventory" description="Set commercial data and stock tracking.">
             <div className="grid gap-5 md:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="price_aed">Price (AED)</Label>
+                <Label htmlFor="price_aed">Price (AED) <span className="text-rose-600">*</span></Label>
                 <Input id="price_aed" {...register("price_aed")} />
                 <FieldMessage error={errors.price_aed?.message || serverErrors.price_aed} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="compare_at_price_aed">Compare At Price</Label>
+                <Label htmlFor="compare_at_price_aed">Compare At Price <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="compare_at_price_aed" {...register("compare_at_price_aed")} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cost_per_item">Cost Per Item</Label>
+                <Label htmlFor="cost_per_item">Cost Per Item <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="cost_per_item" {...register("cost_per_item")} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sku">SKU</Label>
+                <Label htmlFor="sku">SKU <span className="text-rose-600">*</span></Label>
                 <Input id="sku" {...register("sku")} />
                 <FieldMessage error={errors.sku?.message || serverErrors.sku} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="barcode">Barcode</Label>
+                <Label htmlFor="barcode">Barcode <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="barcode" {...register("barcode")} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="inventory_quantity">Inventory Quantity</Label>
+                <Label htmlFor="inventory_quantity">Inventory Quantity <span className="text-rose-600">*</span></Label>
                 <Input id="inventory_quantity" type="number" {...register("inventory_quantity")} />
                 <FieldMessage error={errors.inventory_quantity?.message || serverErrors.inventory_quantity} />
               </div>
@@ -251,7 +258,7 @@ export default function ProductForm({
                 <span className="text-sm text-slate-700">Shipping required</span>
               </label>
               <div className="space-y-2">
-                <Label htmlFor="weight">Weight</Label>
+                <Label htmlFor="weight">Weight <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="weight" {...register("weight")} />
               </div>
             </div>

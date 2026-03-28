@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import ConfirmModal from "@/components/admin/ConfirmModal";
@@ -13,6 +14,7 @@ import { PRODUCT_STATUS_OPTIONS } from "@/types/ecommerce";
 import { useAdminCategoriesQuery, useAdminCollectionsQuery, useAdminProductsQuery, useProductMutations } from "@/features/ecommerce/ecommerce.hooks";
 
 export default function ProductsPage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -49,7 +51,11 @@ export default function ProductsPage() {
       </div>
 
       {!productsQuery.isLoading && rows.length === 0 && !search && !status && !collection && !category ? (
-        <EmptyState title="No products yet" actionLabel="Create your first product" onAction={() => window.location.assign("/dashboard/products/add")} />
+        <EmptyState
+          title="No products yet"
+          actionLabel="Create your first product"
+          onAction={() => router.push("/dashboard/products/add")}
+        />
       ) : (
         <ProductTable
           rows={rows}

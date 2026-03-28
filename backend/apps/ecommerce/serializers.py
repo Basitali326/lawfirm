@@ -238,14 +238,20 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
     def get_collection_detail(self, obj):
         collection = obj.collection
+        if not collection:
+            return None
         return {"id": str(collection.id), "title": collection.title, "slug": collection.slug}
 
     def get_category_detail(self, obj):
         category = obj.category
+        if not category:
+            return None
         return {"id": str(category.id), "name": category.name, "slug": category.slug}
 
 
 class ProductWriteSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), required=False, allow_null=True)
+    collection = serializers.PrimaryKeyRelatedField(queryset=Collection.objects.all(), required=False, allow_null=True)
     tags = serializers.ListField(child=serializers.CharField(max_length=80), required=False)
     attributes = ProductAttributeSerializer(many=True, required=False)
 
@@ -300,15 +306,11 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        collection = attrs.get("collection") or getattr(self.instance, "collection", None)
-        category = attrs.get("category") or getattr(self.instance, "category", None)
-        if not collection:
-            raise serializers.ValidationError({"collection": ["Collection is required."]})
-        if not category:
-            raise serializers.ValidationError({"category": ["Category is required."]})
-        if collection.deleted_at is not None or not collection.is_active:
+        collection = attrs.get("collection", getattr(self.instance, "collection", None))
+        category = attrs.get("category", getattr(self.instance, "category", None))
+        if collection and (collection.deleted_at is not None or not collection.is_active):
             raise serializers.ValidationError({"collection": ["Collection must be active."]})
-        if category.deleted_at is not None or not category.is_active:
+        if category and (category.deleted_at is not None or not category.is_active):
             raise serializers.ValidationError({"category": ["Category must be active."]})
         return attrs
 
