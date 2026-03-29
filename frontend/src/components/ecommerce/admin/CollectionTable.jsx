@@ -15,6 +15,7 @@ export default function CollectionTable({
   onDelete,
   searchToolbar,
 }) {
+  const safeRows = Array.isArray(rows) ? rows.filter((row) => row && row.id) : [];
   const columns = [
     { key: "title", header: "Title", sortable: true },
     { key: "slug", header: "Slug", sortable: true },
@@ -34,10 +35,16 @@ export default function CollectionTable({
       header: "Actions",
       render: (row) => (
         <div className="flex items-center gap-3">
-          <Link className="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/dashboard/collections/${row.id}/edit`}>
-            Edit
-          </Link>
-          <button className="font-medium text-rose-600 underline-offset-4 hover:underline" onClick={() => onDelete(row)}>
+          {row?.id ? (
+            <Link className="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/dashboard/collections/${row.id}/edit`}>
+              Edit
+            </Link>
+          ) : null}
+          <button
+            className="font-medium text-rose-600 underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:text-slate-300"
+            onClick={() => onDelete?.(row)}
+            disabled={!row?.id}
+          >
             Delete
           </button>
         </div>
@@ -48,8 +55,8 @@ export default function CollectionTable({
   return (
     <DataTable
       columns={columns}
-      rows={rows}
-      meta={{ ...(meta || {}), count: meta?.total || rows.length, page: meta?.page || page }}
+      rows={safeRows}
+      meta={{ ...(meta || {}), count: meta?.total || safeRows.length, page: meta?.page || page }}
       loading={loading}
       onPageChange={onPageChange}
       toolbar={searchToolbar}

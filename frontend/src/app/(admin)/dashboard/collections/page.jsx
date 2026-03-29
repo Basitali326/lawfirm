@@ -19,7 +19,10 @@ export default function CollectionsPage() {
   const { data, isLoading } = useAdminCollectionsQuery({ page, search, sort: "title" });
   const collectionMutations = useCollectionMutations();
 
-  const rows = useMemo(() => data?.data || [], [data]);
+  const rows = useMemo(() => {
+    if (!Array.isArray(data?.data)) return [];
+    return data.data.filter((item) => item && item.id);
+  }, [data]);
   const meta = data?.meta || {};
 
   return (
@@ -59,6 +62,10 @@ export default function CollectionsPage() {
         confirmLabel="Delete"
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => {
+          if (!pendingDelete?.id) {
+            setPendingDelete(null);
+            return;
+          }
           collectionMutations.remove.mutate(pendingDelete.id);
           setPendingDelete(null);
         }}

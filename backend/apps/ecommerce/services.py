@@ -310,7 +310,7 @@ def serialize_order(order):
 @transaction.atomic
 def place_order_from_cart(*, cart, payload, customer=None):
     items = list(
-        cart.items.select_related("product", "variant", "product__firm").select_for_update().order_by("created_at")
+        cart.items.select_related("product", "product__firm").select_for_update().order_by("created_at")
     )
     if not items:
         raise serializers.ValidationError({"cart": ["Order cannot be placed with an empty cart."]})

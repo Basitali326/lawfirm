@@ -131,6 +131,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             "id",
+            "slug",
             "feature_image",
             "title",
             "collection",
