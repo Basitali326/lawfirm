@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 
 import ProductCard from "@/components/ecommerce/store/ProductCard";
 import QuantityInput from "@/components/ecommerce/store/QuantityInput";
@@ -9,8 +10,10 @@ import { Select } from "@/components/ui/select";
 import { formatAED } from "@/lib/ecommerce";
 import { useCartMutations, useStoreProductQuery } from "@/features/ecommerce/ecommerce.hooks";
 
-export default function ProductDetailPage({ params }) {
-  const { data, isLoading } = useStoreProductQuery(params.slug);
+export default function ProductDetailPage() {
+  const params = useParams();
+  const slug = typeof params?.slug === "string" ? params.slug : "";
+  const { data, isLoading, isError } = useStoreProductQuery(slug, { enabled: !!slug });
   const cartMutations = useCartMutations();
   const product = data?.data || data;
   const [activeImage, setActiveImage] = useState(null);
@@ -24,6 +27,18 @@ export default function ProductDetailPage({ params }) {
 
   if (isLoading) {
     return <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 text-sm text-slate-500">Loading product...</main>;
+  }
+
+  if (isError || !product?.id) {
+    return (
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Product</p>
+          <h1 className="mt-3 text-2xl font-semibold text-slate-950">Unable to load this product</h1>
+          <p className="mt-2 text-sm text-slate-600">The product may be unavailable or the detail response is invalid.</p>
+        </div>
+      </main>
+    );
   }
 
   return (
