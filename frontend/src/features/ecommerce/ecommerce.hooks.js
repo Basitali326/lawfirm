@@ -7,33 +7,27 @@ import {
   addCartItem,
   createCheckout,
   createCollection,
-  createCategory,
   createProduct,
   createProductVariant,
   deleteCartItem,
-  deleteCategory,
   deleteCollection,
   deleteProduct,
   deleteProductMedia,
   deleteProductVariant,
   getCart,
-  getCategory,
   getCollection,
   getOrder,
   getOrderSuccess,
   getProduct,
   getStoreProduct,
-  listCategories,
   listCollections,
   listFeaturedProducts,
   listOrders,
   listProducts,
-  listStoreCategories,
   listStoreCollections,
   listStoreProducts,
   reorderProductMedia,
   updateCartItem,
-  updateCategory,
   updateCollection,
   updateOrderPaymentStatus,
   updateOrderStatus,
@@ -111,54 +105,6 @@ export function useCollectionMutations() {
       onSuccess: () => {
         toast.success("Collection deleted");
         queryClient.invalidateQueries({ queryKey: ["ecommerce", "collections"] });
-      },
-      onError: (error) => toast.error(normalizeError(shapeAxiosError(error)).message),
-    }),
-  };
-}
-
-export function useAdminCategoriesQuery(params = {}, options = {}) {
-  return useQuery({
-    queryKey: ["ecommerce", "categories", params],
-    queryFn: () => listCategories(params),
-    ...options,
-  });
-}
-
-export function useAdminCategoryQuery(id, options = {}) {
-  return useQuery({
-    queryKey: ["ecommerce", "category", id],
-    queryFn: () => getCategory(id),
-    enabled: !!id,
-    ...options,
-  });
-}
-
-export function useCategoryMutations() {
-  const queryClient = useQueryClient();
-  return {
-    create: useMutation({
-      mutationFn: createCategory,
-      onSuccess: () => {
-        toast.success("Category created");
-        queryClient.invalidateQueries({ queryKey: ["ecommerce", "categories"] });
-      },
-      onError: (error) => toast.error(normalizeError(shapeAxiosError(error)).message),
-    }),
-    update: useMutation({
-      mutationFn: ({ id, payload }) => updateCategory(id, payload),
-      onSuccess: (_, variables) => {
-        toast.success("Category updated");
-        queryClient.invalidateQueries({ queryKey: ["ecommerce", "categories"] });
-        queryClient.invalidateQueries({ queryKey: ["ecommerce", "category", variables.id] });
-      },
-      onError: (error) => toast.error(normalizeError(shapeAxiosError(error)).message),
-    }),
-    remove: useMutation({
-      mutationFn: deleteCategory,
-      onSuccess: () => {
-        toast.success("Category deleted");
-        queryClient.invalidateQueries({ queryKey: ["ecommerce", "categories"] });
       },
       onError: (error) => toast.error(normalizeError(shapeAxiosError(error)).message),
     }),
@@ -320,14 +266,6 @@ export function useStoreCollectionsQuery(params = {}, options = {}) {
   return useQuery({
     queryKey: ["store", "collections", params],
     queryFn: () => listStoreCollections(params),
-    ...options,
-  });
-}
-
-export function useStoreCategoriesQuery(params = {}, options = {}) {
-  return useQuery({
-    queryKey: ["store", "categories", params],
-    queryFn: () => listStoreCategories(params),
     ...options,
   });
 }

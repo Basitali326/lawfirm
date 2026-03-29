@@ -9,7 +9,6 @@ from apps.ecommerce.views import (
     CartItemDetailView,
     CartItemListCreateView,
     CartView,
-    CategoryViewSet,
     CheckoutView,
     CollectionViewSet,
     MyOrderDetailView,
@@ -21,7 +20,6 @@ from apps.ecommerce.views import (
     ProductVariantDetailView,
     ProductVariantListCreateView,
     ProductViewSet,
-    StoreCategoryListView,
     StoreCollectionListView,
     StoreFeaturedProductsView,
     StoreProductDetailView,
@@ -30,7 +28,6 @@ from apps.ecommerce.views import (
 
 router = DefaultRouter()
 router.register(r"collections", CollectionViewSet, basename="ecommerce-collections")
-router.register(r"categories", CategoryViewSet, basename="ecommerce-categories")
 router.register(r"products", ProductViewSet, basename="ecommerce-products")
 
 urlpatterns = router.urls + [
@@ -46,7 +43,6 @@ urlpatterns = router.urls + [
     path("store/products/", StoreProductListView.as_view(), name="ecommerce-store-products"),
     path("store/products/<slug:slug>/", StoreProductDetailView.as_view(), name="ecommerce-store-product-detail"),
     path("store/collections/", StoreCollectionListView.as_view(), name="ecommerce-store-collections"),
-    path("store/categories/", StoreCategoryListView.as_view(), name="ecommerce-store-categories"),
     path("store/featured-products/", StoreFeaturedProductsView.as_view(), name="ecommerce-store-featured-products"),
     path("store/orders/success/<uuid:token>/", OrderSuccessDetailView.as_view(), name="ecommerce-store-order-success"),
     path("cart/", CartView.as_view(), name="ecommerce-cart"),

@@ -4,7 +4,6 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.ecommerce.models import (
-    Category,
     Collection,
     OrderStatus,
     PaymentStatus,
@@ -33,18 +32,6 @@ class CollectionSerializer(serializers.ModelSerializer):
     def validate_title(self, value):
         if not value.strip():
             raise serializers.ValidationError("Title is required.")
-        return value.strip()
-
-
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ["id", "name", "slug", "description", "is_active", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
-    def validate_name(self, value):
-        if not value.strip():
-            raise serializers.ValidationError("Name is required.")
         return value.strip()
 
 
@@ -137,7 +124,6 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
-    category = serializers.CharField(source="category.name", read_only=True)
     collection = serializers.CharField(source="collection.title", read_only=True)
     feature_image = serializers.SerializerMethodField()
 
@@ -147,7 +133,6 @@ class ProductListSerializer(serializers.ModelSerializer):
             "id",
             "feature_image",
             "title",
-            "category",
             "collection",
             "price_aed",
             "inventory_quantity",
@@ -171,7 +156,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     media = serializers.SerializerMethodField()
     feature_image = serializers.SerializerMethodField()
     collection_detail = serializers.SerializerMethodField()
-    category_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -181,10 +165,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "slug",
             "short_description",
             "description",
-            "category",
             "collection",
             "collection_detail",
-            "category_detail",
             "vendor",
             "product_type",
             "price_aed",
@@ -242,15 +224,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             return None
         return {"id": str(collection.id), "title": collection.title, "slug": collection.slug}
 
-    def get_category_detail(self, obj):
-        category = obj.category
-        if not category:
-            return None
-        return {"id": str(category.id), "name": category.name, "slug": category.slug}
-
-
 class ProductWriteSerializer(serializers.ModelSerializer):
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), required=False, allow_null=True)
     collection = serializers.PrimaryKeyRelatedField(queryset=Collection.objects.all(), required=False, allow_null=True)
     tags = serializers.ListField(child=serializers.CharField(max_length=80), required=False)
     attributes = ProductAttributeSerializer(many=True, required=False)
@@ -263,7 +237,6 @@ class ProductWriteSerializer(serializers.ModelSerializer):
             "slug",
             "short_description",
             "description",
-            "category",
             "collection",
             "vendor",
             "product_type",
@@ -307,11 +280,8 @@ class ProductWriteSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         collection = attrs.get("collection", getattr(self.instance, "collection", None))
-        category = attrs.get("category", getattr(self.instance, "category", None))
         if collection and (collection.deleted_at is not None or not collection.is_active):
             raise serializers.ValidationError({"collection": ["Collection must be active."]})
-        if category and (category.deleted_at is not None or not category.is_active):
-            raise serializers.ValidationError({"category": ["Category must be active."]})
         return attrs
 
     @transaction.atomic

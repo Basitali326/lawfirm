@@ -5,7 +5,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.ecommerce.models import (
-    Category,
     Collection,
     Order,
     Product,
@@ -18,7 +17,6 @@ from apps.ecommerce.permissions import HasEcommerceAccess, IsAdminStaffOrSuperAd
 from apps.ecommerce.serializers import (
     CartItemInputSerializer,
     CartItemUpdateSerializer,
-    CategorySerializer,
     CheckoutSerializer,
     CollectionSerializer,
     OrderListSerializer,
@@ -126,59 +124,6 @@ class CollectionViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
         return api_success("Collection deleted", data={"id": str(instance.id)})
 
 
-class CategoryViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
-    serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["categories.view"])]
-
-    def get_permissions(self):
-        if self.action == "create":
-            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["categories.add"])]
-        elif self.action in {"update", "partial_update"}:
-            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["categories.update"])]
-        elif self.action == "destroy":
-            self.permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["categories.delete"])]
-        return [permission() for permission in self.permission_classes]
-
-    def get_queryset(self):
-        return Category.objects.filter(firm=self.get_firm(), deleted_at__isnull=True).order_by("name")
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        search = (request.query_params.get("search") or "").strip()
-        if search:
-            queryset = queryset.filter(Q(name__icontains=search) | Q(slug__icontains=search))
-        data, meta = self.paginate_payload(queryset, self.serializer_class)
-        return api_success("Categories retrieved", data=data, meta=meta)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        return api_success("Category retrieved", data=self.get_serializer(instance).data)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
-        serializer.save(firm=self.get_firm())
-        return api_success("Category created", data=serializer.data, status_code=status.HTTP_201_CREATED)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if not serializer.is_valid():
-            return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
-        serializer.save()
-        return api_success("Category updated", data=serializer.data)
-
-    def perform_create(self, serializer):
-        serializer.save(firm=self.get_firm())
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.soft_delete()
-        return api_success("Category deleted", data={"id": str(instance.id)})
-
-
 class ProductViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasEcommerceAccess.with_perms(["products.view"])]
 
@@ -211,9 +156,6 @@ class ProductViewSet(EcommerceAdminMixin, viewsets.ModelViewSet):
         status_filter = request.query_params.get("status")
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-        category_id = request.query_params.get("category")
-        if category_id:
-            queryset = queryset.filter(category_id=category_id)
         collection_id = request.query_params.get("collection")
         if collection_id:
             queryset = queryset.filter(collection_id=collection_id)
@@ -391,21 +333,6 @@ class StoreCollectionListView(APIView):
         return api_success("Store collections retrieved", data=data, meta=meta)
 
 
-class StoreCategoryListView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        firm = resolve_firm(request, allow_public=True)
-        if not firm:
-            return api_error("Firm not found", status_code=status.HTTP_404_NOT_FOUND)
-        queryset = Category.objects.filter(firm=firm, deleted_at__isnull=True, is_active=True).order_by("name")
-        paginator = EcommercePagination()
-        page = paginator.paginate_queryset(queryset, request, view=self)
-        data = CategorySerializer(page or queryset, many=True).data
-        meta = pagination_meta(paginator, request) if page is not None else None
-        return api_success("Store categories retrieved", data=data, meta=meta)
-
-
 class StoreProductListView(APIView):
     permission_classes = [AllowAny]
 
@@ -417,8 +344,6 @@ class StoreProductListView(APIView):
         search = (request.query_params.get("search") or "").strip()
         if search:
             queryset = queryset.filter(Q(title__icontains=search) | Q(vendor__icontains=search) | Q(sku__icontains=search))
-        if request.query_params.get("category"):
-            queryset = queryset.filter(category_id=request.query_params.get("category"))
         if request.query_params.get("collection"):
             queryset = queryset.filter(collection_id=request.query_params.get("collection"))
         if request.query_params.get("featured") in {"1", "true", "True"}:
@@ -458,7 +383,10 @@ class StoreProductDetailView(APIView):
         if not firm:
             return api_error("Firm not found", status_code=status.HTTP_404_NOT_FOUND)
         product = get_object_or_404(product_queryset_for_store(firm), slug=slug)
-        related = product_queryset_for_store(firm).filter(category=product.category).exclude(id=product.id)[:4]
+        if product.collection_id:
+            related = product_queryset_for_store(firm).filter(collection=product.collection).exclude(id=product.id)[:4]
+        else:
+            related = product_queryset_for_store(firm).exclude(id=product.id)[:4]
         data = ProductDetailSerializer(product, context={"request": request}).data
         data["related_products"] = ProductListSerializer(related, many=True, context={"request": request}).data
         return api_success("Store product retrieved", data=data)

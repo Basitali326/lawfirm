@@ -49,7 +49,6 @@ const iconMap = {
   "/audit-logs": ShieldCheck,
   "/dashboard/products": Package2,
   "/dashboard/collections": Boxes,
-  "/dashboard/categories": Boxes,
   "/dashboard/orders": ShoppingBag,
   "/trash": Trash2,
   "/settings": Settings,

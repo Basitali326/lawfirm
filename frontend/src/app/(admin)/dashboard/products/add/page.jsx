@@ -7,16 +7,15 @@ import ProductForm from "@/components/ecommerce/admin/ProductForm";
 import Loader from "@/components/Loader";
 import { collectFieldErrors } from "@/lib/ecommerce";
 import { normalizeError } from "@/lib/errors";
-import { useAdminCategoriesQuery, useAdminCollectionsQuery, useProductMutations } from "@/features/ecommerce/ecommerce.hooks";
+import { useAdminCollectionsQuery, useProductMutations } from "@/features/ecommerce/ecommerce.hooks";
 
 export default function AddProductPage() {
   const router = useRouter();
   const collectionsQuery = useAdminCollectionsQuery({ page: 1 });
-  const categoriesQuery = useAdminCategoriesQuery({ page: 1 });
   const mutations = useProductMutations();
   const [serverErrors, setServerErrors] = useState({});
 
-  if (collectionsQuery.isLoading || categoriesQuery.isLoading) return <Loader />;
+  if (collectionsQuery.isLoading) return <Loader />;
 
   return (
     <div className="space-y-6">
@@ -26,7 +25,6 @@ export default function AddProductPage() {
       </div>
       <ProductForm
         collections={collectionsQuery.data?.data || []}
-        categories={categoriesQuery.data?.data || []}
         loading={mutations.create.isPending}
         serverErrors={serverErrors}
         onSubmit={async (values) => {

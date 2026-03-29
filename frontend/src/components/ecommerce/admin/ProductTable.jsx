@@ -30,7 +30,6 @@ export default function ProductTable({
       render: (row) => <ProductThumb src={row.feature_image} alt={row.title} />,
     },
     { key: "title", header: "Title", sortable: true },
-    { key: "category", header: "Category" },
     { key: "collection", header: "Collection" },
     {
       key: "price_aed",

@@ -9,17 +9,16 @@ import Loader from "@/components/Loader";
 import ProductForm from "@/components/ecommerce/admin/ProductForm";
 import { collectFieldErrors } from "@/lib/ecommerce";
 import { normalizeError } from "@/lib/errors";
-import { useAdminCategoriesQuery, useAdminCollectionsQuery, useAdminProductQuery, useProductMutations } from "@/features/ecommerce/ecommerce.hooks";
+import { useAdminCollectionsQuery, useAdminProductQuery, useProductMutations } from "@/features/ecommerce/ecommerce.hooks";
 
 export default function EditProductPage() {
   const params = useParams();
   const collectionsQuery = useAdminCollectionsQuery({ page: 1 });
-  const categoriesQuery = useAdminCategoriesQuery({ page: 1 });
   const productQuery = useAdminProductQuery(params.id);
   const mutations = useProductMutations();
   const [serverErrors, setServerErrors] = useState({});
 
-  if (collectionsQuery.isLoading || categoriesQuery.isLoading || productQuery.isLoading) return <Loader />;
+  if (collectionsQuery.isLoading || productQuery.isLoading) return <Loader />;
   const product = productQuery.data?.data || productQuery.data;
 
   return (
@@ -38,7 +37,6 @@ export default function EditProductPage() {
       <ProductForm
         initialValues={product}
         collections={collectionsQuery.data?.data || []}
-        categories={categoriesQuery.data?.data || []}
         loading={mutations.update.isPending}
         mediaUploading={mutations.uploadMedia.isPending}
         serverErrors={serverErrors}

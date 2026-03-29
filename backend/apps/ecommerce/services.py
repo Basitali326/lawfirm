@@ -12,7 +12,6 @@ from apps.ecommerce.models import (
     Cart,
     CartItem,
     CartStatus,
-    Category,
     Collection,
     Order,
     OrderItem,
@@ -42,7 +41,18 @@ def resolve_firm(request, *, allow_public=False):
         firm_slug = request.query_params.get("firm_slug")
         if firm_slug:
             return Firm.objects.filter(slug=firm_slug).first()
-        public_firm = Firm.objects.filter(status="ACTIVE").order_by("created_at").first()
+        public_firm = (
+            Firm.objects.filter(
+                status="ACTIVE",
+                ecommerce_products__deleted_at__isnull=True,
+                ecommerce_products__status=ProductStatus.ACTIVE,
+            )
+            .distinct()
+            .order_by("created_at")
+            .first()
+        )
+        if not public_firm:
+            public_firm = Firm.objects.filter(status="ACTIVE").order_by("created_at").first()
         if public_firm:
             return public_firm
     return None
@@ -62,7 +72,7 @@ def pagination_meta(paginator, request):
 def product_queryset_for_admin(firm):
     return (
         Product.objects.filter(firm=firm, deleted_at__isnull=True)
-        .select_related("collection", "category")
+        .select_related("collection")
         .prefetch_related(
             Prefetch(
                 "media",
@@ -85,10 +95,7 @@ def product_queryset_for_store(firm):
         .filter(
             Q(collection__isnull=True) | Q(collection__deleted_at__isnull=True, collection__is_active=True)
         )
-        .filter(
-            Q(category__isnull=True) | Q(category__deleted_at__isnull=True, category__is_active=True)
-        )
-        .select_related("collection", "category")
+        .select_related("collection")
         .prefetch_related(
             Prefetch(
                 "media",
@@ -187,7 +194,7 @@ def build_cart_payload(cart, request=None):
     items = []
     subtotal = Decimal("0.00")
     cart_items = (
-        cart.items.select_related("product", "variant", "product__collection", "product__category")
+        cart.items.select_related("product", "variant", "product__collection")
         .prefetch_related("product__media")
         .order_by("created_at")
     )

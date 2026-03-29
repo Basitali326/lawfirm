@@ -55,7 +55,7 @@ export default function StoreHomePage() {
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-slate-900">{product.title}</p>
-                    <p className="text-sm text-slate-500">{product.collection || product.category || "Product"}</p>
+                    <p className="text-sm text-slate-500">{product.collection || "Product"}</p>
                   </div>
                   <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
                     Quick add

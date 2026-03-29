@@ -1,6 +1,4 @@
 "use client";
-
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +24,6 @@ function parseTags(value) {
 export default function ProductForm({
   initialValues,
   collections = [],
-  categories = [],
   onSubmit,
   loading = false,
   serverErrors = {},
@@ -179,19 +176,8 @@ export default function ProductForm({
             </div>
           </SectionCard>
 
-          <SectionCard title="Organization" description="Place the product in the right collection and category for storefront filtering.">
+          <SectionCard title="Organization" description="Place the product in the right collection for storefront grouping.">
             <div className="grid gap-5 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="category">Category <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
-                <Select id="category" {...register("category")}>
-                  <option value="">Select category</option>
-                  {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </Select>
-                <FieldMessage error={errors.category?.message || serverErrors.category} />
-                <p className="text-xs text-slate-500">
-                  Need one? <Link href="/dashboard/categories/add" className="font-medium text-slate-700 underline-offset-4 hover:underline">Add category</Link>
-                </p>
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="collection">Collection <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Select id="collection" {...register("collection")}>

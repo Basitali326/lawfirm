@@ -13,7 +13,7 @@ function withQuery(path, params = {}) {
 }
 
 function getStorefrontFirmSlug() {
-  return process.env.NEXT_PUBLIC_STOREFRONT_FIRM_SLUG || "";
+  return process.env.NEXT_PUBLIC_STOREFRONT_FIRM_SLUG || process.env.NEXT_PUBLIC_FIRM_SLUG || "";
 }
 
 async function publicRequest(path, { method = "GET", body, headers = {} } = {}) {
@@ -56,26 +56,6 @@ export function updateCollection(id, payload) {
 
 export function deleteCollection(id) {
   return localFetch(`/api/v1/collections/${id}/`, { method: "DELETE" });
-}
-
-export function listCategories(params = {}) {
-  return localFetch(withQuery("/api/v1/categories/", params));
-}
-
-export function createCategory(payload) {
-  return localFetch("/api/v1/categories/", { method: "POST", body: JSON.stringify(payload) });
-}
-
-export function getCategory(id) {
-  return localFetch(`/api/v1/categories/${id}/`);
-}
-
-export function updateCategory(id, payload) {
-  return localFetch(`/api/v1/categories/${id}/`, { method: "PATCH", body: JSON.stringify(payload) });
-}
-
-export function deleteCategory(id) {
-  return localFetch(`/api/v1/categories/${id}/`, { method: "DELETE" });
 }
 
 export function listProducts(params = {}) {
@@ -171,10 +151,6 @@ export function getStoreProduct(slug) {
 
 export function listStoreCollections(params = {}) {
   return publicRequest(withQuery("/api/v1/store/collections/", { firm_slug: getStorefrontFirmSlug(), ...params }));
-}
-
-export function listStoreCategories(params = {}) {
-  return publicRequest(withQuery("/api/v1/store/categories/", { firm_slug: getStorefrontFirmSlug(), ...params }));
 }
 
 export function listFeaturedProducts(params = {}) {

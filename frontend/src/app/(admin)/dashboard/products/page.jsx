@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PRODUCT_STATUS_OPTIONS } from "@/types/ecommerce";
-import { useAdminCategoriesQuery, useAdminCollectionsQuery, useAdminProductsQuery, useProductMutations } from "@/features/ecommerce/ecommerce.hooks";
+import { useAdminCollectionsQuery, useAdminProductsQuery, useProductMutations } from "@/features/ecommerce/ecommerce.hooks";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -19,7 +19,6 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [collection, setCollection] = useState("");
-  const [category, setCategory] = useState("");
   const [sortField, setSortField] = useState("updated_at");
   const [sortDirection, setSortDirection] = useState("desc");
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -28,11 +27,9 @@ export default function ProductsPage() {
     search,
     status,
     collection,
-    category,
     sort: `${sortDirection === "desc" ? "-" : ""}${sortField}`,
   });
   const collectionsQuery = useAdminCollectionsQuery({ page: 1 });
-  const categoriesQuery = useAdminCategoriesQuery({ page: 1 });
   const { remove } = useProductMutations();
 
   const rows = useMemo(() => productsQuery.data?.data || [], [productsQuery.data]);
@@ -50,7 +47,7 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      {!productsQuery.isLoading && rows.length === 0 && !search && !status && !collection && !category ? (
+      {!productsQuery.isLoading && rows.length === 0 && !search && !status && !collection ? (
         <EmptyState
           title="No products yet"
           actionLabel="Create your first product"
@@ -74,7 +71,7 @@ export default function ProductsPage() {
           }}
           onDelete={setPendingDelete}
           toolbar={
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-3">
               <Input placeholder="Search title, SKU, vendor" value={search} onChange={(e) => setSearch(e.target.value)} />
               <Select value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="">All statuses</option>
@@ -83,10 +80,6 @@ export default function ProductsPage() {
               <Select value={collection} onChange={(e) => setCollection(e.target.value)}>
                 <option value="">All collections</option>
                 {(collectionsQuery.data?.data || []).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-              </Select>
-              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">All categories</option>
-                {(categoriesQuery.data?.data || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </Select>
             </div>
           }

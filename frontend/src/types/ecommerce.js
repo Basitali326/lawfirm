@@ -28,7 +28,6 @@ export const DEFAULT_PRODUCT_FORM = {
   slug: "",
   short_description: "",
   description: "",
-  category: "",
   collection: "",
   vendor: "",
   product_type: "",

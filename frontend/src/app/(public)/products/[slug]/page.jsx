@@ -45,7 +45,7 @@ export default function ProductDetailPage({ params }) {
         </div>
         <div className="space-y-6">
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{product.collection_detail?.title || product.category_detail?.name || "Product"}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{product.collection_detail?.title || "Product"}</p>
             <h1 className="text-4xl font-semibold tracking-tight text-slate-950">{product.title}</h1>
             <div className="flex items-center gap-3">
               <span className="text-2xl font-semibold text-slate-950">{formatAED(selectedVariant?.price_aed || product.price_aed)}</span>

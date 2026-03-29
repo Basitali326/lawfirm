@@ -19,7 +19,7 @@ export default function ProductCard({ product, onQuickAdd, adding = false }) {
       </Link>
       <div className="space-y-3 p-5">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{product.collection || product.category || "Product"}</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{product.collection || "Product"}</p>
           <Link href={`/products/${product.slug}`} className="block text-lg font-semibold text-slate-900">
             {product.title}
           </Link>
