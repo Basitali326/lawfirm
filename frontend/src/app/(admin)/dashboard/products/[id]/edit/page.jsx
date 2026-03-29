@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { ArrowLeft } from "lucide-react";
 
 import Loader from "@/components/Loader";
 import ProductForm from "@/components/ecommerce/admin/ProductForm";
@@ -23,6 +25,13 @@ export default function EditProductPage() {
   return (
     <div className="space-y-6">
       <div>
+        <Link
+          href="/dashboard/products"
+          className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to products
+        </Link>
         <h1 className="text-2xl font-semibold text-slate-900">Edit Product</h1>
         <p className="text-sm text-slate-500">Update media, organization, pricing, and publishing state.</p>
       </div>

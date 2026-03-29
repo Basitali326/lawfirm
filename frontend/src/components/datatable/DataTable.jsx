@@ -12,6 +12,8 @@ export default function DataTable({
   currentSort,
   toolbar,
 }) {
+  const safeRows = Array.isArray(rows) ? rows.filter(Boolean) : [];
+
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {toolbar ? <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">{toolbar}</div> : null}
@@ -57,18 +59,18 @@ export default function DataTable({
                   Loading...
                 </td>
               </tr>
-            ) : rows.length === 0 ? (
+            ) : safeRows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-6 text-center text-slate-500">
                   No records found.
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50">
+              safeRows.map((row, index) => (
+                <tr key={row.id || index} className="border-b border-slate-100 hover:bg-slate-50">
                   {columns.map((col) => (
                     <td key={col.key} className="whitespace-nowrap px-4 py-3">
-                      {col.render ? col.render(row) : row[col.key]}
+                      {col.render ? col.render(row) : row?.[col.key]}
                     </td>
                   ))}
                 </tr>
