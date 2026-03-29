@@ -189,5 +189,5 @@ export function createCheckout(payload, cartKey) {
 }
 
 export function getOrderSuccess(token) {
-  return localFetch(withQuery(`/api/v1/store/orders/success/${token}/`, { firm_slug: getStorefrontFirmSlug() }));
+  return publicRequest(withQuery(`/api/v1/store/orders/success/${token}/`, { firm_slug: getStorefrontFirmSlug() }));
 }

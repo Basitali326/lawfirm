@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 import Loader from "@/components/Loader";
 import StatusBadge from "@/components/ecommerce/StatusBadge";
@@ -8,11 +9,27 @@ import { Button } from "@/components/ui/button";
 import { formatAED, formatDateTime } from "@/lib/ecommerce";
 import { useOrderSuccessQuery } from "@/features/ecommerce/ecommerce.hooks";
 
-export default function OrderSuccessPage({ params }) {
-  const { data, isLoading } = useOrderSuccessQuery(params.token);
+export default function OrderSuccessPage() {
+  const params = useParams();
+  const token = typeof params?.token === "string" ? params.token : "";
+  const { data, isLoading, isError } = useOrderSuccessQuery(token, { enabled: !!token });
 
   if (isLoading) return <Loader />;
   const order = data?.data || data;
+  if (isError || !order?.id) {
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="rounded-[2.5rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Order success</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Unable to load this order</h1>
+          <p className="mt-3 text-sm text-slate-600">The order token may be invalid or the public order response failed.</p>
+          <Button asChild className="mt-6">
+            <Link href="/products">Back to products</Link>
+          </Button>
+        </div>
+      </main>
+    );
+  }
   const shipping = order.shipping_address || {};
 
   return (
