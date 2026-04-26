@@ -112,7 +112,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         invoice = serializer.save()
         notify_invoice_created(invoice, actor=request.user)
-        return api_success("OK", data=InvoiceDetailSerializer(invoice).data, message="Invoice created")
+        return api_success(
+            message="Invoice created",
+            data=InvoiceDetailSerializer(invoice).data,
+            status_code=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, HasRBACPermission.with_perms(["payments.view"])])
     def payments(self, request, pk=None):

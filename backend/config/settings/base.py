@@ -11,8 +11,9 @@ env = environ.Env(
     DJANGO_SECRET_KEY=(str, 'change-me'),
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
-    # default SQLite stays in backend/ when you run manage.py from that folder
-    DATABASE_URL=(str, 'sqlite:///db.sqlite3'),
+    DATABASE_URL=(str, 'postgresql://'),
+    DATABASE_CONNECT_TIMEOUT=(int, 5),
+    DB_DEBUG_ON_STARTUP=(bool, True),
     REDIS_URL=(str, 'redis://127.0.0.1:6379/0'),
     CORS_ALLOWED_ORIGINS=(list, []),
     CSRF_TRUSTED_ORIGINS=(list, []),
@@ -46,6 +47,13 @@ ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 DATABASES = {
     'default': env.db(),
 }
+
+if DATABASES['default'].get('ENGINE') == 'django.db.backends.postgresql':
+    DATABASES['default'].setdefault('OPTIONS', {})
+    DATABASES['default']['OPTIONS'].setdefault(
+        'connect_timeout',
+        env('DATABASE_CONNECT_TIMEOUT'),
+    )
 
 INSTALLED_APPS = [
     'daphne',
