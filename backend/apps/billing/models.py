@@ -135,7 +135,7 @@ class Payment(models.Model):
     paid_at = models.DateTimeField(default=timezone.now)
     received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="payments_received")
     notes = models.TextField(null=True, blank=True)
-    reference_number = models.CharField(max_length=64, null=True, blank=True)
+    reference_number = models.CharField(max_length=255, null=True, blank=True)
     stripe_checkout_session_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     stripe_checkout_url = models.URLField(max_length=500, null=True, blank=True)
     stripe_payment_intent_id = models.CharField(max_length=255, unique=True, null=True, blank=True)

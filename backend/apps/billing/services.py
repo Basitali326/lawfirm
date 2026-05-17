@@ -130,7 +130,11 @@ def create_stripe_checkout_session(*, invoice, amount, request, notes=""):
     payment_id = uuid.uuid4()
 
     with transaction.atomic():
-        inv = Invoice.objects.select_for_update().select_related("firm", "client__user").get(id=invoice.id)
+        inv = (
+            Invoice.objects.select_for_update(of=("self",))
+            .select_related("firm", "client__user")
+            .get(id=invoice.id)
+        )
         if inv.status == InvoiceStatus.CANCELLED:
             raise StripePaymentError("Invoice is cancelled")
         if inv.status == InvoiceStatus.PAID:
@@ -200,7 +204,7 @@ def create_stripe_checkout_session(*, invoice, amount, request, notes=""):
         stripe_checkout_session_id=session.id,
         stripe_checkout_url=session.url,
         stripe_payment_status=getattr(session, "payment_status", None) or getattr(session, "status", None),
-        reference_number=session.id,
+        reference_number=payment.invoice.invoice_number,
     )
     payment.refresh_from_db()
     return payment, session
@@ -330,8 +334,7 @@ def _handle_checkout_session(session, event_type):
         update_fields = []
         if session_id and payment.stripe_checkout_session_id != session_id:
             payment.stripe_checkout_session_id = session_id
-            payment.reference_number = session_id
-            update_fields.extend(["stripe_checkout_session_id", "reference_number"])
+            update_fields.append("stripe_checkout_session_id")
         if update_fields:
             payment.save(update_fields=update_fields)
 
