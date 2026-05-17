@@ -24,7 +24,7 @@ export default function InvoicesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Invoices</h1>
-          <p className="text-sm text-slate-500">Manual cash payments only.</p>
+          <p className="text-sm text-slate-500">Stripe checkout and manual payment tracking.</p>
         </div>
         <button
           onClick={() => setShowNew(true)}

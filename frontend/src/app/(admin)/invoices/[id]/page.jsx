@@ -1,21 +1,118 @@
 "use client";
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import apiFetch, { tokenStore } from "@/lib/api";
 import { useInvoiceDetail, useInvoicePayments } from "@/hooks/useInvoiceDetail";
 import AddPaymentDrawer from "@/components/billing/AddPaymentDrawer";
 import InvoiceHeader from "@/components/billing/InvoiceHeader";
 import PaymentsTable from "@/components/billing/PaymentsTable";
+import StripePaymentResultBanner from "@/components/billing/StripePaymentResultBanner";
 import { API_BASE_URL } from "@/lib/config";
-import { tokenStore } from "@/lib/api";
+
+const OUTCOME_MESSAGES = {
+  success: "Your payment was received and the invoice has been updated.",
+  pending: "Stripe is still processing this payment. Refresh in a moment if the status does not update.",
+  failed: "The payment could not be completed. You can try again with Add Payment.",
+  cancelled: "You left Stripe Checkout before paying. No charge was made.",
+};
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { data: invoiceRes, isLoading } = useInvoiceDetail(id);
   const invoice = invoiceRes?.data || invoiceRes;
   const { data: paymentsRes } = useInvoicePayments(id);
   const payments = paymentsRes?.data || paymentsRes || [];
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [stripeBanner, setStripeBanner] = useState(null);
+  const [verifyingStripe, setVerifyingStripe] = useState(false);
+  const stripeResult = searchParams.get("stripe");
+  const sessionId = searchParams.get("session_id");
+
+  useEffect(() => {
+    if (!id || !stripeResult) return;
+
+    let cancelled = false;
+
+    const clearStripeQuery = () => {
+      router.replace(`/invoices/${id}`, { scroll: false });
+    };
+
+    const refreshBilling = () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-payments", id] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    };
+
+    async function handleStripeReturn() {
+      if (stripeResult === "cancelled") {
+        setStripeBanner({ status: "cancelled", message: OUTCOME_MESSAGES.cancelled });
+        toast.message("Checkout cancelled");
+        refreshBilling();
+        clearStripeQuery();
+        return;
+      }
+
+      if (stripeResult !== "success") {
+        clearStripeQuery();
+        return;
+      }
+
+      if (!sessionId) {
+        setStripeBanner({
+          status: "pending",
+          message: "Payment submitted. If the invoice balance does not update, refresh this page.",
+        });
+        toast.message("Payment submitted");
+        refreshBilling();
+        clearStripeQuery();
+        return;
+      }
+
+      setVerifyingStripe(true);
+      try {
+        const data = await apiFetch(
+          `/api/v1/invoices/${id}/stripe-checkout-verify/?session_id=${encodeURIComponent(sessionId)}`
+        );
+        if (cancelled) return;
+
+        const outcome = data?.outcome || "pending";
+        const amount = data?.payment?.amount;
+        const currency = data?.payment?.currency || "AED";
+        let message = OUTCOME_MESSAGES[outcome] || OUTCOME_MESSAGES.pending;
+        if (outcome === "success" && amount) {
+          message = `Paid ${currency} ${amount}. ${message}`;
+        }
+
+        setStripeBanner({ status: outcome, message });
+        if (outcome === "success") toast.success("Payment successful");
+        else if (outcome === "failed") toast.error("Payment failed");
+        else toast.message("Payment processing");
+      } catch (err) {
+        if (cancelled) return;
+        const message =
+          err?.message ||
+          "We could not confirm the payment yet. Refresh shortly or check the payments list below.";
+        setStripeBanner({ status: "pending", message });
+        toast.error(message);
+      } finally {
+        if (!cancelled) {
+          setVerifyingStripe(false);
+          refreshBilling();
+          clearStripeQuery();
+        }
+      }
+    }
+
+    handleStripeReturn();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, queryClient, router, sessionId, stripeResult]);
 
   if (isLoading) return <div className="p-6">Loading...</div>;
   if (!invoice) return <div className="p-6 text-slate-600">Invoice not found.</div>;
@@ -28,6 +125,18 @@ export default function InvoiceDetailPage() {
       >
         ← Back to invoices
       </button>
+
+      {verifyingStripe ? (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Confirming your Stripe payment…
+        </div>
+      ) : null}
+
+      <StripePaymentResultBanner
+        status={stripeBanner?.status}
+        message={stripeBanner?.message}
+        onDismiss={() => setStripeBanner(null)}
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <InvoiceHeader invoice={invoice} />

@@ -1,25 +1,40 @@
+import stripe
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from io import BytesIO
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.views import APIView
 
 from apps.rbac.permissions import HasRBACPermission
 from apps.rbac.services import user_has_perm
 from core.responses import api_success, api_error
-from .models import Invoice, Payment, InvoiceStatus, PaymentMethod, CaseTypeFeePolicy
+from .models import Invoice, Payment, InvoiceStatus, PaymentMethod, CaseTypeFeePolicy, StripeWebhookEvent
 from .serializers import (
     InvoiceListSerializer,
     InvoiceDetailSerializer,
     InvoiceCreateSerializer,
     PaymentSerializer,
     PaymentCreateSerializer,
+    StripeCheckoutCreateSerializer,
     CaseTypeFeePolicySerializer,
 )
 from apps.notifx.services import notify_invoice_created, notify_payment_received
 from .pagination import BillingPagination
+from .services import (
+    StripePaymentError,
+    configure_stripe,
+    create_stripe_checkout_session,
+    verify_stripe_checkout_session,
+    process_stripe_event,
+)
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
@@ -27,6 +42,40 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasRBACPermission.with_perms(["invoices.view"])]
     serializer_class = InvoiceDetailSerializer
     pagination_class = BillingPagination
+    required_permissions_map = {
+        "list": ["invoices.view"],
+        "retrieve": ["invoices.view"],
+        "create": ["invoices.add"],
+        "payments": ["invoices.view", "payments.view"],
+        "add_payment": ["payments.add"],
+        "stripe_checkout": ["invoices.view"],
+        "stripe_checkout_verify": ["invoices.view"],
+        "pdf": ["invoices.view"],
+    }
+
+    def _is_invoice_admin(self, user):
+        profile = getattr(user, "profile", None)
+        role_upper = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
+        firm_id = (
+            getattr(user, "firm_id", None)
+            or getattr(profile, "firm_id", None)
+            or getattr(getattr(user, "owned_firm", None), "id", None)
+        )
+        is_owner_relation = getattr(getattr(user, "owned_firm", None), "id", None) == firm_id if firm_id else False
+        return (
+            role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"}
+            or is_owner_relation
+            or getattr(user, "is_superuser", False)
+        )
+
+    def get_permissions(self):
+        perms = self.required_permissions_map.get(self.action, ["invoices.view"])
+        if self.action == "payments":
+            return [
+                IsAuthenticated(),
+                HasRBACPermission.with_any_perms(perms)(),
+            ]
+        return [IsAuthenticated(), HasRBACPermission.with_perms(perms)()]
 
     def get_queryset(self):
         user = self.request.user
@@ -48,8 +97,10 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         client_profile = getattr(user, "client_profile", None)
 
         if not is_admin:
-            # client or non-admin staff: limit strictly to their own client profile
-            if client_profile:
+            can_view_firm_invoices = user_has_perm(user, "invoices.view") or user_has_perm(user, "payments.view")
+            if can_view_firm_invoices:
+                pass
+            elif client_profile:
                 base_qs = base_qs.filter(client=client_profile)
             else:
                 return Invoice.objects.none()
@@ -91,13 +142,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = get_object_or_404(self.get_queryset(), id=kwargs.get("pk"))
-        profile = getattr(request.user, "profile", None)
-        role_upper = (getattr(request.user, "role", "") or getattr(profile, "role", "") or "").upper()
-        is_admin = (
-            role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"}
-            or getattr(request.user, "is_superuser", False)
-        )
-        if not is_admin:
+        if not self._is_invoice_admin(request.user):
             if not instance.client or getattr(instance.client, "user_id", None) != request.user.id:
                 return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
         serializer = InvoiceDetailSerializer(instance)
@@ -118,7 +163,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             status_code=status.HTTP_201_CREATED,
         )
 
-    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, HasRBACPermission.with_perms(["payments.view"])])
+    @action(detail=True, methods=["get"])
     def payments(self, request, pk=None):
         invoice = get_object_or_404(self.get_queryset(), id=pk)
         payments_qs = invoice.payments.all().order_by("-created_at")
@@ -130,6 +175,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @payments.mapping.post
     def add_payment(self, request, pk=None):
+        if not HasRBACPermission.with_perms(["payments.add"])().has_permission(request, self):
+            return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
         invoice = get_object_or_404(self.get_queryset(), id=pk)
         if invoice.status == InvoiceStatus.CANCELLED:
             return api_error("Invoice is cancelled", status_code=status.HTTP_400_BAD_REQUEST)
@@ -148,7 +195,61 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             },
         )
 
-    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, HasRBACPermission.with_perms(["invoices.view"])])
+    @action(detail=True, methods=["post"], url_path="stripe-checkout")
+    def stripe_checkout(self, request, pk=None):
+        invoice = get_object_or_404(self.get_queryset(), id=pk)
+        serializer = StripeCheckoutCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+        try:
+            payment, session = create_stripe_checkout_session(
+                invoice=invoice,
+                amount=serializer.validated_data["amount"],
+                request=request,
+                notes=serializer.validated_data.get("notes") or "",
+            )
+        except StripePaymentError as exc:
+            return api_error(str(exc), status_code=status.HTTP_400_BAD_REQUEST)
+        except ImproperlyConfigured as exc:
+            return api_error(str(exc), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return api_success(
+            "Stripe checkout created",
+            data={
+                "checkout_url": session.url,
+                "session_id": session.id,
+                "payment": PaymentSerializer(payment).data,
+            },
+            status_code=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["get"], url_path="stripe-checkout-verify")
+    def stripe_checkout_verify(self, request, pk=None):
+        invoice = get_object_or_404(self.get_queryset(), id=pk)
+        session_id = (request.query_params.get("session_id") or "").strip()
+        if not session_id:
+            return api_error("session_id is required", status_code=status.HTTP_400_BAD_REQUEST)
+        try:
+            result = verify_stripe_checkout_session(invoice=invoice, session_id=session_id)
+        except StripePaymentError as exc:
+            return api_error(str(exc), status_code=status.HTTP_400_BAD_REQUEST)
+        except ImproperlyConfigured as exc:
+            return api_error(str(exc), status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        payment = result["payment"]
+        inv = result["invoice"]
+        return api_success(
+            "Stripe checkout verified",
+            data={
+                "outcome": result["outcome"],
+                "stripe_session_status": result["stripe_session_status"],
+                "stripe_checkout_status": result["stripe_checkout_status"],
+                "payment": PaymentSerializer(payment).data,
+                "invoice": InvoiceDetailSerializer(inv).data,
+            },
+        )
+
+    @action(detail=True, methods=["get"])
     def pdf(self, request, pk=None):
         invoice = get_object_or_404(self.get_queryset(), id=pk)
         try:
@@ -529,3 +630,70 @@ class CaseTypeFeePolicyViewSet(viewsets.ModelViewSet):
         instance.deleted_at = timezone.now()
         instance.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
         return api_success("Deleted", data={"id": str(instance.id)})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class StripeWebhookView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            configure_stripe()
+        except ImproperlyConfigured:
+            return HttpResponse(status=500)
+
+        endpoint_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "")
+        if not endpoint_secret:
+            return HttpResponse(status=500)
+
+        payload = request.body
+        sig_header = request.headers.get("Stripe-Signature") or request.META.get("HTTP_STRIPE_SIGNATURE")
+
+        try:
+            event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+        except ValueError:
+            return HttpResponse(status=400)
+        except stripe.error.SignatureVerificationError:
+            return HttpResponse(status=400)
+
+        event_payload = event.to_dict_recursive() if hasattr(event, "to_dict_recursive") else dict(event)
+        event_id = getattr(event, "id", None) or event_payload.get("id")
+        event_type = getattr(event, "type", None) or event_payload.get("type", "")
+        if not event_id:
+            return HttpResponse(status=400)
+
+        event_record, _ = StripeWebhookEvent.objects.get_or_create(
+            event_id=event_id,
+            defaults={
+                "event_type": event_type,
+                "payload": event_payload,
+            },
+        )
+        if event_record.processed_at:
+            return HttpResponse(status=200)
+
+        try:
+            payment, transitioned_to_succeeded = process_stripe_event(event)
+            event_record.payment = payment
+            event_record.event_type = event_type
+            event_record.payload = event_payload
+            event_record.processing_error = ""
+            event_record.processed_at = timezone.now()
+            event_record.save(
+                update_fields=[
+                    "payment",
+                    "event_type",
+                    "payload",
+                    "processing_error",
+                    "processed_at",
+                ]
+            )
+            if payment and transitioned_to_succeeded:
+                notify_payment_received(payment, actor=None)
+        except Exception as exc:
+            event_record.processing_error = str(exc)[:2000]
+            event_record.save(update_fields=["processing_error"])
+            return HttpResponse(status=500)
+
+        return HttpResponse(status=200)

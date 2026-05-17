@@ -15,6 +15,10 @@ class HasRBACPermission(BasePermission):
     required_permissions = []
 
     def has_permission(self, request, view):
+        any_perms = getattr(view, "required_permissions_any", getattr(self, "required_permissions_any", None))
+        if any_perms:
+            return any(user_has_perm(request.user, p) for p in any_perms)
+
         perms = getattr(view, "required_permissions", self.required_permissions)
         if not perms:
             return True
@@ -24,5 +28,13 @@ class HasRBACPermission(BasePermission):
     def with_perms(cls, perms):
         class _Wrapped(cls):
             required_permissions = perms
+
+        return _Wrapped
+
+    @classmethod
+    def with_any_perms(cls, perms):
+        class _Wrapped(cls):
+            required_permissions = []
+            required_permissions_any = perms
 
         return _Wrapped

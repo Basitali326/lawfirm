@@ -31,6 +31,7 @@ class PaymentStatus(models.TextChoices):
     FAILED = "FAILED", "Failed"
     PENDING = "PENDING", "Pending"
     REFUNDED = "REFUNDED", "Refunded"
+    PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED", "Partially refunded"
 
 
 class FirmInvoiceSequence(models.Model):
@@ -127,13 +128,19 @@ class Payment(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
     client = models.ForeignKey(ClientProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name="payments")
     payment_method = models.CharField(max_length=12, choices=PaymentMethod.choices)
-    payment_status = models.CharField(max_length=12, choices=PaymentStatus.choices, default=PaymentStatus.SUCCEEDED)
+    payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.SUCCEEDED)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    refunded_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     currency = models.CharField(max_length=10, default="AED")
     paid_at = models.DateTimeField(default=timezone.now)
     received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="payments_received")
     notes = models.TextField(null=True, blank=True)
     reference_number = models.CharField(max_length=64, null=True, blank=True)
+    stripe_checkout_session_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    stripe_checkout_url = models.URLField(max_length=500, null=True, blank=True)
+    stripe_payment_intent_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    stripe_charge_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    stripe_payment_status = models.CharField(max_length=32, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -145,3 +152,24 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment {self.amount} {self.currency}"
+
+
+class StripeWebhookEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event_id = models.CharField(max_length=255, unique=True)
+    event_type = models.CharField(max_length=128)
+    payment = models.ForeignKey(Payment, on_delete=models.SET_NULL, null=True, blank=True, related_name="stripe_events")
+    payload = models.JSONField(default=dict, blank=True)
+    processing_error = models.TextField(null=True, blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-received_at"]
+        indexes = [
+            models.Index(fields=["event_type", "received_at"]),
+            models.Index(fields=["processed_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} {self.event_id}"

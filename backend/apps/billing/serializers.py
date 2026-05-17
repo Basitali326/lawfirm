@@ -72,10 +72,14 @@ class PaymentSerializer(serializers.ModelSerializer):
             "payment_method",
             "payment_status",
             "amount",
+            "refunded_amount",
             "currency",
             "paid_at",
             "notes",
             "reference_number",
+            "stripe_checkout_session_id",
+            "stripe_payment_intent_id",
+            "stripe_payment_status",
             "received_by_email",
             "created_at",
         ]
@@ -134,6 +138,16 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
             except Exception:
                 pass
         return {"payment": payment, "invoice": inv}
+
+
+class StripeCheckoutCreateSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_amount(self, value):
+        if value is None or value <= Decimal("0"):
+            raise serializers.ValidationError("Amount must be greater than zero")
+        return value
 
 
 class InvoiceDetailSerializer(serializers.ModelSerializer):

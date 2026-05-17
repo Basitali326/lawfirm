@@ -13,12 +13,24 @@ def _cache_key(user_id: int):
     return f"user_perms:{user_id}"
 
 
+def user_is_firm_admin(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    profile = getattr(user, "profile", None)
+    role = (getattr(user, "role", "") or getattr(profile, "role", "") or "").replace(" ", "_").upper()
+    if getattr(user, "is_superuser", False) or role in {"SUPER_ADMIN", "FIRM_OWNER", "FIRM_ADMIN", "OWNER"}:
+        return True
+    return bool(getattr(user, "owned_firm", None))
+
+
 def user_has_perm(user, code: str) -> bool:
     if not user or not user.is_authenticated:
         return False
     # Super admins bypass per-code checks
     role = (getattr(user, "role", "") or getattr(getattr(user, "profile", None), "role", "") or "").upper()
     if getattr(user, "is_superuser", False) or role == "SUPER_ADMIN":
+        return True
+    if user_is_firm_admin(user) and (code.startswith("invoices.") or code.startswith("payments.")):
         return True
     return code in get_effective_permissions(user)
 

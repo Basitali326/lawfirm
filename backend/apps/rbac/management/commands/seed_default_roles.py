@@ -73,6 +73,7 @@ class Command(BaseCommand):
                 for a in acts:
                     if a in ["view", "download", "upload"] or (a == "add" and m in ["tasks", "documents", "messages"]):
                         lawyer_codes.append(f"{m}.{a}")
+        lawyer_codes.extend(["invoices.view", "payments.view"])
         assign_permissions_to_role(lawyer, lawyer_codes)
 
         # Paralegal: intake/clients add/view/update, cases view, documents upload, tasks view/add, messages add/view
