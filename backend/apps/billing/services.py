@@ -110,9 +110,29 @@ def _obj_value(obj, key, default=None):
     return getattr(obj, key, default)
 
 
+def _stripe_resource_id(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        return value
+    nested_id = _obj_value(value, "id", None)
+    if nested_id:
+        return str(nested_id)
+    return str(value)
+
+
 def _obj_metadata(obj):
-    data = _obj_value(obj, "metadata", {}) or {}
-    return dict(data)
+    data = _obj_value(obj, "metadata", None)
+    if not data:
+        return {}
+    if isinstance(data, dict):
+        return {str(key): data[key] for key in data}
+    to_dict = getattr(data, "to_dict", None)
+    if callable(to_dict):
+        converted = to_dict()
+        if isinstance(converted, dict):
+            return {str(key): converted[key] for key in converted}
+    return {}
 
 
 def _safe_uuid(value):
@@ -290,7 +310,7 @@ def _apply_payment_status(payment, next_status, *, stripe_status=None, payment_i
 
     if payment_intent_id and payment.stripe_payment_intent_id != payment_intent_id:
         payment.stripe_payment_intent_id = payment_intent_id
-        payment.reference_number = payment_intent_id
+        payment.reference_number = payment_intent_id[:255]
         update_fields.extend(["stripe_payment_intent_id", "reference_number"])
     if charge_id and payment.stripe_charge_id != charge_id:
         payment.stripe_charge_id = charge_id
@@ -328,8 +348,8 @@ def _handle_checkout_session(session, event_type):
             payment.currency = (_obj_value(session, "currency", "aed") or "aed").upper()
             payment.save(update_fields=["amount", "currency"])
 
-        session_id = _obj_value(session, "id")
-        payment_intent_id = _obj_value(session, "payment_intent")
+        session_id = _stripe_resource_id(_obj_value(session, "id"))
+        payment_intent_id = _stripe_resource_id(_obj_value(session, "payment_intent"))
         payment_status = _obj_value(session, "payment_status") or _obj_value(session, "status")
         update_fields = []
         if session_id and payment.stripe_checkout_session_id != session_id:
@@ -358,7 +378,7 @@ def _handle_checkout_session(session, event_type):
 
 def _handle_payment_intent(payment_intent):
     metadata = _obj_metadata(payment_intent)
-    payment_intent_id = _obj_value(payment_intent, "id")
+    payment_intent_id = _stripe_resource_id(_obj_value(payment_intent, "id"))
     with transaction.atomic():
         payment = Payment.objects.select_for_update().filter(stripe_payment_intent_id=payment_intent_id).first()
         if not payment:
@@ -385,14 +405,14 @@ def _handle_payment_intent(payment_intent):
             next_status,
             stripe_status=pi_status,
             payment_intent_id=payment_intent_id,
-            charge_id=_obj_value(payment_intent, "latest_charge"),
+            charge_id=_stripe_resource_id(_obj_value(payment_intent, "latest_charge")),
         )
         return payment, transitioned
 
 
 def _handle_charge_refund(charge):
-    payment_intent_id = _obj_value(charge, "payment_intent")
-    charge_id = _obj_value(charge, "id")
+    payment_intent_id = _stripe_resource_id(_obj_value(charge, "payment_intent"))
+    charge_id = _stripe_resource_id(_obj_value(charge, "id"))
     with transaction.atomic():
         payment = Payment.objects.select_for_update().filter(
             models.Q(stripe_charge_id=charge_id) | models.Q(stripe_payment_intent_id=payment_intent_id)

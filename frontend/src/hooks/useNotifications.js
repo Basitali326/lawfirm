@@ -18,20 +18,13 @@ const NotificationsContext = createContext(null);
 function shouldToastNotification(notification) {
   const priority = String(notification?.priority || "").toUpperCase();
   const type = String(notification?.type || "").toUpperCase();
-  return ["HIGH", "URGENT"].includes(priority) || ["TASK_ASSIGNED", "CHAT_MENTION", "CHAT_MESSAGE"].includes(type);
-}
-
-function isChatNotification(notification) {
-  const type = String(notification?.type || "").toUpperCase();
-  return type === "CHAT_MENTION" || type === "CHAT_MESSAGE";
+  return ["HIGH", "URGENT"].includes(priority) || type === "TASK_ASSIGNED";
 }
 
 export function NotificationsProvider({ children }) {
   const pathname = usePathname();
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [messageAlerts, setMessageAlerts] = useState([]);
-  const [messageAlertUnread, setMessageAlertUnread] = useState(0);
   const [loadingList, setLoadingList] = useState(false);
   const [loadingUnread, setLoadingUnread] = useState(false);
   const [error, setError] = useState(null);
@@ -39,7 +32,6 @@ export function NotificationsProvider({ children }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [hasLoadedList, setHasLoadedList] = useState(false);
   const seenIdsRef = useRef(new Set());
-  const seenMessageIdsRef = useRef(new Set());
   const wsRef = useRef(null);
   const reconnectRef = useRef(null);
   const staleDebounceRef = useRef(null);
@@ -93,17 +85,6 @@ export function NotificationsProvider({ children }) {
 
   const markRead = useCallback(async (id) => {
     if (!id) return;
-    if (String(id).startsWith("chat-local-")) {
-      setMessageAlerts((prev) =>
-        prev.map((item) =>
-          String(item.id) === String(id)
-            ? { ...item, read_at: item.read_at || new Date().toISOString() }
-            : item
-        )
-      );
-      setMessageAlertUnread((prev) => Math.max(0, prev - 1));
-      return;
-    }
     const result = await markNotificationRead(id);
     setItems((prev) =>
       prev.map((item) =>
@@ -116,8 +97,6 @@ export function NotificationsProvider({ children }) {
   }, []);
 
   const markAllRead = useCallback(async () => {
-    setMessageAlerts((prev) => prev.map((item) => ({ ...item, read_at: item.read_at || new Date().toISOString() })));
-    setMessageAlertUnread(0);
     const result = await markAllNotificationsRead();
     setItems((prev) => prev.map((item) => ({ ...item, read_at: item.read_at || new Date().toISOString() })));
     setUnreadCount(result.unreadCount);
@@ -127,41 +106,6 @@ export function NotificationsProvider({ children }) {
     (event) => {
       if (!event || typeof event !== "object") return;
       const type = event.type;
-      if (type === "message.new") {
-        const message = event.message;
-        const messageId = String(message?.id || "");
-        if (!messageId || pathname.startsWith("/messages")) {
-          return;
-        }
-        if (seenMessageIdsRef.current.has(messageId)) {
-          return;
-        }
-        seenMessageIdsRef.current.add(messageId);
-        const syntheticId = `chat-local-${messageId}`;
-        const localItem = {
-          id: syntheticId,
-          type: "CHAT_MESSAGE",
-          title: "New message",
-          body: message?.body || "",
-          priority: "MEDIUM",
-          data: { room_id: message?.room || null, message_id: messageId },
-          created_at: message?.created_at || new Date().toISOString(),
-          read_at: null,
-          source_user: message?.sender || null,
-        };
-        setMessageAlerts((prev) => [localItem, ...prev].slice(0, 20));
-        setMessageAlertUnread((prev) => prev + 1);
-        try {
-          window.dispatchEvent(
-            new CustomEvent("chat:new-message", {
-              detail: { roomId: message?.room || null, messageId },
-            })
-          );
-        } catch (_) {
-          // no-op
-        }
-        return;
-      }
       if (type === "notification.new") {
         const notification = event.notification;
         if (!notification?.id) return;
@@ -184,22 +128,6 @@ export function NotificationsProvider({ children }) {
           toast.info(notification.title || "New notification", {
             description: notification.body || undefined,
           });
-        }
-
-        // For dashboard/other pages, message badge should update in real-time.
-        if (isChatNotification(notification)) {
-          try {
-            window.dispatchEvent(
-              new CustomEvent("chat:new-message", {
-                detail: {
-                  roomId: notification?.data?.room_id || null,
-                  messageId: notification?.data?.message_id || null,
-                },
-              })
-            );
-          } catch (_) {
-            // no-op
-          }
         }
       }
       if (type === "notification.badge") {
@@ -250,7 +178,7 @@ export function NotificationsProvider({ children }) {
       ws.onmessage = (raw) => {
         try {
           const event = JSON.parse(raw.data);
-          if (event?.type !== "message.new" && !String(event?.type || "").startsWith("notification.")) return;
+          if (!String(event?.type || "").startsWith("notification.")) return;
           handleRealtimeEvent(event);
         } catch (_) {}
       };
@@ -275,15 +203,13 @@ export function NotificationsProvider({ children }) {
   useEffect(() => {
     if (typeof document === "undefined") return;
     const baseTitle = document.title.replace(/^\(\d+\)\s+/, "");
-    const messageUnreadFromApi = (items || []).filter((item) => !item?.read_at && isChatNotification(item)).length;
-    const totalMessageUnread = messageUnreadFromApi + messageAlertUnread;
-    document.title = totalMessageUnread > 0 ? `(${totalMessageUnread}) ${baseTitle}` : baseTitle;
-  }, [items, messageAlertUnread]);
+    document.title = unreadCount > 0 ? `(${unreadCount}) ${baseTitle}` : baseTitle;
+  }, [unreadCount]);
 
   const value = useMemo(
     () => ({
-      items: [...messageAlerts, ...items],
-      unreadCount: unreadCount + messageAlertUnread,
+      items,
+      unreadCount,
       loadingList,
       loadingUnread,
       error,
@@ -298,10 +224,7 @@ export function NotificationsProvider({ children }) {
       handleRealtimeEvent,
       resetList: () => {
         seenIdsRef.current = new Set();
-        seenMessageIdsRef.current = new Set();
         setItems([]);
-        setMessageAlerts([]);
-        setMessageAlertUnread(0);
         setNextCursor(null);
         setHasLoadedList(false);
       },
@@ -315,8 +238,6 @@ export function NotificationsProvider({ children }) {
       items,
       loadingList,
       loadingUnread,
-      messageAlertUnread,
-      messageAlerts,
       markAllRead,
       markRead,
       nextCursor,

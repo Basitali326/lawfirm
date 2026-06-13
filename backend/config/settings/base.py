@@ -76,7 +76,6 @@ INSTALLED_APPS = [
     'core',
     # realtime + notifications
     'channels',
-    'apps.chatx',
     'apps.notifx',
     'apps.wsx',
     'apps.authx',
@@ -163,7 +162,6 @@ REST_FRAMEWORK = {
         'intake_public_minute': '5/min',
         'intake_public_hour': '30/hour',
         'intake_phone_email_hour': '3/hour',
-        'chat_send': '5/second',
     },
     'DEFAULT_PAGINATION_CLASS': 'common.pagination.DefaultPageNumberPagination',
     'PAGE_SIZE': 20,

@@ -3,7 +3,6 @@ export const navItems = [
   { label: "Cases", href: "/cases", perm: "cases.view" },
   { label: "Tasks", href: "/tasks", perm: "tasks.view" },
   { label: "Hearings", href: "/hearings", perm: "hearings.view" },
-  { label: "Messages", href: "/messages", perm: "messages.view" },
   { label: "Requests", href: "/requests", perm: "intake.view" },
   { label: "Calendar", href: "/calendar", perm: "calendar.view" },
   { label: "Invoices", href: "/invoices", perm: "invoices.view" },

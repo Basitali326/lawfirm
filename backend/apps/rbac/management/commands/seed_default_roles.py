@@ -59,7 +59,6 @@ class Command(BaseCommand):
             "clients",
             "reports",
             "audit",
-            "messages",
             "requests",
             "case_types",
             "task_templates",
@@ -71,12 +70,12 @@ class Command(BaseCommand):
         for m, acts in PERMISSION_MATRIX.items():
             if m in keep_modules:
                 for a in acts:
-                    if a in ["view", "download", "upload"] or (a == "add" and m in ["tasks", "documents", "messages"]):
+                    if a in ["view", "download", "upload"] or (a == "add" and m in ["tasks", "documents"]):
                         lawyer_codes.append(f"{m}.{a}")
         lawyer_codes.extend(["invoices.view", "payments.view"])
         assign_permissions_to_role(lawyer, lawyer_codes)
 
-        # Paralegal: intake/clients add/view/update, cases view, documents upload, tasks view/add, messages add/view
+        # Paralegal: intake/clients add/view/update, cases view, documents upload, tasks view/add
         para_codes = []
         for m, acts in PERMISSION_MATRIX.items():
             if m in ["intake", "clients"]:
@@ -87,8 +86,6 @@ class Command(BaseCommand):
                 para_codes.extend([f"documents.{a}" for a in acts if a in ["view", "upload", "download"]])
             if m == "tasks":
                 para_codes.extend([f"tasks.{a}" for a in acts if a in ["view", "add"]])
-            if m == "messages":
-                para_codes.extend([f"messages.{a}" for a in acts if a in ["view", "add"]])
             if m == "requests":
                 para_codes.extend([f"requests.{a}" for a in acts if a in ["view", "add", "update"]])
             if m in ["case_types", "task_templates"]:
@@ -97,9 +94,9 @@ class Command(BaseCommand):
                 para_codes.extend([f"{m}.{a}" for a in acts if a in ["view"]])
         assign_permissions_to_role(para, para_codes)
 
-        # Client: minimal view (cases/documents/tasks/messages)
+        # Client: minimal view (cases/documents/tasks)
         client_codes = []
-        for m in ["cases", "documents", "tasks", "messages", "requests", "case_types", "task_templates"]:
+        for m in ["cases", "documents", "tasks", "requests", "case_types", "task_templates"]:
             if m in PERMISSION_MATRIX:
                 client_codes.append(f"{m}.view")
         assign_permissions_to_role(client_role, client_codes)

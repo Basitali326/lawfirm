@@ -17,7 +17,6 @@ PERMISSION_MATRIX = {
     "reports": ["view", "export"],
     "settings": ["view", "update"],
     "audit": ["view", "export"],
-    "messages": ["view", "add", "update", "delete"],
     "requests": ["view", "add", "update", "delete", "export"],
     "trash": ["view", "restore", "delete"],
     "case_types": ["view", "add", "update", "delete"],
@@ -50,3 +49,6 @@ class Command(BaseCommand):
                 )
                 created += 1 if was_created else 0
         self.stdout.write(self.style.SUCCESS(f"Permission seed complete. New: {created}, Total: {Permission.objects.count()}"))
+        deactivated, _ = Permission.objects.filter(module="messages").update(is_active=False), None
+        if deactivated:
+            self.stdout.write(self.style.WARNING(f"Deactivated legacy messages permissions: {deactivated}"))

@@ -14,7 +14,6 @@ function getTargetRoute(data = {}) {
   if (data?.task_id) return `/tasks`;
   if (data?.invoice_id) return `/invoices/${data.invoice_id}`;
   if (data?.hearing_id) return `/hearings/${data.hearing_id}`;
-  if (data?.room_id) return "/messages";
   return null;
 }
 
