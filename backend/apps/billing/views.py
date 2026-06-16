@@ -91,16 +91,32 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             .prefetch_related("line_items", "payments")
         )
 
-        role_upper = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
+        role_upper = (getattr(user, "role", "") or getattr(profile, "role", "") or "").replace(" ", "_").upper()
+        rbac_roles = set()
+        try:
+            rbac_roles = {
+                (role_name or "").replace(" ", "_").upper()
+                for role_name in user.user_roles.select_related("role").values_list("role__name", flat=True)
+                if role_name
+            }
+        except Exception:
+            rbac_roles = set()
         is_owner_relation = getattr(getattr(user, "owned_firm", None), "id", None) == firm_id if firm_id else False
         is_admin = (
             role_upper in {"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"}
+            or rbac_roles.intersection({"FIRM_OWNER", "FIRM_ADMIN", "SUPER_ADMIN", "OWNER"})
             or is_owner_relation
             or getattr(user, "is_superuser", False)
         )
         client_profile = getattr(user, "client_profile", None)
+        is_client = role_upper == "CLIENT" or "CLIENT" in rbac_roles
 
-        if not is_admin:
+        if is_client and not is_admin:
+            if client_profile:
+                base_qs = base_qs.filter(client=client_profile)
+            else:
+                return Invoice.objects.none()
+        elif not is_admin:
             can_view_firm_invoices = user_has_perm(user, "invoices.view") or user_has_perm(user, "payments.view")
             if can_view_firm_invoices:
                 pass

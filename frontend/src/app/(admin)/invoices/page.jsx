@@ -64,6 +64,7 @@ export default function InvoicesPage() {
               <th className="px-3 py-2 text-left">Invoice #</th>
               <th className="px-3 py-2 text-left">Case</th>
               <th className="px-3 py-2 text-left">Client</th>
+              <th className="px-3 py-2 text-left">User Email</th>
               <th className="px-3 py-2 text-left">Status</th>
               <th className="px-3 py-2 text-left">Total</th>
               <th className="px-3 py-2 text-left">Paid</th>
@@ -76,13 +77,13 @@ export default function InvoicesPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td className="px-3 py-4" colSpan={10}>
+                <td className="px-3 py-4" colSpan={11}>
                   Loading...
                 </td>
               </tr>
             ) : invoices.length === 0 ? (
               <tr>
-                <td className="px-3 py-4 text-slate-500" colSpan={10}>
+                <td className="px-3 py-4 text-slate-500" colSpan={11}>
                   No invoices found.
                 </td>
               </tr>
@@ -96,6 +97,11 @@ export default function InvoicesPage() {
                       : "—"}
                   </td>
                   <td className="px-3 py-2">{inv.client_name || "—"}</td>
+                  <td className="px-3 py-2">
+                    <span className="block max-w-48 whitespace-normal break-all text-xs leading-5 text-slate-600">
+                      {inv.client_detail?.email || "—"}
+                    </span>
+                  </td>
                   <td className="px-3 py-2">{inv.status}</td>
                   <td className="px-3 py-2">{inv.total_amount}</td>
                   <td className="px-3 py-2 text-emerald-700">{inv.paid_amount}</td>

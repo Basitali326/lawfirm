@@ -13,6 +13,7 @@ from apps.audit.models import EntityType, AuditAction
 
 class InvoiceListSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
+    client_detail = serializers.SerializerMethodField()
     case_id = serializers.SerializerMethodField()
     case_detail = serializers.SerializerMethodField()
     currency = serializers.SerializerMethodField()
@@ -30,6 +31,7 @@ class InvoiceListSerializer(serializers.ModelSerializer):
             "issue_date",
             "due_date",
             "client_name",
+            "client_detail",
             "case_id",
             "case_detail",
             "currency",
@@ -38,6 +40,20 @@ class InvoiceListSerializer(serializers.ModelSerializer):
 
     def get_client_name(self, obj):
         return getattr(obj.client, "name", None)
+
+    def get_client_detail(self, obj):
+        client = getattr(obj, "client", None)
+        if not client:
+            return None
+        user = getattr(client, "user", None)
+        return {
+            "id": str(client.id),
+            "name": client.name,
+            "user_id": getattr(client, "user_id", None),
+            "email": getattr(user, "email", None),
+            "first_name": getattr(user, "first_name", ""),
+            "last_name": getattr(user, "last_name", ""),
+        }
 
     def get_case_id(self, obj):
         return str(obj.case_id) if obj.case_id else None
