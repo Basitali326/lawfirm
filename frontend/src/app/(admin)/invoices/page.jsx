@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import useInvoicesList from "@/hooks/useInvoicesList";
 import NewInvoiceModal from "@/components/billing/NewInvoiceModal";
+import { RequirePerm, useRBAC } from "@/lib/rbac";
 
 const statusChips = [
   { label: "All", value: "" },
@@ -16,22 +17,26 @@ export default function InvoicesPage() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const { can } = useRBAC();
   const { data, isLoading } = useInvoicesList({ status, search });
   const invoices = data?.data || data || [];
 
   return (
-    <div className="p-6 space-y-4">
+    <RequirePerm code="invoices.view">
+      <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Invoices</h1>
           <p className="text-sm text-slate-500">Stripe checkout and manual payment tracking.</p>
         </div>
-        <button
-          onClick={() => setShowNew(true)}
-          className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white"
-        >
-          New Invoice
-        </button>
+        {can("invoices.add") ? (
+          <button
+            onClick={() => setShowNew(true)}
+            className="inline-flex h-10 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white"
+          >
+            New Invoice
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
@@ -110,6 +115,7 @@ export default function InvoicesPage() {
       </div>
 
       <NewInvoiceModal open={showNew} onClose={() => setShowNew(false)} />
-    </div>
+      </div>
+    </RequirePerm>
   );
 }

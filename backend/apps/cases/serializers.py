@@ -1,18 +1,32 @@
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.authx.models import Firm
+from apps.authx.models import Firm, UserProfile
 from django.db import transaction
 
 from .models import Case, CaseStatus, CasePriority, ClientProfile, FirmCaseCounter
 from apps.billing.models import Invoice, InvoiceStatus
+from apps.rbac.models import Role, UserRole
 
 User = get_user_model()
 
 
+def _unique_username_from_email(email: str) -> str:
+    base_username = email.split("@")[0][:150] or "client"
+    username = base_username
+    counter = 1
+    while User.objects.filter(username__iexact=username).exists():
+        suffix = str(counter)
+        username = f"{base_username[:150 - len(suffix)]}{suffix}"
+        counter += 1
+    return username
+
+
 class CaseSerializer(serializers.ModelSerializer):
     client = serializers.UUIDField(required=False, allow_null=True, write_only=True)
+    client_email = serializers.EmailField(required=False, allow_blank=True, write_only=True)
     assigned_lead = serializers.IntegerField(required=False, allow_null=True, write_only=True)
 
     client_detail = serializers.SerializerMethodField(read_only=True)
@@ -62,6 +76,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "close_date",
             "close_reason",
             "client",
+            "client_email",
             "assigned_lead",
             "client_detail",
             "assigned_lead_detail",
@@ -149,6 +164,79 @@ class CaseSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"client": "Client must belong to the same firm"})
         return client
 
+    def _is_client_user_for_firm(self, user, firm):
+        profile = getattr(user, "profile", None)
+        profile_role = (getattr(profile, "role", "") or "").replace(" ", "_").upper()
+        if profile_role == "CLIENT" and getattr(profile, "firm_id", None) == firm.id:
+            return True
+        return UserRole.objects.filter(
+            user=user,
+            role__firm=firm,
+            role__name__iexact="CLIENT",
+            role__is_deleted=False,
+        ).exists()
+
+    def _ensure_client_role(self, user, firm):
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        updates = []
+        if profile.role != "CLIENT":
+            profile.role = "CLIENT"
+            updates.append("role")
+        if profile.firm_id != firm.id:
+            profile.firm = firm
+            updates.append("firm")
+        if getattr(profile, "must_change_password", False) is not True:
+            profile.must_change_password = True
+            updates.append("must_change_password")
+        if updates:
+            profile.save(update_fields=updates)
+
+        role = Role.objects.filter(firm=firm, name__iexact="CLIENT", is_deleted=False).first()
+        if role:
+            UserRole.objects.get_or_create(user=user, role=role)
+
+    def _resolve_or_create_client_by_email(self, firm, email):
+        cleaned = (email or "").strip().lower()
+        if not cleaned:
+            return None
+
+        user = User.objects.filter(email__iexact=cleaned).first()
+        if user:
+            existing_client = ClientProfile.objects.filter(firm=firm, user=user).first()
+            if existing_client:
+                return existing_client
+            if not self._is_client_user_for_firm(user, firm):
+                raise serializers.ValidationError(
+                    {
+                        "client_email": (
+                            "A user with this email already exists but is not a client in this firm. "
+                            "Select the existing client or assign the CLIENT role first."
+                        )
+                    }
+                )
+            self._ensure_client_role(user, firm)
+        else:
+            user = User(
+                username=_unique_username_from_email(cleaned),
+                email=cleaned,
+                is_active=True,
+            )
+            default_password = getattr(settings, "DEFAULT_USER_PASSWORD", None)
+            if default_password:
+                user.set_password(default_password)
+            else:
+                user.set_unusable_password()
+            user.save()
+            self._ensure_client_role(user, firm)
+
+        name = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip() or cleaned
+        client, _ = ClientProfile.objects.get_or_create(
+            firm=firm,
+            user=user,
+            defaults={"name": name},
+        )
+        return client
+
     def _resolve_assigned_lead(self, firm, lead_id):
         if not lead_id:
             return None
@@ -177,8 +265,15 @@ class CaseSerializer(serializers.ModelSerializer):
             attrs["case_number"] = provided_case_number
 
         client_id = attrs.pop("client", None)
+        client_email = attrs.pop("client_email", "")
         lead_id = attrs.pop("assigned_lead", None)
-        attrs["client"] = self._resolve_client(firm, client_id)
+        if client_id and client_email:
+            raise serializers.ValidationError({"client_email": "Use either selected client or typed email, not both."})
+        attrs["client"] = (
+            self._resolve_client(firm, client_id)
+            if client_id
+            else self._resolve_or_create_client_by_email(firm, client_email)
+        )
         attrs["assigned_lead"] = self._resolve_assigned_lead(firm, lead_id)
 
         status_val = attrs.get("status") or CaseStatus.PENDING_PAYMENT
@@ -225,6 +320,7 @@ class CaseSerializer(serializers.ModelSerializer):
         return {
             "id": str(obj.client.id),
             "name": obj.client.name,
+            "email": getattr(obj.client.user, "email", None),
             "user_id": obj.client.user_id,
         }
 

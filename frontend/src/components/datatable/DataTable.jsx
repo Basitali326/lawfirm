@@ -11,14 +11,34 @@ export default function DataTable({
   onSortChange,
   currentSort,
   toolbar,
+  dense = false,
+  fixedLayout = false,
 }) {
   const safeRows = Array.isArray(rows) ? rows.filter(Boolean) : [];
+  const fixedWidths = {
+    case_number: "9%",
+    case_type: "12%",
+    title: "15%",
+    status: "10%",
+    priority: "8%",
+    opened_at: "9%",
+    assigned_to: "13%",
+    client_email: "15%",
+    actions: "9%",
+  };
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {toolbar ? <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">{toolbar}</div> : null}
       <div className="overflow-auto">
-        <table className="min-w-full border-separate border-spacing-0">
+        <table className={`${fixedLayout ? "w-full table-fixed" : "min-w-full"} border-separate border-spacing-0`}>
+          {fixedLayout ? (
+            <colgroup>
+              {columns.map((col) => (
+                <col key={col.key} style={{ width: col.width || fixedWidths[col.key] || `${100 / columns.length}%` }} />
+              ))}
+            </colgroup>
+          ) : null}
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
               {columns.map((col) => {
@@ -26,7 +46,12 @@ export default function DataTable({
                 return (
                   <th
                     key={col.key}
-                    className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-left font-semibold"
+                    className={[
+                      "border-b border-slate-200 text-left font-semibold",
+                      dense ? "px-1.5 py-2" : "px-4 py-3",
+                      fixedLayout || col.wrap ? "whitespace-normal break-words" : "whitespace-nowrap",
+                      col.className || "",
+                    ].join(" ")}
                   >
                     <button
                       type="button"
@@ -69,7 +94,14 @@ export default function DataTable({
               safeRows.map((row, index) => (
                 <tr key={row.id || index} className="border-b border-slate-100 hover:bg-slate-50">
                   {columns.map((col) => (
-                    <td key={col.key} className="whitespace-nowrap px-4 py-3">
+                    <td
+                      key={col.key}
+                      className={[
+                        dense ? "px-1.5 py-2" : "px-4 py-3",
+                        fixedLayout || col.wrap ? "whitespace-normal break-words" : "whitespace-nowrap",
+                        col.cellClassName || "",
+                      ].join(" ")}
+                    >
                       {col.render ? col.render(row) : row?.[col.key]}
                     </td>
                   ))}

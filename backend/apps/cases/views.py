@@ -7,6 +7,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied, NotFound, NotAuthenticated
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth import get_user_model
 
 from core.responses import api_success, api_error
 from .models import Case
@@ -510,22 +511,44 @@ class ClientListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        firm_id = getattr(request.user, "firm_id", None) or getattr(getattr(request.user, "profile", None), "firm_id", None)
-        qs = (
-            ClientProfile.objects.filter(firm_id=firm_id)
-            .select_related("user", "user__profile")
+        firm = get_user_firm(request.user)
+        if not firm and getattr(request.user, "is_superuser", False):
+            firm_id = request.headers.get("X-FIRM-ID") or request.query_params.get("firm_id")
+            if firm_id:
+                from apps.authx.models import Firm
+                firm = Firm.objects.filter(id=firm_id).first()
+        if not firm:
+            return api_success("OK", data=[])
+
+        User = get_user_model()
+        client_users = (
+            User.objects.filter(is_active=True)
+            .select_related("profile")
             .filter(
-                Q(user__profile__role__iexact="CLIENT")
-                | Q(user__user_roles__role__name__iexact="CLIENT")
+                Q(profile__firm=firm, profile__role__iexact="CLIENT")
+                | Q(user_roles__role__firm=firm, user_roles__role__name__iexact="CLIENT", user_roles__role__is_deleted=False)
             )
             .distinct()
+            .order_by("email")
         )
+
+        client_profiles = {}
+        for user in client_users:
+            name = f"{user.first_name} {user.last_name}".strip() or user.email
+            profile, _ = ClientProfile.objects.get_or_create(
+                firm=firm,
+                user=user,
+                defaults={"name": name},
+            )
+            client_profiles[user.id] = profile
+
         data = [
             {
-                "id": str(c.id),
-                "name": c.name,
-                "email": getattr(getattr(c, "user", None), "email", None),
+                "id": str(client_profiles[u.id].id),
+                "name": client_profiles[u.id].name,
+                "email": u.email,
+                "user_id": u.id,
             }
-            for c in qs
+            for u in client_users
         ]
         return api_success("OK", data=data)

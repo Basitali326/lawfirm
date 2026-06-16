@@ -9,6 +9,7 @@ import DataTable from "@/components/datatable/DataTable";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { listHearings } from "@/features/hearings/hearings.api";
+import { RequirePerm } from "@/lib/rbac";
 
 const statusOptions = ["ALL", "SCHEDULED", "COMPLETED", "ADJOURNED", "CANCELLED"];
 
@@ -82,7 +83,8 @@ export default function HearingsPage() {
   ];
 
   return (
-    <div className="space-y-4">
+    <RequirePerm code="hearings.view">
+      <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Hearings</h1>
         <p className="text-sm text-slate-500">View hearings with their related case details.</p>
@@ -127,6 +129,7 @@ export default function HearingsPage() {
         loading={isLoading}
         onPageChange={(next) => setPage(next)}
       />
-    </div>
+      </div>
+    </RequirePerm>
   );
 }

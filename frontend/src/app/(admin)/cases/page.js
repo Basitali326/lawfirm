@@ -71,6 +71,7 @@ export default function CasesPage() {
       pending_invoice_amount: item.pending_invoice_amount || null,
       priority: item.priority,
       opened_at: item.open_date,
+      client_email: item.client_detail?.email || "—",
       assigned_to: item.assigned_lead_detail?.email || "—",
       case_type: formatCaseTypeLabel(item),
     }));
@@ -150,38 +151,48 @@ export default function CasesPage() {
     },
     { key: "assigned_to", header: "Assigned", render: (row) => row.assigned_to || "—" },
     {
+      key: "client_email",
+      header: "Client Email",
+      sortable: false,
+      render: (row) => (
+        <span className="block max-w-48 whitespace-normal break-all leading-5">
+          {row.client_email || "—"}
+        </span>
+      ),
+    },
+    {
       key: "actions",
       header: "Actions",
       render: (row) => (
         <div className="flex items-center gap-2 text-xs">
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            title="View"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={() => router.push(`/cases/${row.id}`)}
             disabled={!canView}
           >
             <Eye className="h-3.5 w-3.5" />
-            View
           </button>
           {canEdit && (
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-700 hover:bg-slate-100 cursor-pointer"
+              title="Edit"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer"
               onClick={() => router.push(`/cases/${row.id}/edit`)}
             >
               <Pencil className="h-3.5 w-3.5" />
-              Edit
             </button>
           )}
           {canDelete && (
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-md border border-rose-200 px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              title="Delete"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
               disabled={deleteMutation.isPending}
               onClick={() => handleDelete(row)}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Delete
             </button>
           )}
         </div>
@@ -268,6 +279,8 @@ export default function CasesPage() {
           field: ordering?.replace(/^-/, ""),
           direction: ordering?.startsWith("-") ? "desc" : ordering ? "asc" : null,
         }}
+        dense
+        fixedLayout
       />
     </div>
   );

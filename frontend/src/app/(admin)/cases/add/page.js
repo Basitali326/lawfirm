@@ -79,7 +79,7 @@ export default function AddCasePage() {
         status: "OPEN",
         priority: "MEDIUM",
         description: "",
-        client: "",
+        client_email: "",
         court_name: "",
         judge_name: "",
         open_date: todayISO(),
@@ -128,6 +128,9 @@ export default function AddCasePage() {
     mutationFn: (values) => {
       const payload = { ...values };
       if (!payload.assigned_lead) payload.assigned_lead = null;
+      payload.client_email = (payload.client_email || "").trim().toLowerCase();
+      if (!payload.client_email) delete payload.client_email;
+      delete payload.client;
       return createCase(payload);
     },
     onSuccess: (body) => {
@@ -263,19 +266,32 @@ export default function AddCasePage() {
             options={PRIORITY_OPTIONS}
             registerProps={register("priority")}
           />
-          <SelectField
+          <Field
             label="Client email"
-            value={watch("client")}
-            error={errors.client?.message}
-            options={[
-              { value: "", label: "No client selected" },
-              ...(clients || []).map((c) => ({
-                value: c.id,
-                label: c.email ? `${c.email}${c.name ? ` (${c.name})` : ""}` : c.name || c.id,
-              })),
-            ]}
-            registerProps={register("client")}
+            error={errors.client_email?.message}
+            inputProps={{
+              ...register("client_email", {
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: "Enter a valid email address",
+                },
+              }),
+              type: "email",
+              placeholder: "client@example.com",
+              list: "client-email-options",
+            }}
           />
+          <datalist id="client-email-options">
+            {(clients || [])
+              .filter((c) => c.email)
+              .map((c) => (
+                <option
+                  key={c.id}
+                  value={c.email}
+                  label={c.name ? `${c.name} (${c.email})` : c.email}
+                />
+              ))}
+          </datalist>
           <SelectField
             label="Assign user"
             value={watch("assigned_lead")}

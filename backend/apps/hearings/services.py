@@ -45,7 +45,7 @@ def _ensure_view(user):
     if user_has_perm(user, VIEW_CODE):
         return
     role = _user_role(user)
-    if role in {"SUPER_ADMIN", "FIRM_OWNER", "FIRM_ADMIN", "OWNER", "LAWYER", "PARALEGAL", "VIEWER", "CLIENT"}:
+    if role in {"SUPER_ADMIN", "FIRM_OWNER", "FIRM_ADMIN", "OWNER"} or getattr(user, "owned_firm", None):
         return
     raise PermissionDenied("Forbidden")
 
@@ -96,6 +96,7 @@ def create_hearing(user, case_id, payload):
 def list_case_hearings(user, case_id, filters):
     case, firm = _get_case_for_user(user, case_id)
     _ensure_case_access(user, case, method="GET")
+    _ensure_view(user)
     qs = (
         CaseHearing.objects.filter(case=case, firm=firm, is_deleted=False)
         .select_related("case", "created_by", "updated_by")
@@ -175,6 +176,7 @@ def get_hearing(user, hearing_id):
     )
     if not hearing:
         raise NotFound("Hearing not found")
+    _ensure_view(user)
     _ensure_case_access(user, hearing.case, method="GET")
     return hearing
 
