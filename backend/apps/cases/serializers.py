@@ -29,6 +29,7 @@ class CaseSerializer(serializers.ModelSerializer):
     latest_invoice_amount = serializers.SerializerMethodField(read_only=True)
     latest_invoice_status = serializers.SerializerMethodField(read_only=True)
     latest_invoice_balance = serializers.SerializerMethodField(read_only=True)
+    invoice_summary = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Case
@@ -57,6 +58,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "latest_invoice_amount",
             "latest_invoice_status",
             "latest_invoice_balance",
+            "invoice_summary",
             "close_date",
             "close_reason",
             "client",
@@ -257,6 +259,17 @@ class CaseSerializer(serializers.ModelSerializer):
         cached = getattr(obj, "_cached_pending_invoice", None)
         if cached is not None:
             return cached
+        prefetched = getattr(obj, "_prefetched_active_invoices", None)
+        if prefetched is not None:
+            pending_statuses = {
+                InvoiceStatus.PENDING,
+                InvoiceStatus.PENDING_REVIEW,
+                InvoiceStatus.SENT,
+                InvoiceStatus.PARTIAL,
+            }
+            inv = next((invoice for invoice in prefetched if invoice.status in pending_statuses), None)
+            setattr(obj, "_cached_pending_invoice", inv)
+            return inv
         inv = (
             Invoice.objects.filter(
                 case=obj,
@@ -278,6 +291,11 @@ class CaseSerializer(serializers.ModelSerializer):
         cached = getattr(obj, "_cached_latest_invoice", None)
         if cached is not None:
             return cached
+        prefetched = getattr(obj, "_prefetched_active_invoices", None)
+        if prefetched is not None:
+            inv = prefetched[0] if prefetched else None
+            setattr(obj, "_cached_latest_invoice", inv)
+            return inv
         inv = (
             Invoice.objects.filter(case=obj, is_deleted=False)
             .order_by("-created_at")
@@ -287,6 +305,9 @@ class CaseSerializer(serializers.ModelSerializer):
         return inv
 
     def get_has_invoice(self, obj):
+        prefetched = getattr(obj, "_prefetched_active_invoices", None)
+        if prefetched is not None:
+            return bool(prefetched)
         return Invoice.objects.filter(case=obj, is_deleted=False).exists()
 
     def get_pending_invoice_id(self, obj):
@@ -324,6 +345,27 @@ class CaseSerializer(serializers.ModelSerializer):
     def get_latest_invoice_balance(self, obj):
         inv = self._latest_invoice(obj)
         return str(inv.balance_amount) if inv else None
+
+    def _invoice_brief(self, inv):
+        if not inv:
+            return None
+        return {
+            "id": str(inv.id),
+            "invoice_number": inv.invoice_number,
+            "status": inv.status,
+            "total_amount": str(inv.total_amount),
+            "paid_amount": str(inv.paid_amount),
+            "balance_amount": str(inv.balance_amount),
+        }
+
+    def get_invoice_summary(self, obj):
+        pending = self._pending_invoice(obj)
+        latest = self._latest_invoice(obj)
+        return {
+            "has_invoice": self.get_has_invoice(obj),
+            "pending": self._invoice_brief(pending),
+            "latest": self._invoice_brief(latest),
+        }
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

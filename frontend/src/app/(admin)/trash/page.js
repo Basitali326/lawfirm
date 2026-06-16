@@ -8,6 +8,7 @@ import DataTable from "@/components/datatable/DataTable";
 import { useTrashQuery, useRestoreMutation } from "@/features/trash/trash.hooks";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
+import { RequirePerm, useRBAC } from "@/lib/rbac";
 
 const formatDateTime = (value) => {
   if (!value) return "—";
@@ -21,6 +22,7 @@ const formatDateTime = (value) => {
 export default function TrashPage() {
   const { data, isLoading } = useTrashQuery();
   const restoreMutation = useRestoreMutation();
+  const { can } = useRBAC();
 
   const rows = useMemo(() => {
     return (data || []).map((item) => ({
@@ -38,6 +40,7 @@ export default function TrashPage() {
       key: "actions",
       header: "Actions",
       render: (row) => (
+        can("trash.restore") ? (
         <button
           type="button"
           disabled={restoreMutation.isPending}
@@ -55,12 +58,16 @@ export default function TrashPage() {
         >
           <RotateCcw className="h-4 w-4" /> Restore
         </button>
+        ) : (
+          <span className="text-sm text-slate-400">No access</span>
+        )
       ),
     },
   ];
 
   return (
-    <div className="space-y-4">
+    <RequirePerm code="trash.view">
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Trash</p>
@@ -78,6 +85,7 @@ export default function TrashPage() {
         meta={{ page: 1, page_size: rows.length || 1, count: rows.length || 0 }}
         loading={isLoading}
       />
-    </div>
+      </div>
+    </RequirePerm>
   );
 }

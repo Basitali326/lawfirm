@@ -55,6 +55,7 @@ class Command(BaseCommand):
             "documents",
             "tasks",
             "hearings",
+            "calendar",
             "intake",
             "clients",
             "reports",
@@ -86,6 +87,8 @@ class Command(BaseCommand):
                 para_codes.extend([f"documents.{a}" for a in acts if a in ["view", "upload", "download"]])
             if m == "tasks":
                 para_codes.extend([f"tasks.{a}" for a in acts if a in ["view", "add"]])
+            if m == "calendar":
+                para_codes.append("calendar.view")
             if m == "requests":
                 para_codes.extend([f"requests.{a}" for a in acts if a in ["view", "add", "update"]])
             if m in ["case_types", "task_templates"]:

@@ -9,6 +9,7 @@ PERMISSION_MATRIX = {
     "documents": ["view", "add", "update", "delete", "upload", "download"],
     "tasks": ["view", "add", "update", "delete", "assign", "export"],
     "hearings": ["view", "add", "update", "delete", "export"],
+    "calendar": ["view"],
     "invoices": ["view", "add", "update", "delete", "export"],
     "payments": ["view", "add", "update", "delete", "export"],
     "users": ["view", "add", "update", "delete"],

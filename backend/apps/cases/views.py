@@ -1,6 +1,7 @@
 import logging
 from django.utils import timezone
 from django.db import IntegrityError
+from django.db.models import Prefetch
 from rest_framework import status, mixins, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied, NotFound, NotAuthenticated
@@ -48,7 +49,19 @@ class CaseViewSet(
     filter_backends = [DjangoFilterBackend, CaseOrderingFilter]
 
     def get_queryset(self):
-        qs = Case.objects.select_related("client", "assigned_lead", "firm").filter(is_deleted=False)
+        active_invoices = Invoice.objects.filter(is_deleted=False).order_by("-created_at")
+        qs = (
+            Case.objects.select_related(
+                "client",
+                "client__user",
+                "assigned_lead",
+                "firm",
+                "case_type",
+                "tasks_generated_by",
+            )
+            .prefetch_related(Prefetch("invoices", queryset=active_invoices, to_attr="_prefetched_active_invoices"))
+            .filter(is_deleted=False)
+        )
         user = self.request.user
         # Allow firm override (e.g., superadmin switching tenants)
         firm_override = self.request.headers.get("X-FIRM-ID") or self.request.query_params.get("firm_id")
@@ -257,11 +270,20 @@ class TrashView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    def _role(self, user):
+        return (getattr(user, "role", "") or getattr(getattr(user, "profile", None), "role", "") or "").upper()
+
+    def _is_super(self, user):
+        return getattr(user, "is_superuser", False) or self._role(user) == "SUPER_ADMIN"
+
     def get(self, request):
+        if not user_has_perm(request.user, "trash.view"):
+            return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
         items = []
-        role = (getattr(request.user, "role", "") or "").upper()
         firm_id = getattr(request.user, "firm_id", None)
-        is_super = getattr(request.user, "is_superuser", False) or role == "SUPER_ADMIN"
+        if not firm_id:
+            firm_id = getattr(getattr(request.user, "profile", None), "firm_id", None)
+        is_super = self._is_super(request.user)
 
         qs = Case.objects.filter(is_deleted=True)
         if not is_super:
@@ -291,10 +313,13 @@ class TrashView(APIView):
         item_id = request.data.get("id")
         if item_type != "case" or not item_id:
             return api_error("Invalid restore request", status_code=status.HTTP_400_BAD_REQUEST)
+        if not user_has_perm(request.user, "trash.restore"):
+            return api_error("Forbidden", status_code=status.HTTP_403_FORBIDDEN)
 
-        role = (getattr(request.user, "role", "") or "").upper()
         firm_id = getattr(request.user, "firm_id", None)
-        is_super = getattr(request.user, "is_superuser", False) or role == "SUPER_ADMIN"
+        if not firm_id:
+            firm_id = getattr(getattr(request.user, "profile", None), "firm_id", None)
+        is_super = self._is_super(request.user)
         try:
             case = Case.objects.get(id=item_id, is_deleted=True)
         except Case.DoesNotExist:

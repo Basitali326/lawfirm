@@ -4,15 +4,17 @@ import { useSession } from "next-auth/react";
 
 import { fetchTrash, restoreItem } from "./trash.api";
 import { normalizeError, shapeAxiosError } from "@/lib/errors";
+import { tokenStore } from "@/lib/api";
+import { AUTH_MODE } from "@/lib/config";
 
 export function useTrashQuery(options = {}) {
   const { data: session } = useSession();
-  const token = session?.access || session?.token?.access;
+  const token = session?.access || session?.token?.access || tokenStore.getAccess();
 
   return useQuery({
     queryKey: ["trash", token],
     queryFn: () => fetchTrash(token),
-    enabled: !!token,
+    enabled: AUTH_MODE === "cookie" || !!token,
     ...options,
   });
 }
@@ -20,7 +22,7 @@ export function useTrashQuery(options = {}) {
 export function useRestoreMutation(options = {}) {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-  const token = session?.access || session?.token?.access;
+  const token = session?.access || session?.token?.access || tokenStore.getAccess();
 
   return useMutation({
     mutationFn: (payload) => restoreItem(payload, token),

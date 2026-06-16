@@ -152,6 +152,7 @@ class StripeCheckoutCreateSerializer(serializers.Serializer):
 
 class InvoiceDetailSerializer(serializers.ModelSerializer):
     client_detail = serializers.SerializerMethodField()
+    case_detail = serializers.SerializerMethodField()
     created_by_email = serializers.SerializerMethodField()
     line_items = serializers.SerializerMethodField()
 
@@ -168,6 +169,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
             "due_date",
             "client_detail",
             "case",
+            "case_detail",
             "created_by_email",
             "line_items",
             "created_at",
@@ -183,6 +185,26 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
             "name": client.name,
             "email": getattr(client.user, "email", None),
             "phone": getattr(client.user, "phone", None),
+        }
+
+    def get_case_detail(self, obj):
+        case = getattr(obj, "case", None)
+        if not case:
+            return None
+        return {
+            "id": str(case.id),
+            "case_number": case.case_number,
+            "title": case.title,
+            "status": case.status,
+            "priority": case.priority,
+            "case_type": str(case.case_type_id) if case.case_type_id else None,
+            "case_type_detail": {
+                "id": str(case.case_type_id),
+                "name": case.case_type.name,
+                "code": case.case_type.code,
+            }
+            if getattr(case, "case_type", None)
+            else None,
         }
 
     def get_created_by_email(self, obj):

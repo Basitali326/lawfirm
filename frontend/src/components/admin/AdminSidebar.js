@@ -82,18 +82,7 @@ export default function AdminSidebar() {
   const [menuOpen, setMenuOpen] = useState({});
 
   const primaryRole = meData?.data?.user?.role || meData?.user?.role || "";
-  const rbacRoles = meData?.data?.roles || meData?.roles || [];
   const isSuper = primaryRole === "SUPER_ADMIN";
-  const isOwnerOrSuper =
-    primaryRole === "FIRM_OWNER" ||
-    primaryRole === "OWNER" ||
-    primaryRole === "SUPER_ADMIN" ||
-    rbacRoles.some((r) => ["firm owner", "firm admin", "super admin"].includes(String(r).toLowerCase()));
-  const isAdminLike =
-    isOwnerOrSuper ||
-    primaryRole === "ADMIN" ||
-    primaryRole === "FIRM_ADMIN" ||
-    rbacRoles.some((r) => ["admin", "firm admin"].includes(String(r).toLowerCase()));
 
   const rootItems = navItems.filter((i) => !i.parent);
   const childrenByParent = useMemo(() => {
@@ -114,6 +103,11 @@ export default function AdminSidebar() {
         window.location.assign(href);
       }
     }, 800);
+  };
+
+  const isItemAllowed = (item) => {
+    if (item.href === "/settings/firms") return isSuper;
+    return !item.perm || can(item.perm);
   };
 
   return (
@@ -155,17 +149,12 @@ export default function AdminSidebar() {
         ) : (
           rootItems
             .filter((item) => {
-              if (item.href === "/trash") return isOwnerOrSuper;
-              if (item.href === "/dashboard/products") return isAdminLike;
-              return !item.perm || can(item.perm);
+              if (isItemAllowed(item)) return true;
+              return (childrenByParent[item.href] || []).some(isItemAllowed);
             })
           .map((item) => {
             const Icon = item.icon;
-            const children = (childrenByParent[item.href] || []).filter((child) => {
-              if (child.href === "/settings/firms") return isSuper;
-              if (item.href === "/dashboard/products") return isAdminLike;
-              return !child.perm || can(child.perm);
-            });
+            const children = (childrenByParent[item.href] || []).filter(isItemAllowed);
             const hasChildren = children.length > 0;
             const isActive =
               pathname === item.href ||

@@ -85,7 +85,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             or getattr(profile, "firm_id", None)
             or getattr(getattr(user, "owned_firm", None), "id", None)
         )
-        base_qs = Invoice.objects.filter(firm_id=firm_id, is_deleted=False)
+        base_qs = (
+            Invoice.objects.filter(firm_id=firm_id, is_deleted=False)
+            .select_related("client", "client__user", "case", "case__case_type", "created_by")
+            .prefetch_related("line_items", "payments")
+        )
 
         role_upper = (getattr(user, "role", "") or getattr(profile, "role", "") or "").upper()
         is_owner_relation = getattr(getattr(user, "owned_firm", None), "id", None) == firm_id if firm_id else False
