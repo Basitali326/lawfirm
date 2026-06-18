@@ -3,6 +3,13 @@ from rest_framework import serializers
 from apps.tasks.models import CaseTask, TaskStatus, TaskNote
 
 
+class NullableDateField(serializers.DateField):
+    def to_internal_value(self, value):
+        if value in ("", None):
+            return None
+        return super().to_internal_value(value)
+
+
 class TaskNoteSerializer(serializers.ModelSerializer):
     created_by = serializers.SerializerMethodField()
 
@@ -28,6 +35,7 @@ class TaskNoteSerializer(serializers.ModelSerializer):
 class CaseTaskSerializer(serializers.ModelSerializer):
     notes = TaskNoteSerializer(many=True, read_only=True)
     assigned_to_detail = serializers.SerializerMethodField()
+    due_date = NullableDateField(required=False, allow_null=True, input_formats=["%Y-%m-%d"])
 
     class Meta:
         model = CaseTask

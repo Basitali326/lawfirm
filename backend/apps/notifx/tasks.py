@@ -176,3 +176,21 @@ def process_notification_outbox(self, outbox_id):
             logger.exception("Failed to update outbox error state id=%s", outbox_id)
         raise
 
+
+@shared_task
+def scan_overdue_tasks():
+    from apps.tasks.models import CaseTask, TaskStatus
+    from apps.notifx.services import notify_task_overdue
+
+    today = timezone.localdate()
+    tasks = CaseTask.objects.filter(
+        is_deleted=False,
+        assigned_to__isnull=False,
+        due_date__lt=today,
+    ).exclude(status=TaskStatus.DONE).select_related("firm", "assigned_to", "case")
+    notified = 0
+    for task in tasks.iterator():
+        if notify_task_overdue(task):
+            notified += 1
+    return {"notified": notified, "date": today.isoformat()}
+

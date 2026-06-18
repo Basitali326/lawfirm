@@ -1,5 +1,6 @@
 import logging
 
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -20,6 +21,17 @@ from core.responses import api_error, api_success
 logger = logging.getLogger(__name__)
 
 
+def _ensure_daily_overdue_scan():
+    cache_key = f"notifications:overdue-scan:{timezone.localdate().isoformat()}"
+    if cache.add(cache_key, "1", timeout=60 * 60 * 24):
+        try:
+            from apps.notifx.tasks import scan_overdue_tasks
+
+            scan_overdue_tasks.run()
+        except Exception:
+            logger.exception("Unable to scan overdue tasks")
+
+
 class NotificationCursorPagination(CursorPagination):
     page_size = 20
     page_size_query_param = "page_size"
@@ -33,6 +45,7 @@ class NotificationsListView(APIView):
 
     def get(self, request):
         try:
+            _ensure_daily_overdue_scan()
             firm = get_user_firm(request.user)
             if not firm:
                 return api_error(
@@ -80,6 +93,7 @@ class NotificationsUnreadCountView(APIView):
 
     def get(self, request):
         try:
+            _ensure_daily_overdue_scan()
             firm = get_user_firm(request.user)
             if not firm:
                 return api_error(

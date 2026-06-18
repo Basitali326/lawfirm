@@ -16,7 +16,7 @@ from apps.task_templates.models import CaseTaskTemplate
 from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
 from apps.billing.models import InvoiceStatus
-from apps.notifx.services import notify_task_assigned
+from apps.notifx.services import notify_task_assigned, notify_task_status_changed
 
 
 class TaskPagination(PageNumberPagination):
@@ -139,6 +139,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer.save()
         if task.assigned_to_id and task.assigned_to_id != old_assigned_to_id:
             notify_task_assigned(task, actor=request.user)
+        if task.status != old_status:
+            notify_task_status_changed(task, old_status, task.status, actor=request.user)
         try:
             action = AuditAction.UPDATED
             meta = {"changes": serializer.validated_data, "case_id": str(task.case_id)}

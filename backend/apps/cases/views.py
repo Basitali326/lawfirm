@@ -173,6 +173,8 @@ class CaseViewSet(
 
     def perform_create(self, serializer):
         case = serializer.save()
+        if case.assigned_lead_id:
+            notify_case_assigned(case, case.assigned_lead_id, actor=self.request.user)
         create_invoice_for_case_on_create(
             firm=case.firm,
             case=case,

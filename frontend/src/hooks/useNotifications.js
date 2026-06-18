@@ -54,6 +54,9 @@ export function NotificationsProvider({ children }) {
       setLoadingList(true);
       setError(null);
       try {
+        if (reset) {
+          seenIdsRef.current = new Set();
+        }
         const cursor = reset ? null : nextCursor;
         const response = await listNotifications({
           unreadOnly: unread,

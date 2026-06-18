@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -219,6 +219,10 @@ export default function TasksPage() {
     if (proceed) deleteTaskMutation.mutate(taskId);
   };
 
+  const handleSetTaskDrawerDirty = useCallback((dirty) => {
+    dispatch({ type: actions.SET_DIRTY, payload: dirty });
+  }, []);
+
   const createTaskMutation = useMutation({
     mutationFn: async ({ caseId, task, note }) => {
       const payload = {
@@ -227,7 +231,7 @@ export default function TasksPage() {
         status: task.status,
         priority: task.priority,
         assigned_to: task.assigned_to?.id || currentUserId || null,
-        due_date: task.due_date,
+        due_date: task.due_date || null,
         note,
         from_template_item_id: task.generated_from_template_item || null,
       };
@@ -252,8 +256,13 @@ export default function TasksPage() {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ taskId, data }) =>
-      localFetch(`/api/v1/tasks/${taskId}/`, { method: "PATCH", body: JSON.stringify(data) }),
+    mutationFn: ({ taskId, data }) => {
+      const payload = {
+        ...data,
+        due_date: data.due_date || null,
+      };
+      return localFetch(`/api/v1/tasks/${taskId}/`, { method: "PATCH", body: JSON.stringify(payload) });
+    },
     onSuccess: () => {
       toast.success("Task updated");
       queryClient.invalidateQueries({ queryKey: ["tasks-open-cases"] });
@@ -463,7 +472,7 @@ export default function TasksPage() {
         currentUser={currentUser}
         onCreate={handleCreateTask}
         confirmDiscard={confirmDiscard}
-        onSetDirty={(dirty) => dispatch({ type: actions.SET_DIRTY, payload: dirty })}
+        onSetDirty={handleSetTaskDrawerDirty}
         onRequestDiscard={() => dispatch({ type: actions.SHOW_DISCARD })}
         onCancelDiscard={() => dispatch({ type: actions.HIDE_DISCARD })}
       />

@@ -30,6 +30,7 @@ def generate_invoice_number(firm):
 def refresh_invoice_totals(invoice: Invoice):
     with transaction.atomic():
         inv = Invoice.objects.select_for_update().get(id=invoice.id)
+        old_status = inv.status
         paid = Decimal("0.00")
         successful_payments = Payment.objects.filter(
             invoice=inv,
@@ -57,6 +58,12 @@ def refresh_invoice_totals(invoice: Invoice):
         else:
             inv.status = InvoiceStatus.PENDING
         inv.save(update_fields=["paid_amount", "balance_amount", "status", "updated_at"])
+        if inv.status != old_status:
+            from apps.notifx.services import notify_invoice_status_changed
+
+            transaction.on_commit(
+                lambda: notify_invoice_status_changed(inv, old_status, inv.status)
+            )
 
         if inv.status == InvoiceStatus.PAID and inv.case and inv.case.status in {CaseStatus.PENDING_PAYMENT, CaseStatus.HOLD}:
             Case.objects.filter(id=inv.case_id).update(status=CaseStatus.OPEN)

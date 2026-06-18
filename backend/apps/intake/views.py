@@ -21,6 +21,7 @@ from apps.audit.services import log_audit_event
 from apps.audit.models import EntityType, AuditAction
 from apps.casetypes.models import CaseType
 from apps.billing.invoice_generation_service import create_invoice_for_case_on_create
+from apps.notifx.services import notify_request_created, notify_request_status_changed
 
 
 class IntakePagination(PageNumberPagination):
@@ -108,6 +109,7 @@ class PublicIntakeRequestView(APIView):
             )
         except Exception:
             pass
+        notify_request_created(intake)
         self._send_notifications(firm, intake)
         return api_success(
             "OK",
@@ -221,10 +223,13 @@ class IntakeRequestViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mix
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = get_object_or_404(self.get_queryset(), id=kwargs.get("pk"))
+        old_status = instance.status
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if not serializer.is_valid():
             return api_error("Validation error", errors=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         serializer.save()
+        if instance.status != old_status:
+            notify_request_status_changed(instance, old_status, instance.status, actor=request.user)
         return api_success("OK", data=IntakeSerializer(instance).data)
 
 
@@ -353,8 +358,10 @@ class IntakeConvertAPIView(APIView):
             created_user_id = None
             created_case_id = None
 
+        old_status = instance.status
         instance.status = IntakeStatus.CONVERTED
         instance.save(update_fields=["status", "updated_at"])
+        notify_request_status_changed(instance, old_status, instance.status, actor=request.user)
         return api_success(
             "Converted",
             data={

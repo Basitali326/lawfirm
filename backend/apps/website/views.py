@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 from apps.ecommerce.models import Seller
 from apps.ecommerce.permissions import IsAdminStaffOrSuperAdmin
 from apps.ecommerce.services import resolve_firm
+from apps.notifx.services import notify_ebook_sale_paid
 from core.responses import api_error, api_success
 
 from .models import (
@@ -274,6 +275,7 @@ def fulfill_purchase(purchase, payment_intent_id=""):
     purchase.paid_at = timezone.now()
     purchase.stripe_payment_intent_id = payment_intent_id or purchase.stripe_payment_intent_id
     purchase.save(update_fields=["status", "paid_at", "stripe_payment_intent_id", "updated_at"])
+    notify_ebook_sale_paid(purchase)
     download_url = f"{settings.FRONTEND_URL}/ebooks/download/{purchase.download_token}"
     try:
         send_mail(

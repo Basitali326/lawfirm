@@ -10,10 +10,13 @@ import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useNotifications";
 
 function getTargetRoute(data = {}) {
+  if (data?.url) return data.url;
   if (data?.case_id) return `/cases/${data.case_id}`;
   if (data?.task_id) return `/tasks`;
   if (data?.invoice_id) return `/invoices/${data.invoice_id}`;
   if (data?.hearing_id) return `/hearings/${data.hearing_id}`;
+  if (data?.request_id) return "/requests";
+  if (data?.purchase_id) return "/dashboard/ebook-sales";
   return null;
 }
 

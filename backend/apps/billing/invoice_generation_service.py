@@ -7,6 +7,7 @@ from apps.billing.models import Invoice, InvoiceLineItem, InvoiceStatus
 from apps.billing.services import generate_invoice_number, refresh_invoice_totals
 from apps.billing.case_type_fee_service import get_default_fee_for_case_type
 from apps.cases.models import CaseStatus
+from apps.notifx.services import notify_invoice_created
 
 
 def _resolve_invoice_status(default_fee):
@@ -75,4 +76,5 @@ def create_invoice_for_case_on_create(
         if case.status in {CaseStatus.OPEN, CaseStatus.HOLD} and invoice.status != InvoiceStatus.PAID:
             case.status = CaseStatus.PENDING_PAYMENT
             case.save(update_fields=["status", "updated_at"])
+        notify_invoice_created(invoice, actor=created_by_user)
         return invoice

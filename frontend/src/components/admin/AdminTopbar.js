@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Bell, CheckCheck, ChevronDown } from "lucide-react";
+import { Bell, CheckCheck, ChevronDown, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
@@ -40,9 +40,30 @@ export default function AdminTopbar() {
   const role = session?.role || session?.user?.role || "";
 
   const previewItems = useMemo(
-    () => (items || []).filter((item) => !item.read_at).slice(0, 8),
+    () => (items || []).slice(0, 8),
     [items]
   );
+
+  const notificationTarget = (item) => {
+    const data = item?.data || {};
+    if (data.url) return data.url;
+    if (data.case_id) return `/cases/${data.case_id}`;
+    if (data.invoice_id) return `/invoices/${data.invoice_id}`;
+    if (data.hearing_id) return `/hearings/${data.hearing_id}`;
+    if (data.task_id) return "/tasks";
+    if (data.request_id) return "/requests";
+    return "/notifications";
+  };
+
+  const openNotification = async (item) => {
+    try {
+      if (!item.read_at) await markRead(item.id);
+    } catch (err) {
+      toast.error(err?.message || "Failed to mark notification as read");
+    }
+    setNotifOpen(false);
+    router.push(notificationTarget(item));
+  };
 
   const handleProfile = () => {
     setOpen(false);
@@ -120,10 +141,12 @@ export default function AdminTopbar() {
                   <div className="px-3 py-6 text-center text-sm text-slate-500">No new notifications</div>
                 ) : (
                   previewItems.map((item) => (
-                    <div
+                    <button
+                      type="button"
                       key={item.id}
+                      onClick={() => openNotification(item)}
                       className={cn(
-                        "rounded-lg px-3 py-2",
+                        "block w-full rounded-lg px-3 py-2 text-left transition hover:bg-slate-100",
                         item.read_at ? "bg-white" : "bg-slate-50"
                       )}
                     >
@@ -138,30 +161,15 @@ export default function AdminTopbar() {
                               : "Just now"}
                           </div>
                         </div>
-                        {!item.read_at && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                await markRead(item.id);
-                              } catch (err) {
-                                toast.error(err?.message || "Failed to mark notification as read");
-                              }
-                            }}
-                            className="shrink-0 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-white"
-                          >
-                            Mark read
-                          </button>
-                        )}
+                        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
                       </div>
-                    </div>
+                      {item.body ? <p className="mt-1 line-clamp-2 text-xs text-slate-600">{item.body}</p> : null}
+                    </button>
                   ))
                 )}
               </div>
               <div className="px-2 pb-1 pt-2">
-                <div className="px-1 pb-1 text-xs text-slate-500">
-                  Real-time updates are shown here.
-                </div>
+                <button type="button" onClick={() => { setNotifOpen(false); router.push("/notifications"); }} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">View all notifications</button>
               </div>
             </div>
           )}

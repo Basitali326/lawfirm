@@ -248,6 +248,12 @@ CHANNEL_LAYERS = {
 CELERY_BROKER_URL = env('REDIS_URL', default='redis://127.0.0.1:6379/0')
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
+CELERY_BEAT_SCHEDULE = {
+    'scan-overdue-tasks-daily': {
+        'task': 'apps.notifx.tasks.scan_overdue_tasks',
+        'schedule': 60 * 60 * 24,
+    },
+}
 
 # File storage (local default; S3 via django-storages if configured)
 STORAGE_BACKEND = env('STORAGE_BACKEND', default='local')

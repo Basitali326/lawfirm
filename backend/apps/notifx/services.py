@@ -15,20 +15,30 @@ logger = logging.getLogger(__name__)
 
 TASK_ASSIGNED = "TASK_ASSIGNED"
 TASK_OVERDUE = "TASK_OVERDUE"
+TASK_STATUS_CHANGED = "TASK_STATUS_CHANGED"
 CASE_ASSIGNED = "CASE_ASSIGNED"
 CASE_STATUS_CHANGED = "CASE_STATUS_CHANGED"
 INVOICE_CREATED = "INVOICE_CREATED"
+INVOICE_STATUS_CHANGED = "INVOICE_STATUS_CHANGED"
 PAYMENT_RECEIVED = "PAYMENT_RECEIVED"
 HEARING_SCHEDULED = "HEARING_SCHEDULED"
+REQUEST_CREATED = "REQUEST_CREATED"
+REQUEST_STATUS_CHANGED = "REQUEST_STATUS_CHANGED"
+EBOOK_SALE_PAID = "EBOOK_SALE_PAID"
 
 VALID_TYPES = {
     TASK_ASSIGNED,
     TASK_OVERDUE,
+    TASK_STATUS_CHANGED,
     CASE_ASSIGNED,
     CASE_STATUS_CHANGED,
     INVOICE_CREATED,
+    INVOICE_STATUS_CHANGED,
     PAYMENT_RECEIVED,
     HEARING_SCHEDULED,
+    REQUEST_CREATED,
+    REQUEST_STATUS_CHANGED,
+    EBOOK_SALE_PAID,
 }
 
 SMALL_FANOUT_THRESHOLD = 25
@@ -114,13 +124,16 @@ def push_ws_to_user(user_id, payload):
     if not channel_event_type:
         return
 
-    async_to_sync(channel_layer.group_send)(
-        f"user_{user_id}",
-        {
-            "type": channel_event_type,
-            "payload": payload,
-        },
-    )
+    try:
+        async_to_sync(channel_layer.group_send)(
+            f"user_{user_id}",
+            {
+                "type": channel_event_type,
+                "payload": payload,
+            },
+        )
+    except Exception:
+        logger.exception("Realtime notification delivery failed for user %s", user_id)
 
 
 def enqueue_notification_event(
@@ -186,10 +199,19 @@ def enqueue_notification_event(
             source_user=source_user,
         )
 
-        from apps.notifx.tasks import process_notification_outbox
-
-        transaction.on_commit(lambda: process_notification_outbox.delay(str(outbox.id)))
+        transaction.on_commit(lambda: _dispatch_outbox(outbox.id))
         return outbox.id
+
+
+def _dispatch_outbox(outbox_id):
+    from apps.notifx.tasks import process_notification_outbox
+
+    try:
+        # Persist notifications immediately so API requests and the top-bar badge
+        # do not depend on a separately running Celery worker.
+        process_notification_outbox.run(str(outbox_id))
+    except Exception:
+        logger.exception("Inline notification processing failed for outbox %s", outbox_id)
 
 
 def _enqueue_safe(**kwargs):
@@ -209,11 +231,51 @@ def notify_task_assigned(task, actor=None):
         type=TASK_ASSIGNED,
         title="Task assigned",
         body=task.title,
-        data={"task_id": str(task.id), "case_id": str(task.case_id)},
+        data={"task_id": str(task.id), "case_id": str(task.case_id), "url": "/tasks"},
         recipients=[task.assigned_to_id],
         source_user=actor,
         priority=Notification.Priority.MEDIUM,
         event_key=f"TASK_ASSIGNED:{task.id}:{task.assigned_to_id}",
+    )
+
+
+def notify_task_status_changed(task, old_status, new_status, actor=None):
+    if old_status == new_status:
+        return None
+    recipients = [uid for uid in [task.assigned_to_id, task.created_by_id] if uid]
+    if not recipients:
+        return None
+    return _enqueue_safe(
+        firm=task.firm,
+        type=TASK_STATUS_CHANGED,
+        title="Task status updated",
+        body=f"{task.title}: {old_status} → {new_status}",
+        data={
+            "task_id": str(task.id),
+            "case_id": str(task.case_id),
+            "old_status": old_status,
+            "new_status": new_status,
+            "url": "/tasks",
+        },
+        recipients=recipients,
+        source_user=actor,
+        priority=Notification.Priority.HIGH if new_status == "BLOCKED" else Notification.Priority.MEDIUM,
+        event_key=f"TASK_STATUS_CHANGED:{task.id}:{old_status}:{new_status}:{task.updated_at.isoformat()}",
+    )
+
+
+def notify_task_overdue(task):
+    if not task.assigned_to_id:
+        return None
+    return _enqueue_safe(
+        firm=task.firm,
+        type=TASK_OVERDUE,
+        title="Task overdue",
+        body=f"{task.title} was due on {task.due_date}",
+        data={"task_id": str(task.id), "case_id": str(task.case_id), "url": "/tasks"},
+        recipients=[task.assigned_to_id],
+        priority=Notification.Priority.URGENT,
+        event_key=f"TASK_OVERDUE:{task.id}:{task.due_date}",
     )
 
 
@@ -225,7 +287,7 @@ def notify_case_assigned(case, assignee_id, actor=None):
         type=CASE_ASSIGNED,
         title="Case assigned",
         body=case.title,
-        data={"case_id": str(case.id)},
+        data={"case_id": str(case.id), "url": f"/cases/{case.id}"},
         recipients=[assignee_id],
         source_user=actor,
         priority=Notification.Priority.HIGH,
@@ -244,7 +306,7 @@ def notify_case_status_changed(case, old_status, new_status, actor=None):
         type=CASE_STATUS_CHANGED,
         title="Case status updated",
         body=f"{case.title}: {old_status} -> {new_status}",
-        data={"case_id": str(case.id), "old_status": old_status, "new_status": new_status},
+        data={"case_id": str(case.id), "old_status": old_status, "new_status": new_status, "url": f"/cases/{case.id}"},
         recipients=recipients,
         source_user=actor,
         priority=Notification.Priority.MEDIUM,
@@ -258,11 +320,37 @@ def notify_invoice_created(invoice, actor=None):
         type=INVOICE_CREATED,
         title="Invoice created",
         body=f"Invoice {invoice.invoice_number} was created",
-        data={"invoice_id": str(invoice.id), "case_id": str(invoice.case_id) if invoice.case_id else None},
+        data={
+            "invoice_id": str(invoice.id),
+            "case_id": str(invoice.case_id) if invoice.case_id else None,
+            "url": f"/invoices/{invoice.id}",
+        },
         recipient_query={"roles": ["FIRM_OWNER", "FIRM_ADMIN", "ACCOUNTANT"]},
         source_user=actor,
         priority=Notification.Priority.MEDIUM,
         event_key=f"INVOICE_CREATED:{invoice.id}",
+    )
+
+
+def notify_invoice_status_changed(invoice, old_status, new_status, actor=None):
+    if old_status == new_status:
+        return None
+    return _enqueue_safe(
+        firm=invoice.firm,
+        type=INVOICE_STATUS_CHANGED,
+        title="Invoice status updated",
+        body=f"Invoice {invoice.invoice_number}: {old_status} → {new_status}",
+        data={
+            "invoice_id": str(invoice.id),
+            "case_id": str(invoice.case_id) if invoice.case_id else None,
+            "old_status": old_status,
+            "new_status": new_status,
+            "url": f"/invoices/{invoice.id}",
+        },
+        recipient_query={"roles": ["FIRM_OWNER", "FIRM_ADMIN", "ACCOUNTANT"]},
+        source_user=actor,
+        priority=Notification.Priority.HIGH if new_status in {"PAID", "CANCELLED"} else Notification.Priority.MEDIUM,
+        event_key=f"INVOICE_STATUS_CHANGED:{invoice.id}:{old_status}:{new_status}:{invoice.updated_at.isoformat()}",
     )
 
 
@@ -272,7 +360,7 @@ def notify_payment_received(payment, actor=None):
         type=PAYMENT_RECEIVED,
         title="Payment received",
         body=f"Payment received for invoice {payment.invoice.invoice_number}",
-        data={"payment_id": str(payment.id), "invoice_id": str(payment.invoice_id)},
+        data={"payment_id": str(payment.id), "invoice_id": str(payment.invoice_id), "url": f"/invoices/{payment.invoice_id}"},
         recipient_query={"roles": ["FIRM_OWNER", "FIRM_ADMIN", "ACCOUNTANT"]},
         source_user=actor,
         priority=Notification.Priority.HIGH,
@@ -289,10 +377,64 @@ def notify_hearing_scheduled(hearing, actor=None):
         type=HEARING_SCHEDULED,
         title="Hearing scheduled",
         body=hearing.title,
-        data={"hearing_id": str(hearing.id), "case_id": str(hearing.case_id)},
+        data={"hearing_id": str(hearing.id), "case_id": str(hearing.case_id), "url": f"/hearings/{hearing.id}"},
         recipients=recipients,
         source_user=actor,
         priority=Notification.Priority.HIGH,
         event_key=f"HEARING_SCHEDULED:{hearing.id}",
     )
 
+
+def notify_request_created(intake):
+    return _enqueue_safe(
+        firm=intake.firm,
+        type=REQUEST_CREATED,
+        title="New client request",
+        body=f"{intake.full_name} submitted a {intake.case_type or 'legal'} request",
+        data={"request_id": str(intake.id), "url": "/requests"},
+        recipient_query={"roles": ["FIRM_OWNER", "FIRM_ADMIN", "PARALEGAL"]},
+        priority=Notification.Priority.HIGH,
+        event_key=f"REQUEST_CREATED:{intake.id}",
+    )
+
+
+def notify_request_status_changed(intake, old_status, new_status, actor=None):
+    if old_status == new_status:
+        return None
+    recipients = [intake.assigned_to_id] if intake.assigned_to_id else None
+    kwargs = {"recipients": recipients} if recipients else {
+        "recipient_query": {"roles": ["FIRM_OWNER", "FIRM_ADMIN", "PARALEGAL"]}
+    }
+    return _enqueue_safe(
+        firm=intake.firm,
+        type=REQUEST_STATUS_CHANGED,
+        title="Request status updated",
+        body=f"{intake.full_name}: {old_status} → {new_status}",
+        data={
+            "request_id": str(intake.id),
+            "old_status": old_status,
+            "new_status": new_status,
+            "url": "/requests",
+        },
+        source_user=actor,
+        priority=Notification.Priority.MEDIUM,
+        event_key=f"REQUEST_STATUS_CHANGED:{intake.id}:{old_status}:{new_status}:{intake.updated_at.isoformat()}",
+        **kwargs,
+    )
+
+
+def notify_ebook_sale_paid(purchase):
+    return _enqueue_safe(
+        firm=purchase.firm,
+        type=EBOOK_SALE_PAID,
+        title="E-book sale completed",
+        body=f"{purchase.ebook.title} sold for AED {purchase.amount_aed}",
+        data={
+            "purchase_id": str(purchase.id),
+            "ebook_id": str(purchase.ebook_id),
+            "url": "/dashboard/ebook-sales",
+        },
+        recipient_query={"roles": ["FIRM_OWNER", "FIRM_ADMIN", "ACCOUNTANT"]},
+        priority=Notification.Priority.HIGH,
+        event_key=f"EBOOK_SALE_PAID:{purchase.id}",
+    )
