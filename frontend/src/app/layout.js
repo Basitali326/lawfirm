@@ -5,7 +5,7 @@ import PageTitleSync from "@/components/PageTitleSync";
 import { buildMetadata } from "@/lib/metadata";
 
 export const metadata = buildMetadata({
-  title: "Lawfirm",
+  title: "Dr Alaa Nasir",
   description: "Legal SaaS for firm operations and client intake.",
 });
 

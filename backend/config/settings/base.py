@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     'apps.dashboard',
     'apps.documents',
     'apps.ecommerce',
+    'apps.website',
 ]
 
 MIDDLEWARE = [

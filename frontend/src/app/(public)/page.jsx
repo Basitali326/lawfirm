@@ -2,8 +2,8 @@ import { buildMetadata } from "@/lib/metadata";
 import StoreHomePage from "@/components/ecommerce/store/StoreHomePage";
 
 export const metadata = buildMetadata({
-  title: "Lawfirm Store",
-  description: "Browse products, add to cart, and place COD orders.",
+  title: "Dr Alaa Nasir",
+  description: "Trusted legal counsel, law books, e-books, certifications, and legal insight in the UAE.",
 });
 
 export default function PublicHomePage() {

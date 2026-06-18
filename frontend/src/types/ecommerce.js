@@ -29,6 +29,7 @@ export const DEFAULT_PRODUCT_FORM = {
   short_description: "",
   description: "",
   collection: "",
+  seller: "",
   vendor: "",
   product_type: "",
   price_aed: "0.00",

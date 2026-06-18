@@ -30,3 +30,12 @@ class DashboardSummaryQuerySerializer(serializers.Serializer):
 
         return attrs
 
+
+class DashboardAnalyticsQuerySerializer(serializers.Serializer):
+    year = serializers.IntegerField(required=False, min_value=2020, max_value=2100)
+    month = serializers.IntegerField(required=False, min_value=1, max_value=12)
+
+    def validate(self, attrs):
+        if attrs.get("month") and not attrs.get("year"):
+            raise serializers.ValidationError({"year": ["Year is required when month is selected."]})
+        return attrs

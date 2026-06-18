@@ -1,6 +1,7 @@
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
+from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 from rest_framework import status, mixins, viewsets
 from rest_framework.views import APIView
@@ -107,6 +108,7 @@ class PublicIntakeRequestView(APIView):
             )
         except Exception:
             pass
+        self._send_notifications(firm, intake)
         return api_success(
             "OK",
             data={"id": str(intake.id), "status": intake.status, "created_at": intake.created_at},
@@ -118,6 +120,41 @@ class PublicIntakeRequestView(APIView):
         if xff:
             return xff.split(",")[0].strip()
         return request.META.get("REMOTE_ADDR")
+
+    def _send_notifications(self, firm, intake):
+        firm_email = firm.email or "contact@almizanlegal.ae"
+        try:
+            send_mail(
+                subject=f"New website request: {intake.full_name}",
+                message=(
+                    f"A new consultation request was submitted.\n\n"
+                    f"Name: {intake.full_name}\n"
+                    f"Email: {intake.email or '-'}\n"
+                    f"Phone: {intake.phone}\n"
+                    f"Case type: {intake.case_type or '-'}\n"
+                    f"City: {intake.city or '-'}\n"
+                    f"Preferred contact time: {intake.preferred_contact_time or '-'}\n\n"
+                    f"Message:\n{intake.message}\n"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[firm_email],
+                fail_silently=True,
+            )
+            if intake.email:
+                send_mail(
+                    subject=f"Your request was received by {firm.name}",
+                    message=(
+                        f"Hello {intake.full_name},\n\n"
+                        "Your consultation request has been received. "
+                        "Our legal team will contact you as soon as possible.\n\n"
+                        f"Reference: {intake.id}\n"
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[intake.email],
+                    fail_silently=True,
+                )
+        except Exception:
+            pass
 
 
 class PublicCaseTypesAPIView(APIView):

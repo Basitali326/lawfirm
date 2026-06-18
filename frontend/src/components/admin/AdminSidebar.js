@@ -45,9 +45,14 @@ const iconMap = {
   "/invoices": CreditCard,
   "/reports": BarChart3,
   "/audit-logs": ShieldCheck,
-  "/dashboard/products": Package2,
-  "/dashboard/collections": Boxes,
-  "/dashboard/orders": ShoppingBag,
+  "/dashboard/ebooks": FileText,
+  "/dashboard/ebooks/add": FileText,
+  "/dashboard/ebook-sales": CreditCard,
+  "/dashboard/certifications": ShieldCheck,
+  "/dashboard/certifications/add": ShieldCheck,
+  "/dashboard/article-categories": FileText,
+  "/dashboard/articles": FileText,
+  "/dashboard/articles/add": FileText,
   "/trash": Trash2,
   "/settings": Settings,
   "/settings/firms": ShieldCheck,
@@ -119,9 +124,9 @@ export default function AdminSidebar() {
     >
       <div className="flex items-center justify-between px-4 py-5">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-2xl bg-emerald-500/90" />
+          <div className="grid h-9 w-9 place-items-center rounded-full border border-amber-500 bg-slate-900 font-serif text-xs font-bold text-amber-400">AN</div>
           {sidebarOpen && (
-            <span className="text-lg font-semibold tracking-wide">Lawfirm</span>
+            <span className="text-lg font-semibold tracking-wide">Dr Alaa Nasir</span>
           )}
         </div>
         <button

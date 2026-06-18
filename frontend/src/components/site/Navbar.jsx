@@ -18,7 +18,7 @@ export default function Navbar() {
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 text-lg font-bold">
             L
           </span>
-          <span className="text-lg font-semibold tracking-tight">Lawfirm</span>
+          <span className="text-lg font-semibold tracking-tight">Dr Alaa Nasir</span>
         </Link>
         <nav className="flex items-center gap-3">
           <Link

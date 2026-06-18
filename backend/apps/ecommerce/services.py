@@ -72,7 +72,7 @@ def pagination_meta(paginator, request):
 def product_queryset_for_admin(firm):
     return (
         Product.objects.filter(firm=firm, deleted_at__isnull=True)
-        .select_related("collection")
+        .select_related("collection", "seller")
         .prefetch_related(
             Prefetch(
                 "media",
@@ -95,7 +95,7 @@ def product_queryset_for_store(firm):
         .filter(
             Q(collection__isnull=True) | Q(collection__deleted_at__isnull=True, collection__is_active=True)
         )
-        .select_related("collection")
+        .select_related("collection", "seller")
         .prefetch_related(
             Prefetch(
                 "media",

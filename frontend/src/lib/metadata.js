@@ -1,5 +1,5 @@
 export const siteMeta = {
-  name: "Lawfirm",
+  name: "Dr Alaa Nasir",
   description: "Legal SaaS for firm operations and client intake.",
   url: "http://localhost:3000",
   ogImage: "/og.png",

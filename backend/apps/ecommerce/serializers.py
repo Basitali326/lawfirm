@@ -14,6 +14,7 @@ from apps.ecommerce.models import (
     ProductStatus,
     ProductTag,
     ProductVariant,
+    Seller,
 )
 from apps.ecommerce.services import (
     get_primary_media,
@@ -125,6 +126,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 class ProductListSerializer(serializers.ModelSerializer):
     collection = serializers.CharField(source="collection.title", read_only=True)
+    seller = serializers.CharField(source="seller.name", read_only=True)
     feature_image = serializers.SerializerMethodField()
 
     class Meta:
@@ -135,6 +137,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "feature_image",
             "title",
             "collection",
+            "seller",
             "price_aed",
             "inventory_quantity",
             "status",
@@ -157,6 +160,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     media = serializers.SerializerMethodField()
     feature_image = serializers.SerializerMethodField()
     collection_detail = serializers.SerializerMethodField()
+    seller_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -168,6 +172,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "description",
             "collection",
             "collection_detail",
+            "seller",
+            "seller_detail",
             "vendor",
             "product_type",
             "price_aed",
@@ -225,8 +231,16 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             return None
         return {"id": str(collection.id), "title": collection.title, "slug": collection.slug}
 
+    def get_seller_detail(self, obj):
+        seller = obj.seller
+        if not seller:
+            return None
+        return {"id": str(seller.id), "name": seller.name, "company_name": seller.company_name}
+
+
 class ProductWriteSerializer(serializers.ModelSerializer):
     collection = serializers.PrimaryKeyRelatedField(queryset=Collection.objects.all(), required=False, allow_null=True)
+    seller = serializers.PrimaryKeyRelatedField(queryset=Seller.objects.all(), required=False, allow_null=True)
     tags = serializers.ListField(child=serializers.CharField(max_length=80), required=False)
     attributes = ProductAttributeSerializer(many=True, required=False)
 
@@ -239,6 +253,7 @@ class ProductWriteSerializer(serializers.ModelSerializer):
             "short_description",
             "description",
             "collection",
+            "seller",
             "vendor",
             "product_type",
             "price_aed",
@@ -281,8 +296,14 @@ class ProductWriteSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         collection = attrs.get("collection", getattr(self.instance, "collection", None))
+        seller = attrs.get("seller", getattr(self.instance, "seller", None))
         if collection and (collection.deleted_at is not None or not collection.is_active):
             raise serializers.ValidationError({"collection": ["Collection must be active."]})
+        if seller and (seller.deleted_at is not None or not seller.is_active):
+            raise serializers.ValidationError({"seller": ["Seller must be active."]})
+        firm = self.context.get("firm")
+        if seller and firm and seller.firm_id != firm.id:
+            raise serializers.ValidationError({"seller": ["Seller must belong to this firm."]})
         return attrs
 
     @transaction.atomic

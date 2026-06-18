@@ -1,0 +1,2 @@
+import ContentCrud from "@/components/website/admin/ContentCrud";
+export default function ArticleCategoriesAdminPage(){return <ContentCrud title="Article Categories" endpoint="/api/v1/article-categories/" fields={[{name:"name",label:"Name",required:true},{name:"description",label:"Description",type:"textarea"},{name:"is_active",label:"Active",type:"checkbox",defaultValue:true}]} columns={["name","slug","is_active"]} />}

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -82,7 +83,7 @@ export default function ProductForm({
         tags: parseTags(values.tags),
       });
     } catch (error) {
-      setGlobalError(error?.message || "Unable to save product.");
+      setGlobalError(error?.message || "Unable to save book.");
     }
   };
 
@@ -100,7 +101,7 @@ export default function ProductForm({
     <form className="space-y-6" onSubmit={handleSubmit(submit)}>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          <SectionCard title="Basic Information" description="Primary product content used throughout the admin and storefront.">
+          <SectionCard title="Book Information" description="Primary book content used throughout the admin and storefront.">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="title">Title <span className="text-rose-600">*</span></Label>
@@ -176,7 +177,7 @@ export default function ProductForm({
             </div>
           </SectionCard>
 
-          <SectionCard title="Organization" description="Place the product in the right collection for storefront grouping.">
+          <SectionCard title="Organization" description="Assign the book to its seller and collection.">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="collection">Collection <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
@@ -192,6 +193,11 @@ export default function ProductForm({
               <div className="space-y-2">
                 <Label htmlFor="vendor">Vendor <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input id="vendor" {...register("vendor")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="seller">Seller UUID <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
+                <Input id="seller" {...register("seller")} placeholder="Copy from the Sellers table" />
+                <FieldMessage error={errors.seller?.message || serverErrors.seller} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="tags">Tags <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
@@ -363,7 +369,7 @@ export default function ProductForm({
 
           <div className="sticky top-20">
             <Button className="w-full" type="submit" disabled={loading || mediaUploading}>
-              {loading ? "Saving product..." : "Save Product"}
+              {loading ? "Saving book..." : "Save Book"}
             </Button>
           </div>
         </div>

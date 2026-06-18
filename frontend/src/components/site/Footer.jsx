@@ -12,7 +12,7 @@ export default function Footer() {
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 text-sm font-bold">
                 L
               </span>
-              <span className="text-base font-semibold">Lawfirm</span>
+              <span className="text-base font-semibold">Dr Alaa Nasir</span>
             </div>
             <p className="text-sm text-slate-400">Client-first intake, secure by design.</p>
           </div>

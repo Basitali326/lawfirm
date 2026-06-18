@@ -119,11 +119,36 @@ class ProductStatus(models.TextChoices):
     UNLISTED = "UNLISTED", "Unlisted"
 
 
+class Seller(SoftDeleteModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="ecommerce_sellers")
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone = models.CharField(max_length=50, blank=True, null=True)
+    company_name = models.CharField(max_length=255, blank=True, null=True)
+    commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["firm", "email"],
+                condition=models.Q(deleted_at__isnull=True),
+                name="uniq_ecom_seller_email_per_firm",
+            )
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Product(SoftDeleteModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="ecommerce_products")
     collection = models.ForeignKey(Collection, on_delete=models.PROTECT, related_name="products", null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products", null=True, blank=True)
+    seller = models.ForeignKey(Seller, on_delete=models.SET_NULL, related_name="books", null=True, blank=True)
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255)
     short_description = models.CharField(max_length=500, blank=True, null=True)

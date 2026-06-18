@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import useMe from "@/hooks/useMe";
 
-const APP_NAME = "Lawfirm";
+const APP_NAME = "Dr Alaa Nasir";
 const TITLE_OVERRIDES = {
   cases: "Case",
   invoices: "Invoice",

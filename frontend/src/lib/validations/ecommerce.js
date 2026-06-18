@@ -41,6 +41,7 @@ export const productSchema = z.object({
   short_description: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   collection: z.string().optional().nullable(),
+  seller: z.string().optional().nullable(),
   vendor: z.string().optional().nullable(),
   product_type: z.string().optional().nullable(),
   price_aed: decimalField("Price"),
