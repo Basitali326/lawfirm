@@ -1,7 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Award, BookOpen, CheckCircle2, Scale } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  BookOpen,
+  BriefcaseBusiness,
+  Building2,
+  CheckCircle2,
+  Gavel,
+  HeartHandshake,
+  Landmark,
+  Scale,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { API_BASE_URL } from "@/lib/config";
@@ -17,6 +29,39 @@ const fallbackArticles = [
   { id: "a1", slug: "starting-a-business-in-the-uae", title: "Starting a Business in the UAE: Legal Essentials", category_name: "Corporate Law", excerpt: "The key legal decisions every founder should make before licensing and incorporation." },
   { id: "a2", slug: "understanding-employment-contracts", title: "Understanding UAE Employment Contracts", category_name: "Employment Law", excerpt: "Core clauses, obligations, and common risks for employers and employees." },
   { id: "a3", slug: "property-dispute-guide", title: "A Practical Guide to Property Disputes", category_name: "Real Estate", excerpt: "What to document, when to negotiate, and how formal proceedings work." },
+];
+
+const expertiseAreas = [
+  {
+    title: "Litigation & Disputes",
+    description: "Strategic representation in civil, commercial, and complex legal disputes.",
+    icon: Gavel,
+  },
+  {
+    title: "Corporate & Commercial",
+    description: "Company formation, contracts, transactions, governance, and compliance.",
+    icon: BriefcaseBusiness,
+  },
+  {
+    title: "Real Estate",
+    description: "Advice on property transactions, leasing, ownership, and real estate disputes.",
+    icon: Building2,
+  },
+  {
+    title: "Employment Law",
+    description: "Guidance for employers and employees on contracts, policies, and labour disputes.",
+    icon: Users,
+  },
+  {
+    title: "Family Law",
+    description: "Confidential support for family, inheritance, and personal status matters.",
+    icon: HeartHandshake,
+  },
+  {
+    title: "Arbitration",
+    description: "Domestic and international arbitration from early strategy through enforcement.",
+    icon: Landmark,
+  },
 ];
 
 function SectionTitle({ eyebrow, title, copy, centered = false, light = false }) {
@@ -72,6 +117,35 @@ export default function StoreHomePage() {
           <div className="absolute -bottom-5 -left-5 h-full w-full border border-[#c9b58e]" />
           <img src="/law-office-hero.png" alt="Dr Alaa Nasir legal office" className="relative aspect-[4/3] w-full object-cover object-right" />
           <div className="absolute bottom-5 left-5 bg-[#fffdf8] p-5 shadow-xl"><strong className="block font-serif text-3xl text-[#9a7437]">25+</strong><span className="text-sm text-slate-600">Years of legal experience</span></div>
+        </div>
+      </section>
+
+      <section className="bg-[#111b2d] py-24 text-white">
+        <div className="mx-auto max-w-7xl px-5">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <SectionTitle
+              eyebrow="Our expertise"
+              title="Focused legal capability for important decisions."
+              copy="Practical advice and representation tailored to each client’s legal and commercial objectives."
+              light
+            />
+            <Link href="/expertise" className="inline-flex items-center gap-2 border border-white/30 px-6 py-3 font-semibold text-white transition hover:bg-white/10">
+              View all expertise <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="mt-12 grid gap-px overflow-hidden border border-white/15 bg-white/15 md:grid-cols-2 lg:grid-cols-3">
+            {expertiseAreas.map(({ title, description, icon: Icon }) => (
+              <article key={title} className="group bg-[#111b2d] p-7 transition hover:bg-[#192741]">
+                <Icon className="h-9 w-9 text-[#dfc18b]" />
+                <h3 className="mt-5 font-serif text-2xl">{title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-300">{description}</p>
+                <Link href="/contact" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#dfc18b]">
+                  Discuss your matter <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </Link>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
