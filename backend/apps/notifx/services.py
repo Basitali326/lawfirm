@@ -25,6 +25,7 @@ HEARING_SCHEDULED = "HEARING_SCHEDULED"
 REQUEST_CREATED = "REQUEST_CREATED"
 REQUEST_STATUS_CHANGED = "REQUEST_STATUS_CHANGED"
 EBOOK_SALE_PAID = "EBOOK_SALE_PAID"
+APPOINTMENT_BOOKED = "APPOINTMENT_BOOKED"
 
 VALID_TYPES = {
     TASK_ASSIGNED,
@@ -39,6 +40,7 @@ VALID_TYPES = {
     REQUEST_CREATED,
     REQUEST_STATUS_CHANGED,
     EBOOK_SALE_PAID,
+    APPOINTMENT_BOOKED,
 }
 
 SMALL_FANOUT_THRESHOLD = 25
@@ -437,4 +439,24 @@ def notify_ebook_sale_paid(purchase):
         recipient_query={"roles": ["FIRM_OWNER", "FIRM_ADMIN", "ACCOUNTANT"]},
         priority=Notification.Priority.HIGH,
         event_key=f"EBOOK_SALE_PAID:{purchase.id}",
+    )
+
+
+def notify_appointment_booked(appointment):
+    return _enqueue_safe(
+        firm=appointment.firm,
+        type=APPOINTMENT_BOOKED,
+        title="New paid appointment",
+        body=(
+            f"{appointment.client_name} booked {appointment.service.title} "
+            f"for {appointment.appointment_date} at {appointment.start_time.strftime('%H:%M')}"
+        ),
+        data={
+            "appointment_id": str(appointment.id),
+            "service_id": str(appointment.service_id),
+            "url": "/dashboard/appointments",
+        },
+        recipients=[appointment.lawyer_id],
+        priority=Notification.Priority.HIGH,
+        event_key=f"APPOINTMENT_BOOKED:{appointment.id}",
     )

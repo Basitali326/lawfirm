@@ -11,7 +11,10 @@ import {
   Gavel,
   HeartHandshake,
   Landmark,
+  MapPin,
+  Search,
   Scale,
+  Star,
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -29,6 +32,12 @@ const fallbackArticles = [
   { id: "a1", slug: "starting-a-business-in-the-uae", title: "Starting a Business in the UAE: Legal Essentials", category_name: "Corporate Law", excerpt: "The key legal decisions every founder should make before licensing and incorporation." },
   { id: "a2", slug: "understanding-employment-contracts", title: "Understanding UAE Employment Contracts", category_name: "Employment Law", excerpt: "Core clauses, obligations, and common risks for employers and employees." },
   { id: "a3", slug: "property-dispute-guide", title: "A Practical Guide to Property Disputes", category_name: "Real Estate", excerpt: "What to document, when to negotiate, and how formal proceedings work." },
+];
+
+const fallbackServices = [
+  { id: "s1", slug: "legal-consultation", title: "Legal Consultation", lawyer_name: "Dr Alaa Nasir", short_description: "A focused private consultation to assess your matter and define the next legal steps.", price_aed: "1000.00", rating: "4.90", reviews_count: 87, experience_years: 25, city: "Sharjah", supports_online: true, supports_physical: true },
+  { id: "s2", slug: "business-law-advisory", title: "Business Law Advisory", lawyer_name: "Dr Alaa Nasir", short_description: "Practical advice for contracts, company matters, commercial risk, and regulatory decisions.", price_aed: "1200.00", rating: "4.90", reviews_count: 64, experience_years: 25, city: "Sharjah", supports_online: true, supports_physical: true },
+  { id: "s3", slug: "family-law-consultation", title: "Family Law Consultation", lawyer_name: "Dr Alaa Nasir", short_description: "Confidential guidance on family, personal status, divorce, custody, and inheritance matters.", price_aed: "1000.00", rating: "4.80", reviews_count: 52, experience_years: 25, city: "Sharjah", supports_online: true, supports_physical: true },
 ];
 
 const expertiseAreas = [
@@ -70,6 +79,7 @@ function SectionTitle({ eyebrow, title, copy, centered = false, light = false })
 
 export default function StoreHomePage() {
   const [content, setContent] = useState(null);
+  const [serviceSearch, setServiceSearch] = useState("");
 
   useEffect(() => {
     const slug = process.env.NEXT_PUBLIC_STOREFRONT_FIRM_SLUG || "";
@@ -86,23 +96,53 @@ export default function StoreHomePage() {
     { id: "c2", title: "International Arbitration", description: "Accreditation reflecting experience in arbitration and dispute resolution." },
     { id: "c3", title: "Corporate Compliance", description: "Professional recognition for corporate compliance and governance advisory." },
   ];
+  const services = content?.services?.length ? content.services : fallbackServices;
+  const visibleServices = services.filter((service) => {
+    const needle = serviceSearch.trim().toLowerCase();
+    if (!needle) return true;
+    return `${service.title} ${service.short_description} ${service.case_type_name || ""}`
+      .toLowerCase()
+      .includes(needle);
+  });
 
   return (
     <main className="bg-[#fffdf8] text-[#26344c]">
-      <section className="relative min-h-[680px] overflow-hidden bg-[#101827] text-white">
-        <img src="/law-office-hero.png" alt="Senior attorney in a modern law office" className="absolute inset-0 h-full w-full object-cover object-center" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0c1423]/95 via-[#0c1423]/75 to-[#0c1423]/15" />
-        <div className="relative mx-auto flex min-h-[680px] max-w-7xl items-center px-5 py-24">
-          <div className="max-w-3xl">
-            <p className="mb-6 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.32em] text-[#dfc18b]"><span className="h-px w-10 bg-[#dfc18b]" /> Trusted legal counsel in the UAE</p>
-            <h1 className="font-serif text-5xl font-semibold leading-[1.08] sm:text-6xl lg:text-7xl">Strategic advocacy.<br />Clear legal direction.</h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-200">Experienced counsel for businesses, families, and individuals navigating complex legal matters across the United Arab Emirates.</p>
-            <div className="mt-9 flex flex-wrap gap-4">
-              <Link href="/contact" className="inline-flex items-center gap-2 bg-[#a77d3b] px-7 py-4 font-semibold text-white transition hover:bg-[#8b662f]">Book a Consultation <ArrowRight className="h-4 w-4" /></Link>
-              <Link href="/expertise" className="border border-white/50 px-7 py-4 font-semibold text-white transition hover:bg-white/10">Explore Our Expertise</Link>
-            </div>
-            <div className="mt-12 flex flex-wrap gap-7 text-sm text-slate-200">{["25+ years combined experience", "UAE-wide representation", "Confidential counsel"].map((item) => <span key={item} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#dfc18b]" />{item}</span>)}</div>
+      <section className="bg-[#0d121a] px-5 py-20 text-white">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#dfb93f]">Book trusted legal advice</p>
+            <h1 className="mt-4 font-serif text-5xl leading-tight md:text-6xl">Find the right legal service and reserve your consultation.</h1>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">Choose a case service, review exactly how we help, select an available date and time, then confirm securely through Stripe.</p>
           </div>
+          <div className="mx-auto mt-9 flex max-w-3xl items-center gap-3 rounded-xl border border-white/15 bg-white p-3 shadow-2xl">
+            <Search className="ml-2 h-5 w-5 text-slate-500" />
+            <input value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)} placeholder="Search family law, business, property, disputes..." className="min-w-0 flex-1 bg-transparent px-2 py-2 text-slate-950 outline-none" />
+            <a href="#book-services" className="rounded-lg bg-[#d5ad37] px-6 py-3 font-bold text-[#111827]">Search</a>
+          </div>
+          <div className="mt-7 flex flex-wrap justify-center gap-6 text-sm text-slate-300">{["Verified legal experience", "Online or office appointment", "Secure payment"].map((item) => <span key={item} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-[#dfb93f]" />{item}</span>)}</div>
+        </div>
+      </section>
+
+      <section id="book-services" className="bg-[#0d121a] px-5 pb-24 text-white">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div><h2 className="font-serif text-4xl text-[#e3bd42]">Featured Legal Services</h2><p className="mt-2 text-slate-400">Select a service to view details, availability, and booking options.</p></div>
+            <Link href="/services" className="text-sm font-bold text-[#e3bd42]">View all services →</Link>
+          </div>
+          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {visibleServices.slice(0, 6).map((service) => (
+              <article key={service.id} className="rounded-xl border border-slate-700 bg-[#1b2434] p-6">
+                <div className="flex items-start gap-4">
+                  {service.image_url ? <img src={service.image_url} alt={service.lawyer_name} className="h-16 w-16 rounded-full object-cover" /> : <div className="grid h-16 w-16 place-items-center rounded-full border border-[#d5ad37]/50 bg-slate-900 font-serif text-xl text-[#e3bd42]">AN</div>}
+                  <div><span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-400">✓ Verified</span><h3 className="mt-3 text-lg font-bold">{service.lawyer_name}</h3><p className="mt-1 text-sm font-semibold text-[#e3bd42]">{service.title}</p><p className="mt-2 flex items-center gap-1 text-sm text-slate-400"><MapPin className="h-3.5 w-3.5 text-pink-400" />{service.city}</p></div>
+                </div>
+                <p className="mt-5 line-clamp-2 min-h-12 text-sm leading-6 text-slate-300">{service.short_description}</p>
+                <div className="mt-5 flex items-center justify-between border-y border-slate-700 py-4 text-sm"><span className="flex items-center gap-1 text-[#e3bd42]"><Star className="h-4 w-4 fill-current" /> {service.rating} <small className="text-slate-400">({service.reviews_count})</small></span><span><strong>{service.experience_years}</strong> <small className="text-slate-400">yrs exp</small></span></div>
+                <div className="mt-5 flex items-end justify-between gap-4"><div><strong className="block text-2xl text-[#e3bd42]">{formatAED(service.price_aed)}</strong><small className="text-slate-400">per {service.duration_minutes || 60} min session</small></div><Link href={`/services/${service.slug}`} className="rounded-lg bg-[#d5ad37] px-5 py-3 text-sm font-bold text-[#111827]">Book Now</Link></div>
+              </article>
+            ))}
+          </div>
+          {!visibleServices.length ? <p className="mt-10 rounded-xl border border-slate-700 p-8 text-center text-slate-300">No services match your search.</p> : null}
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const links = [
+  ["Book", "/services"],
   ["Profile", "/profile-lawyer"],
   ["Expertise", "/expertise"],
   ["E-Books", "/ebooks"],

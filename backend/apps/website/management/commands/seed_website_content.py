@@ -8,7 +8,15 @@ from reportlab.pdfgen import canvas
 
 from apps.authx.models import Firm
 from apps.ecommerce.models import Seller
-from apps.website.models import Article, ArticleCategory, Certification, Ebook, PublishStatus
+from apps.website.models import (
+    Article,
+    ArticleCategory,
+    Certification,
+    Ebook,
+    LawyerAvailability,
+    LegalService,
+    PublishStatus,
+)
 
 
 EBOOKS = [
@@ -21,6 +29,19 @@ ARTICLES = [
     ("Corporate Law", "Starting a Business in the UAE: Legal Essentials", "starting-a-business-in-the-uae"),
     ("Employment Law", "Understanding UAE Employment Contracts", "understanding-uae-employment-contracts"),
     ("Real Estate", "A Practical Guide to Property Disputes", "practical-guide-property-disputes"),
+]
+
+LEGAL_SERVICES = [
+    ("Legal Consultation", "legal-consultation", "1000.00", "A private consultation to assess your legal matter and define the next practical steps."),
+    ("Civil Litigation", "civil-litigation", "1500.00", "Strategic advice for civil claims, evidence, procedure, settlement, and court representation."),
+    ("Commercial Disputes", "commercial-disputes", "1800.00", "Focused support for contract breaches, payment disputes, partnerships, and business claims."),
+    ("Corporate & Business Law", "corporate-business-law", "1200.00", "Advice on company formation, governance, contracts, transactions, and regulatory risk."),
+    ("Family Law Consultation", "family-law-consultation", "1000.00", "Confidential guidance for divorce, custody, maintenance, inheritance, and personal status matters."),
+    ("Real Estate & Property", "real-estate-property", "1200.00", "Legal advice for ownership, leasing, sale agreements, developer issues, and property disputes."),
+    ("Employment & Labour Law", "employment-labour-law", "1000.00", "Advice for employees and employers on contracts, termination, benefits, and workplace disputes."),
+    ("Criminal Case Consultation", "criminal-case-consultation", "1500.00", "Urgent legal assessment, procedural guidance, and defence strategy for criminal allegations."),
+    ("Arbitration Consultation", "arbitration-consultation", "1800.00", "Advice on arbitration clauses, claims, procedure, awards, and enforcement."),
+    ("Debt Recovery", "debt-recovery", "1200.00", "A practical recovery strategy covering notices, evidence, negotiation, and court enforcement."),
 ]
 
 
@@ -129,6 +150,55 @@ class Command(BaseCommand):
                     "status": PublishStatus.PUBLISHED,
                     "published_at": timezone.now(),
                     "is_featured": True,
+                },
+            )
+
+        lawyer = firm.owner
+        for order, (title, slug, price, summary) in enumerate(LEGAL_SERVICES):
+            LegalService.objects.update_or_create(
+                firm=firm,
+                slug=slug,
+                defaults={
+                    "lawyer": lawyer,
+                    "title": title,
+                    "short_description": summary,
+                    "description": (
+                        f"{summary} During the consultation, Dr Alaa Nasir reviews the available "
+                        "facts and documents, identifies legal risks, and explains the available "
+                        "options under UAE law."
+                    ),
+                    "how_we_help": (
+                        "Review your facts and supporting documents.\n"
+                        "Identify the legal issues, risks, and deadlines.\n"
+                        "Explain practical options and likely next steps.\n"
+                        "Recommend a clear strategy for negotiation, filing, defence, or follow-up."
+                    ),
+                    "price_aed": price,
+                    "duration_minutes": 60,
+                    "experience_years": 25,
+                    "rating": "4.90",
+                    "reviews_count": max(12, 87 - (order * 6)),
+                    "city": "Sharjah",
+                    "languages": "Arabic, English",
+                    "supports_online": True,
+                    "supports_physical": True,
+                    "status": PublishStatus.PUBLISHED,
+                    "is_featured": order < 6,
+                    "sort_order": order,
+                },
+            )
+
+        # UAE working week default: Sunday through Thursday, 9:00 AM–5:00 PM.
+        for weekday in [6, 0, 1, 2, 3]:
+            LawyerAvailability.objects.get_or_create(
+                firm=firm,
+                lawyer=lawyer,
+                weekday=weekday,
+                start_time="09:00",
+                defaults={
+                    "end_time": "17:00",
+                    "slot_duration_minutes": 60,
+                    "is_active": True,
                 },
             )
 

@@ -2,7 +2,18 @@ from rest_framework import serializers
 
 from apps.ecommerce.models import Seller
 
-from .models import Article, ArticleCategory, Certification, Ebook, EbookPurchase
+from .models import (
+    Appointment,
+    AppointmentType,
+    Article,
+    ArticleCategory,
+    Certification,
+    Ebook,
+    EbookPurchase,
+    LawyerAvailability,
+    LawyerOffDay,
+    LegalService,
+)
 
 
 class AbsoluteFileMixin:
@@ -70,7 +81,11 @@ class CertificationSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
             "is_active", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "image_url", "created_at", "updated_at"]
-        extra_kwargs = {"image": {"write_only": True, "required": False}}
+        extra_kwargs = {
+            "image": {"write_only": True, "required": False},
+            "lawyer": {"required": False},
+            "case_type": {"required": False, "allow_null": True},
+        }
 
     def get_image_url(self, obj):
         return self.absolute_file(obj, "image")
@@ -121,3 +136,121 @@ class EbookCheckoutSerializer(serializers.Serializer):
     ebook_id = serializers.UUIDField()
     buyer_name = serializers.CharField(max_length=255)
     buyer_email = serializers.EmailField()
+
+
+class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    lawyer_name = serializers.SerializerMethodField()
+    lawyer_email = serializers.EmailField(source="lawyer.email", read_only=True)
+    case_type_name = serializers.CharField(source="case_type.name", read_only=True)
+
+    class Meta:
+        model = LegalService
+        fields = [
+            "id", "lawyer", "lawyer_name", "lawyer_email", "case_type",
+            "case_type_name", "title", "slug", "short_description", "description",
+            "how_we_help", "price_aed", "duration_minutes", "experience_years",
+            "rating", "reviews_count", "city", "languages", "image", "image_url",
+            "supports_online", "supports_physical", "status", "is_featured",
+            "sort_order", "created_at", "updated_at",
+        ]
+        read_only_fields = [
+            "id", "slug", "lawyer_name", "lawyer_email", "case_type_name",
+            "image_url", "created_at", "updated_at",
+        ]
+        extra_kwargs = {"image": {"write_only": True, "required": False}}
+
+    def get_image_url(self, obj):
+        return self.absolute_file(obj, "image")
+
+    def get_lawyer_name(self, obj):
+        name = obj.lawyer.get_full_name().strip()
+        return name or obj.lawyer.email
+
+
+class LawyerAvailabilitySerializer(serializers.ModelSerializer):
+    lawyer_name = serializers.SerializerMethodField()
+    weekday_name = serializers.CharField(source="get_weekday_display", read_only=True)
+
+    class Meta:
+        model = LawyerAvailability
+        fields = [
+            "id", "lawyer", "lawyer_name", "weekday", "weekday_name",
+            "start_time", "end_time", "slot_duration_minutes", "is_active",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "lawyer_name", "weekday_name", "created_at", "updated_at"]
+        extra_kwargs = {"lawyer": {"required": False}}
+
+    def get_lawyer_name(self, obj):
+        return obj.lawyer.get_full_name().strip() or obj.lawyer.email
+
+    def validate(self, attrs):
+        start = attrs.get("start_time", getattr(self.instance, "start_time", None))
+        end = attrs.get("end_time", getattr(self.instance, "end_time", None))
+        if start and end and start >= end:
+            raise serializers.ValidationError({"end_time": "End time must be after start time."})
+        return attrs
+
+
+class LawyerOffDaySerializer(serializers.ModelSerializer):
+    lawyer_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LawyerOffDay
+        fields = [
+            "id", "lawyer", "lawyer_name", "date", "reason", "is_all_day",
+            "start_time", "end_time", "is_active", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "lawyer_name", "created_at", "updated_at"]
+        extra_kwargs = {"lawyer": {"required": False}}
+
+    def get_lawyer_name(self, obj):
+        return obj.lawyer.get_full_name().strip() or obj.lawyer.email
+
+    def validate(self, attrs):
+        all_day = attrs.get("is_all_day", getattr(self.instance, "is_all_day", True))
+        start = attrs.get("start_time", getattr(self.instance, "start_time", None))
+        end = attrs.get("end_time", getattr(self.instance, "end_time", None))
+        if not all_day and (not start or not end):
+            raise serializers.ValidationError("Start and end time are required for a partial off day.")
+        if start and end and start >= end:
+            raise serializers.ValidationError({"end_time": "End time must be after start time."})
+        return attrs
+
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    service_title = serializers.CharField(source="service.title", read_only=True)
+    lawyer_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Appointment
+        fields = [
+            "id", "service", "service_title", "lawyer", "lawyer_name",
+            "client_name", "client_email", "client_phone", "message",
+            "appointment_type", "appointment_date", "start_time", "end_time",
+            "amount_aed", "status", "payment_status", "stripe_checkout_session_id",
+            "stripe_payment_intent_id", "meeting_provider", "meeting_url",
+            "paid_at", "created_at", "updated_at",
+        ]
+        read_only_fields = [
+            "id", "service", "service_title", "lawyer", "lawyer_name",
+            "client_name", "client_email", "client_phone", "message",
+            "appointment_type", "appointment_date", "start_time", "end_time",
+            "amount_aed", "payment_status", "stripe_checkout_session_id",
+            "stripe_payment_intent_id", "paid_at", "created_at", "updated_at",
+        ]
+
+    def get_lawyer_name(self, obj):
+        return obj.lawyer.get_full_name().strip() or obj.lawyer.email
+
+
+class AppointmentCheckoutSerializer(serializers.Serializer):
+    service_id = serializers.UUIDField()
+    client_name = serializers.CharField(max_length=255)
+    client_email = serializers.EmailField()
+    client_phone = serializers.CharField(max_length=50)
+    message = serializers.CharField(required=False, allow_blank=True)
+    appointment_type = serializers.ChoiceField(choices=AppointmentType.choices)
+    appointment_date = serializers.DateField()
+    start_time = serializers.TimeField()
