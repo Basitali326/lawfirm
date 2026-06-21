@@ -6,6 +6,7 @@ from .views import (
     ArticleViewSet,
     AppointmentCheckoutConfirmView,
     AppointmentCheckoutView,
+    AppointmentReviewViewSet,
     AppointmentViewSet,
     CertificationViewSet,
     EbookCheckoutView,
@@ -23,6 +24,7 @@ from .views import (
     PublicLegalServiceDetailView,
     PublicLegalServiceListView,
     PublicLegalServiceSlotsView,
+    PublicAppointmentReviewView,
     PublicWebsiteDataView,
     SellerViewSet,
     StripeWebhookView,
@@ -39,6 +41,7 @@ router.register("legal-services", LegalServiceViewSet, basename="legal-services"
 router.register("lawyer-availability", LawyerAvailabilityViewSet, basename="lawyer-availability")
 router.register("lawyer-off-days", LawyerOffDayViewSet, basename="lawyer-off-days")
 router.register("appointments", AppointmentViewSet, basename="appointments")
+router.register("appointment-reviews", AppointmentReviewViewSet, basename="appointment-reviews")
 
 urlpatterns = router.urls + [
     path("website/home/", PublicWebsiteDataView.as_view(), name="website-home"),
@@ -51,6 +54,7 @@ urlpatterns = router.urls + [
     path("website/services/<slug:slug>/slots/", PublicLegalServiceSlotsView.as_view(), name="website-service-slots"),
     path("website/appointment-checkout/", AppointmentCheckoutView.as_view(), name="appointment-checkout"),
     path("website/appointment-checkout/confirm/", AppointmentCheckoutConfirmView.as_view(), name="appointment-checkout-confirm"),
+    path("website/appointment-reviews/<uuid:token>/", PublicAppointmentReviewView.as_view(), name="appointment-review"),
     path("website/ebook-checkout/", EbookCheckoutView.as_view(), name="ebook-checkout"),
     path("website/ebook-checkout/confirm/", EbookCheckoutConfirmView.as_view(), name="ebook-checkout-confirm"),
     path("website/stripe/webhook/", StripeWebhookView.as_view(), name="website-stripe-webhook"),

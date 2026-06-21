@@ -4,6 +4,7 @@ from apps.ecommerce.models import Seller
 
 from .models import (
     Appointment,
+    AppointmentReview,
     AppointmentType,
     Article,
     ArticleCategory,
@@ -13,6 +14,7 @@ from .models import (
     LawyerAvailability,
     LawyerOffDay,
     LegalService,
+    ReviewStatus,
 )
 
 
@@ -143,6 +145,7 @@ class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
     lawyer_name = serializers.SerializerMethodField()
     lawyer_email = serializers.EmailField(source="lawyer.email", read_only=True)
     case_type_name = serializers.CharField(source="case_type.name", read_only=True)
+    reviews = serializers.SerializerMethodField()
 
     class Meta:
         model = LegalService
@@ -152,7 +155,7 @@ class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
             "how_we_help", "price_aed", "duration_minutes", "experience_years",
             "rating", "reviews_count", "city", "languages", "image", "image_url",
             "supports_online", "supports_physical", "status", "is_featured",
-            "sort_order", "created_at", "updated_at",
+            "sort_order", "reviews", "created_at", "updated_at",
         ]
         read_only_fields = [
             "id", "slug", "lawyer_name", "lawyer_email", "case_type_name",
@@ -166,6 +169,10 @@ class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
     def get_lawyer_name(self, obj):
         name = obj.lawyer.get_full_name().strip()
         return name or obj.lawyer.email
+
+    def get_reviews(self, obj):
+        reviews = obj.client_reviews.filter(status=ReviewStatus.APPROVED)[:12]
+        return PublicAppointmentReviewSerializer(reviews, many=True).data
 
 
 class LawyerAvailabilitySerializer(serializers.ModelSerializer):
@@ -254,3 +261,34 @@ class AppointmentCheckoutSerializer(serializers.Serializer):
     appointment_type = serializers.ChoiceField(choices=AppointmentType.choices)
     appointment_date = serializers.DateField()
     start_time = serializers.TimeField()
+
+
+class PublicAppointmentReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AppointmentReview
+        fields = ["id", "client_name", "rating", "comment", "is_sample", "created_at"]
+        read_only_fields = fields
+
+
+class AppointmentReviewSubmitSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(min_length=10, max_length=2000)
+
+
+class AppointmentReviewAdminSerializer(serializers.ModelSerializer):
+    service_title = serializers.CharField(source="service.title", read_only=True)
+    appointment_date = serializers.DateField(source="appointment.appointment_date", read_only=True)
+    client_email = serializers.EmailField(source="appointment.client_email", read_only=True)
+
+    class Meta:
+        model = AppointmentReview
+        fields = [
+            "id", "service", "service_title", "appointment", "appointment_date",
+            "client_name", "client_email", "rating", "comment", "status",
+            "is_sample", "approved_at", "created_at", "updated_at",
+        ]
+        read_only_fields = [
+            "id", "service", "service_title", "appointment", "appointment_date",
+            "client_name", "client_email", "rating", "comment", "approved_at",
+            "is_sample", "created_at", "updated_at",
+        ]

@@ -1,6 +1,10 @@
 import Footer from "@/components/Footer";
 import PublicNavBar from "@/components/PublicNavBar";
 
+export const metadata = {
+  robots: { index: false, follow: false },
+};
+
 export default function AuthLayout({ children }) {
   return (
     <div className="min-h-screen bg-slate-950 text-white">

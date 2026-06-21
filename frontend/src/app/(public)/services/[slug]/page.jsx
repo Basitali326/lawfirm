@@ -1,74 +1,49 @@
-"use client";
+import { CheckCircle2, MapPin, Star } from "lucide-react";
+import { notFound } from "next/navigation";
 
-import { CalendarDays, CheckCircle2, Clock3, MapPin, Star, Video } from "lucide-react";
-import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import JsonLd from "@/components/seo/JsonLd";
+import ServiceBookingForm from "@/components/website/ServiceBookingForm";
+import { absoluteUrl, buildMetadata } from "@/lib/metadata";
+import { fetchWebsiteData } from "@/lib/website-api";
 
-import { API_BASE_URL } from "@/lib/config";
-import { formatAED } from "@/lib/ecommerce";
-
-function querySuffix() {
-  const slug = process.env.NEXT_PUBLIC_STOREFRONT_FIRM_SLUG || "";
-  return slug ? `?firm_slug=${encodeURIComponent(slug)}` : "";
+async function getService(slug) {
+  return fetchWebsiteData(`/api/v1/website/services/${encodeURIComponent(slug)}/`, { revalidate: 60 });
 }
 
-export default function LegalServiceDetailPage() {
-  const params = useParams();
-  const [service, setService] = useState(null);
-  const [date, setDate] = useState("");
-  const [slots, setSlots] = useState([]);
-  const [slot, setSlot] = useState("");
-  const [form, setForm] = useState({ client_name: "", client_email: "", client_phone: "", message: "", appointment_type: "ONLINE" });
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const minimumDate = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  const service = await getService(slug);
+  if (!service) return buildMetadata({ title: "Service Not Found", description: "This legal service is unavailable.", path: `/services/${slug}`, noIndex: true });
+  return buildMetadata({ title: `${service.title} Lawyer UAE`, description: service.short_description, path: `/services/${service.slug}`, image: service.image_url || "/og.png" });
+}
 
-  useEffect(() => {
-    if (!params?.slug) return;
-    fetch(`${API_BASE_URL}/api/v1/website/services/${params.slug}/${querySuffix()}`)
-      .then((response) => response.json())
-      .then((payload) => setService(payload?.data || null));
-  }, [params?.slug]);
-
-  useEffect(() => {
-    if (!date || !params?.slug) return;
-    setLoadingSlots(true);
-    setSlot("");
-    const separator = querySuffix() ? "&" : "?";
-    fetch(`${API_BASE_URL}/api/v1/website/services/${params.slug}/slots/${querySuffix()}${separator}date=${date}`)
-      .then((response) => response.json())
-      .then((payload) => setSlots(payload?.data?.slots || []))
-      .finally(() => setLoadingSlots(false));
-  }, [date, params?.slug]);
-
-  async function book(event) {
-    event.preventDefault();
-    if (!slot) {
-      setError("Select an available appointment time.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/website/appointment-checkout/${querySuffix()}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, service_id: service.id, appointment_date: date, start_time: slot }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.data?.checkout_url) throw new Error(payload?.message || "Unable to start payment.");
-      window.location.assign(payload.data.checkout_url);
-    } catch (err) {
-      setError(err.message || "Unable to book the appointment.");
-      setSaving(false);
-    }
-  }
-
-  if (!service) return <main className="min-h-screen bg-[#0d121a] px-5 py-20 text-white"><div className="mx-auto max-w-7xl">Loading service…</div></main>;
-
+export default async function LegalServiceDetailPage({ params }) {
+  const { slug } = await params;
+  const service = await getService(slug);
+  if (!service) notFound();
+  const serviceSchema = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: service.title,
+    description: service.short_description,
+    image: service.image_url || absoluteUrl("/og.png"),
+    url: absoluteUrl(`/services/${service.slug}`),
+    areaServed: { "@type": "Country", name: "United Arab Emirates" },
+    provider: { "@type": "LegalService", name: "Dr Alaa Nasir", telephone: "+971585373400", url: absoluteUrl("/") },
+    offers: { "@type": "Offer", priceCurrency: "AED", price: service.price_aed, availability: "https://schema.org/InStock", url: absoluteUrl(`/services/${service.slug}`) },
+    ...(service.reviews_count > 0 ? {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: service.rating,
+        reviewCount: service.reviews_count,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    } : {}),
+  };
   return (
     <main className="min-h-screen bg-[#f7f3ea] px-5 py-14 text-[#162238]">
+      <JsonLd data={serviceSchema} />
       <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[minmax(0,1fr)_430px]">
         <div className="space-y-7">
           <section className="rounded-2xl bg-[#111a2a] p-8 text-white">
@@ -79,19 +54,12 @@ export default function LegalServiceDetailPage() {
           </section>
           <section className="rounded-2xl border border-[#ded3bd] bg-white p-8"><h2 className="font-serif text-3xl">About this service</h2><p className="mt-4 whitespace-pre-line leading-8 text-slate-600">{service.description}</p></section>
           <section className="rounded-2xl border border-[#ded3bd] bg-white p-8"><h2 className="font-serif text-3xl">How we help you</h2><div className="mt-5 whitespace-pre-line leading-8 text-slate-600">{service.how_we_help}</div><div className="mt-7 grid gap-3 sm:grid-cols-2">{["Confidential case assessment", "Clear legal options", "Action-focused advice", "Written appointment confirmation"].map((item) => <p key={item} className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="h-5 w-5 text-[#a77d3b]" /> {item}</p>)}</div></section>
+          <section className="rounded-2xl border border-[#ded3bd] bg-white p-8">
+            <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-[#a77d3b]">Verified clients</p><h2 className="mt-2 font-serif text-3xl">Client reviews</h2></div>{service.reviews_count > 0 ? <div className="text-right"><strong className="text-2xl text-[#a77d3b]">{service.rating}/5</strong><p className="text-sm text-slate-500">{service.reviews_count} verified review{service.reviews_count === 1 ? "" : "s"}</p></div> : null}</div>
+            {service.reviews?.length ? <div className="mt-7 grid gap-5">{service.reviews.map((review) => <article key={review.id} className="rounded-xl bg-[#f8f4ec] p-5"><div className="flex items-center justify-between gap-4"><div className="flex items-center gap-2"><strong>{review.client_name}</strong>{review.is_sample ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">Sample review</span> : <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800">Verified appointment</span>}</div><span className="flex">{[1,2,3,4,5].map((value) => <Star key={value} className={`h-4 w-4 ${value <= review.rating ? "fill-[#d5ad37] text-[#d5ad37]" : "text-slate-300"}`} />)}</span></div><p className="mt-3 leading-7 text-slate-600">{review.comment}</p><time className="mt-3 block text-xs text-slate-400">{new Intl.DateTimeFormat("en-AE", { dateStyle: "medium" }).format(new Date(review.created_at))}</time></article>)}</div> : <p className="mt-6 text-slate-500">No approved client reviews yet.</p>}
+          </section>
         </div>
-
-        <form onSubmit={book} className="h-fit space-y-5 rounded-2xl border border-[#d8ccb6] bg-white p-7 shadow-xl lg:sticky lg:top-28">
-          <div className="flex items-end justify-between border-b pb-5"><div><strong className="block text-3xl text-[#a77d3b]">{formatAED(service.price_aed)}</strong><small className="text-slate-500">per {service.duration_minutes} minute consultation</small></div><Clock3 className="h-6 w-6 text-[#a77d3b]" /></div>
-          <label className="block"><span className="mb-2 block text-sm font-semibold">Select date</span><div className="relative"><CalendarDays className="pointer-events-none absolute left-3 top-3.5 h-5 w-5 text-slate-400" /><input required type="date" min={minimumDate} value={date} onChange={(event) => setDate(event.target.value)} className="w-full rounded-xl border border-slate-300 py-3 pl-11 pr-4" /></div></label>
-          {date ? <div><span className="mb-2 block text-sm font-semibold">Available time</span>{loadingSlots ? <p className="text-sm text-slate-500">Checking availability…</p> : <div className="grid grid-cols-3 gap-2">{slots.map((item) => <button key={item.start_time} type="button" onClick={() => setSlot(item.start_time)} className={`rounded-lg border px-2 py-2.5 text-sm font-semibold ${slot === item.start_time ? "border-[#a77d3b] bg-[#a77d3b] text-white" : "border-slate-300"}`}>{item.label}</button>)}</div>}{!loadingSlots && !slots.length ? <p className="mt-2 text-sm text-amber-700">No appointments available on this date.</p> : null}</div> : null}
-          <div><span className="mb-2 block text-sm font-semibold">Appointment type</span><div className="grid grid-cols-2 gap-3">{service.supports_online ? <button type="button" onClick={() => setForm({ ...form, appointment_type: "ONLINE" })} className={`rounded-xl border p-3 text-sm font-semibold ${form.appointment_type === "ONLINE" ? "border-[#a77d3b] bg-[#f6efe2]" : "border-slate-300"}`}><Video className="mx-auto mb-1 h-5 w-5" />Online</button> : null}{service.supports_physical ? <button type="button" onClick={() => setForm({ ...form, appointment_type: "PHYSICAL" })} className={`rounded-xl border p-3 text-sm font-semibold ${form.appointment_type === "PHYSICAL" ? "border-[#a77d3b] bg-[#f6efe2]" : "border-slate-300"}`}><MapPin className="mx-auto mb-1 h-5 w-5" />At office</button> : null}</div></div>
-          {[["client_name", "Full name", "text"], ["client_email", "Email address", "email"], ["client_phone", "Phone number", "tel"]].map(([name, label, type]) => <label key={name} className="block"><span className="mb-2 block text-sm font-semibold">{label}</span><input required type={type} value={form[name]} onChange={(event) => setForm({ ...form, [name]: event.target.value })} className="w-full rounded-xl border border-slate-300 px-4 py-3" /></label>)}
-          <label className="block"><span className="mb-2 block text-sm font-semibold">Message (optional)</span><textarea rows={3} value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} className="w-full rounded-xl border border-slate-300 px-4 py-3" placeholder="Briefly describe what you need help with." /></label>
-          {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-          <button disabled={saving || !slot} className="w-full rounded-xl bg-[#a77d3b] px-5 py-4 font-bold text-white disabled:opacity-50">{saving ? "Opening secure payment…" : `Book & Pay ${formatAED(service.price_aed)}`}</button>
-          <p className="text-center text-xs leading-5 text-slate-500">Secure Stripe payment. Your appointment is confirmed by email after successful payment.</p>
-        </form>
+        <ServiceBookingForm service={service} />
       </div>
     </main>
   );

@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     Appointment,
+    AppointmentReview,
     Article,
     ArticleCategory,
     Certification,
@@ -72,3 +73,10 @@ class AppointmentAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "payment_status", "appointment_type", "firm")
     search_fields = ("client_name", "client_email", "client_phone", "stripe_checkout_session_id")
+
+
+@admin.register(AppointmentReview)
+class AppointmentReviewAdmin(admin.ModelAdmin):
+    list_display = ("client_name", "service", "rating", "is_sample", "status", "created_at")
+    list_filter = ("status", "rating", "is_sample", "firm")
+    search_fields = ("client_name", "comment", "appointment__client_email")

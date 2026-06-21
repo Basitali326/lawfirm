@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -25,6 +25,7 @@ from .models import (
     Article,
     ArticleCategory,
     Appointment,
+    AppointmentReview,
     AppointmentStatus,
     AppointmentType,
     Certification,
@@ -35,9 +36,12 @@ from .models import (
     LawyerOffDay,
     LegalService,
     PublishStatus,
+    ReviewStatus,
 )
 from .serializers import (
     AppointmentCheckoutSerializer,
+    AppointmentReviewAdminSerializer,
+    AppointmentReviewSubmitSerializer,
     AppointmentSerializer,
     ArticleCategorySerializer,
     ArticleSerializer,
@@ -48,6 +52,7 @@ from .serializers import (
     LawyerAvailabilitySerializer,
     LawyerOffDaySerializer,
     LegalServiceSerializer,
+    PublicAppointmentReviewSerializer,
     SellerSerializer,
 )
 
@@ -249,6 +254,45 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         return queryset
 
 
+def refresh_service_review_totals(service):
+    totals = service.client_reviews.filter(
+        status=ReviewStatus.APPROVED,
+        is_sample=False,
+    ).aggregate(average=Avg("rating"), count=Count("id"))
+    service.rating = round(totals["average"] or 0, 2)
+    service.reviews_count = totals["count"] or 0
+    service.save(update_fields=["rating", "reviews_count", "updated_at"])
+
+
+class AppointmentReviewViewSet(viewsets.ModelViewSet):
+    serializer_class = AppointmentReviewAdminSerializer
+    permission_classes = [IsAuthenticated, IsAdminStaffOrSuperAdmin]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        firm = resolve_firm(self.request)
+        queryset = AppointmentReview.objects.filter(
+            firm=firm
+        ).select_related("service", "appointment")
+        review_status = self.request.query_params.get("status")
+        if review_status:
+            queryset = queryset.filter(status=review_status)
+        return queryset
+
+    def perform_update(self, serializer):
+        old_status = serializer.instance.status
+        new_status = serializer.validated_data.get("status", old_status)
+        serializer.save(
+            approved_at=timezone.now() if new_status == ReviewStatus.APPROVED else None
+        )
+        refresh_service_review_totals(serializer.instance.service)
+
+    def perform_destroy(self, instance):
+        service = instance.service
+        instance.delete()
+        refresh_service_review_totals(service)
+
+
 class EbookPurchaseViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = EbookPurchaseSerializer
     permission_classes = [IsAuthenticated, IsAdminStaffOrSuperAdmin]
@@ -406,6 +450,52 @@ class PublicLegalServiceSlotsView(APIView):
         })
 
 
+class PublicAppointmentReviewView(APIView):
+    permission_classes = [AllowAny]
+
+    def get_appointment(self, token):
+        return get_object_or_404(
+            Appointment.objects.select_related("service", "lawyer"),
+            confirmation_token=token,
+            payment_status=EbookPurchaseStatus.PAID,
+        )
+
+    def get(self, request, token):
+        appointment = self.get_appointment(token)
+        review = AppointmentReview.objects.filter(appointment=appointment).first()
+        return api_success("Review appointment retrieved", data={
+            "appointment": {
+                "service_title": appointment.service.title,
+                "lawyer_name": appointment.lawyer.get_full_name().strip() or appointment.lawyer.email,
+                "client_name": appointment.client_name,
+                "appointment_date": appointment.appointment_date,
+            },
+            "review": AppointmentReviewAdminSerializer(review).data if review else None,
+            "can_review": review is None,
+        })
+
+    def post(self, request, token):
+        appointment = self.get_appointment(token)
+        if AppointmentReview.objects.filter(appointment=appointment).exists():
+            return api_error("A review has already been submitted for this appointment.", status_code=409)
+        serializer = AppointmentReviewSubmitSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error("Validation error", errors=serializer.errors, status_code=400)
+        review = AppointmentReview.objects.create(
+            firm=appointment.firm,
+            appointment=appointment,
+            service=appointment.service,
+            client_name=appointment.client_name,
+            rating=serializer.validated_data["rating"],
+            comment=serializer.validated_data["comment"],
+        )
+        return api_success(
+            "Thank you. Your review was submitted for approval.",
+            data=PublicAppointmentReviewSerializer(review).data,
+            status_code=201,
+        )
+
+
 def fulfill_appointment(appointment, payment_intent_id=""):
     if (
         appointment.status == AppointmentStatus.CONFIRMED
@@ -426,6 +516,7 @@ def fulfill_appointment(appointment, payment_intent_id=""):
     date_label = appointment.appointment_date.strftime("%A, %d %B %Y")
     time_label = appointment.start_time.strftime("%I:%M %p")
     mode_label = appointment.get_appointment_type_display()
+    review_url = f"{settings.FRONTEND_URL}/appointments/review/{appointment.confirmation_token}"
     client_message = (
         f"Hello {appointment.client_name},\n\n"
         f"Your appointment is confirmed.\n\n"
@@ -442,7 +533,10 @@ def fulfill_appointment(appointment, payment_intent_id=""):
         )
     else:
         client_message += f"Office address: {appointment.firm.address or 'Please contact the office.'}\n\n"
-    client_message += "Thank you."
+    client_message += (
+        "After your consultation, you can share your experience here:\n"
+        f"{review_url}\n\nThank you."
+    )
     try:
         send_mail(
             subject=f"Appointment confirmed: {appointment.service.title}",
@@ -607,7 +701,9 @@ class AppointmentCheckoutConfirmView(APIView):
         appointment.refresh_from_db()
         return api_success("Appointment confirmed.", data=AppointmentSerializer(
             appointment, context={"request": request}
-        ).data)
+        ).data | {
+            "review_url": f"{settings.FRONTEND_URL}/appointments/review/{appointment.confirmation_token}",
+        })
 
 
 class PublicEbookListView(APIView):

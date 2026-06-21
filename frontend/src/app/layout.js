@@ -6,7 +6,8 @@ import { buildMetadata } from "@/lib/metadata";
 
 export const metadata = buildMetadata({
   title: "Dr Alaa Nasir",
-  description: "Legal SaaS for firm operations and client intake.",
+  description: "UAE legal consultant for litigation, commercial, property, employment, family, and arbitration matters.",
+  path: "/",
 });
 
 export default function RootLayout({ children }) {

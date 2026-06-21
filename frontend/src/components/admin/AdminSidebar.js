@@ -22,6 +22,7 @@ import {
   ShoppingBag,
   Package2,
   Boxes,
+  Star,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ const iconMap = {
   "/dashboard/legal-services/add": Briefcase,
   "/dashboard/availability": CalendarDays,
   "/dashboard/off-days": CalendarDays,
+  "/dashboard/appointment-reviews": Star,
   "/reports": BarChart3,
   "/audit-logs": ShieldCheck,
   "/dashboard/ebooks": FileText,

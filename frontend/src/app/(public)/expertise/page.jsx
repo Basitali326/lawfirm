@@ -1,5 +1,12 @@
 import { BriefcaseBusiness, Building2, Gavel, HeartHandshake, Landmark, Users } from "lucide-react";
 import InnerPageHero from "@/components/site/InnerPageHero";
+import { buildMetadata } from "@/lib/metadata";
+
+export const metadata = buildMetadata({
+  title: "Legal Expertise in the UAE",
+  description: "UAE legal services for litigation, corporate and commercial law, real estate, employment, family matters, and arbitration.",
+  path: "/expertise",
+});
 
 const areas = [
   [Gavel, "Litigation & Dispute Resolution", "Strategic representation in civil, commercial, and complex disputes."],

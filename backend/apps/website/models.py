@@ -341,3 +341,49 @@ class Appointment(TimeStampedModel):
 
     def __str__(self):
         return f"{self.client_name} - {self.service.title} - {self.appointment_date}"
+
+
+class ReviewStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    APPROVED = "APPROVED", "Approved"
+    REJECTED = "REJECTED", "Rejected"
+
+
+class AppointmentReview(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="appointment_reviews")
+    appointment = models.OneToOneField(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name="review",
+    )
+    service = models.ForeignKey(
+        LegalService,
+        on_delete=models.CASCADE,
+        related_name="client_reviews",
+    )
+    client_name = models.CharField(max_length=255)
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField()
+    is_sample = models.BooleanField(
+        default=False,
+        help_text="Marks demonstration content that must not be represented as a verified client review.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=ReviewStatus.choices,
+        default=ReviewStatus.PENDING,
+    )
+    approved_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(rating__gte=1, rating__lte=5),
+                name="appointment_review_rating_1_to_5",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.client_name} - {self.rating}/5 - {self.service.title}"

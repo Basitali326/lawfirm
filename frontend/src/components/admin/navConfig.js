@@ -12,6 +12,7 @@ export const navItems = [
   { label: "Add Service", href: "/dashboard/legal-services/add", parent: "/dashboard/appointments", perm: null },
   { label: "Availability", href: "/dashboard/availability", parent: "/dashboard/appointments", perm: null },
   { label: "Off Days", href: "/dashboard/off-days", parent: "/dashboard/appointments", perm: null },
+  { label: "Reviews", href: "/dashboard/appointment-reviews", parent: "/dashboard/appointments", perm: null },
   { label: "E-Book", href: "/dashboard/ebooks", perm: null },
   { label: "All E-Books", href: "/dashboard/ebooks", parent: "/dashboard/ebooks", perm: null },
   { label: "Add E-Book", href: "/dashboard/ebooks/add", parent: "/dashboard/ebooks", perm: null },

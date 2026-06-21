@@ -11,6 +11,14 @@ import {
 } from "lucide-react";
 
 import InnerPageHero from "@/components/site/InnerPageHero";
+import JsonLd from "@/components/seo/JsonLd";
+import { absoluteUrl, buildMetadata } from "@/lib/metadata";
+
+export const metadata = buildMetadata({
+  title: "Dr Alaa Nasir Legal Consultant",
+  description: "Professional profile of Dr Alaa Nasir, UAE legal consultant experienced in litigation, commercial, real estate, employment, family law, and arbitration.",
+  path: "/profile-lawyer",
+});
 
 const expertise = [
   "Civil and commercial litigation",
@@ -29,8 +37,19 @@ const principles = [
 ];
 
 export default function LawyerProfilePage() {
+  const personSchema = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: "Dr Alaa Nasir",
+    jobTitle: "Legal Consultant",
+    image: absoluteUrl("/law-office-hero.png"),
+    url: absoluteUrl("/profile-lawyer"),
+    worksFor: { "@type": "LegalService", name: "Dr Alaa Nasir", url: absoluteUrl("/") },
+    knowsAbout: expertise,
+  };
   return (
     <main className="bg-[#fffdf8]">
+      <JsonLd data={personSchema} />
       <InnerPageHero
         eyebrow="Professional profile"
         title="Dr Alaa Nasir"

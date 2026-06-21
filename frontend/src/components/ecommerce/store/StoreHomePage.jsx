@@ -17,9 +17,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import { API_BASE_URL } from "@/lib/config";
+import { useState } from "react";
 import { formatAED } from "@/lib/ecommerce";
 
 const fallbackEbooks = [
@@ -77,17 +75,9 @@ function SectionTitle({ eyebrow, title, copy, centered = false, light = false })
   return <div className={centered ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}><p className="text-xs font-bold uppercase tracking-[0.28em] text-[#9a7437]">{eyebrow}</p><h2 className={`mt-3 font-serif text-4xl leading-tight md:text-5xl ${light ? "text-white" : "text-[#15233b]"}`}>{title}</h2>{copy ? <p className={`mt-4 leading-7 ${light ? "text-slate-300" : "text-slate-600"}`}>{copy}</p> : null}</div>;
 }
 
-export default function StoreHomePage() {
-  const [content, setContent] = useState(null);
+export default function StoreHomePage({ initialContent = null }) {
+  const content = initialContent;
   const [serviceSearch, setServiceSearch] = useState("");
-
-  useEffect(() => {
-    const slug = process.env.NEXT_PUBLIC_STOREFRONT_FIRM_SLUG || "";
-    fetch(`${API_BASE_URL}/api/v1/website/home/${slug ? `?firm_slug=${slug}` : ""}`)
-      .then((response) => response.ok ? response.json() : null)
-      .then((payload) => setContent(payload?.data || null))
-      .catch(() => {});
-  }, []);
 
   const ebooks = content?.ebooks?.length ? content.ebooks : fallbackEbooks;
   const articles = content?.articles?.length ? content.articles : fallbackArticles;
