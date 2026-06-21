@@ -146,7 +146,7 @@ export default function StoreHomePage({ initialContent = null }) {
                   </div>
 
                   <div className="mt-5 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
-                    <span className="flex items-center gap-1.5 font-semibold text-[#f0c94f]"><Star className="h-4 w-4 fill-current" /> {service.rating}<small className="font-normal text-slate-400">({service.reviews_count} reviews)</small></span>
+                    <span className="flex items-center gap-1.5 font-semibold text-[#f0c94f]"><Star className="h-4 w-4 fill-current" /> {service.display_rating ?? service.rating}<small className="font-normal text-slate-400">({service.display_reviews_count ?? service.reviews_count} {service.reviews_count > 0 ? "verified reviews" : "sample reviews"})</small></span>
                     <span className="text-xs text-slate-400">{service.duration_minutes || 60} min</span>
                   </div>
 

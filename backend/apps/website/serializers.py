@@ -148,6 +148,9 @@ class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
     case_type_name = serializers.CharField(source="case_type.name", read_only=True)
     rating = serializers.SerializerMethodField()
     reviews_count = serializers.SerializerMethodField()
+    display_rating = serializers.SerializerMethodField()
+    display_reviews_count = serializers.SerializerMethodField()
+    sample_reviews_count = serializers.SerializerMethodField()
     reviews = serializers.SerializerMethodField()
 
     class Meta:
@@ -156,7 +159,8 @@ class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
             "id", "lawyer", "lawyer_name", "lawyer_email", "case_type",
             "case_type_name", "title", "slug", "short_description", "description",
             "how_we_help", "price_aed", "duration_minutes", "experience_years",
-            "rating", "reviews_count", "city", "languages", "image", "image_url",
+            "rating", "reviews_count", "display_rating", "display_reviews_count",
+            "sample_reviews_count", "city", "languages", "image", "image_url",
             "supports_online", "supports_physical", "status", "is_featured",
             "sort_order", "reviews", "created_at", "updated_at",
         ]
@@ -188,6 +192,23 @@ class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
         return obj.client_reviews.filter(
             status=ReviewStatus.APPROVED,
             is_sample=False,
+        ).aggregate(count=Count("id"))["count"] or 0
+
+    def get_display_rating(self, obj):
+        totals = obj.client_reviews.filter(
+            status=ReviewStatus.APPROVED,
+        ).aggregate(average=Avg("rating"))
+        return f"{float(totals['average'] or 0):.2f}"
+
+    def get_display_reviews_count(self, obj):
+        return obj.client_reviews.filter(
+            status=ReviewStatus.APPROVED,
+        ).aggregate(count=Count("id"))["count"] or 0
+
+    def get_sample_reviews_count(self, obj):
+        return obj.client_reviews.filter(
+            status=ReviewStatus.APPROVED,
+            is_sample=True,
         ).aggregate(count=Count("id"))["count"] or 0
 
 

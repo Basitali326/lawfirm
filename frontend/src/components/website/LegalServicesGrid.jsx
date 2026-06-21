@@ -28,7 +28,7 @@ export default function LegalServicesGrid({ services }) {
             </div>
             <p className="mt-4 flex items-center gap-1 text-sm text-slate-400"><MapPin className="h-4 w-4" /> {service.city}</p>
             <p className="mt-4 min-h-18 text-sm leading-6 text-slate-300">{service.short_description}</p>
-            <div className="mt-5 flex justify-between border-y border-slate-700 py-4 text-sm"><span className="flex items-center gap-1 text-[#e3bd42]"><Star className="h-4 w-4 fill-current" /> {service.rating} ({service.reviews_count})</span><span>{service.experience_years} yrs exp</span></div>
+            <div className="mt-5 flex justify-between border-y border-slate-700 py-4 text-sm"><span className="flex items-center gap-1 text-[#e3bd42]"><Star className="h-4 w-4 fill-current" /> {service.display_rating ?? service.rating} ({service.display_reviews_count ?? service.reviews_count} {service.reviews_count > 0 ? "verified" : "sample"})</span><span>{service.experience_years} yrs exp</span></div>
             <div className="mt-5 flex items-end justify-between"><div><strong className="block text-2xl text-[#e3bd42]">{formatAED(service.price_aed)}</strong><small className="text-slate-400">{service.duration_minutes} minute session</small></div><Link href={`/services/${service.slug}`} className="rounded-lg bg-[#d5ad37] px-5 py-3 font-bold text-[#111827]">Book Now</Link></div>
           </article>
         ))}
