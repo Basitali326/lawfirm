@@ -84,7 +84,7 @@ export default function ContactPage() {
         <div className="space-y-6">
           <div className="flex gap-4"><MapPin className="shrink-0 text-[#9a7437]" /><div><strong>Office</strong><p className="mt-1 leading-7 text-slate-600">{address}</p></div></div>
           <div className="flex gap-4"><Phone className="text-[#9a7437]" /><div><strong>Phone</strong><p className="mt-1"><a href="tel:+971585373400" className="text-slate-600 hover:text-[#9a7437]">+971 58 537 3400</a></p></div></div>
-          <div className="flex gap-4"><Mail className="text-[#9a7437]" /><div><strong>Email</strong><p className="mt-1"><a href="mailto:contact@almizanlegal.ae" className="text-slate-600 hover:text-[#9a7437]">contact@almizanlegal.ae</a></p></div></div>
+          <div className="flex gap-4"><Mail className="text-[#9a7437]" /><div><strong>Email</strong><p className="mt-1"><a href="mailto:dralaa2016@gmail.com" className="text-slate-600 hover:text-[#9a7437]">dralaa2016@gmail.com</a></p></div></div>
         </div>
 
         <form className="grid gap-5 bg-[#f3eee4] p-7 md:grid-cols-2" onSubmit={submit}>

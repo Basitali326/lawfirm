@@ -111,7 +111,7 @@ export default function StoreHomePage() {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#dfb93f]">Book trusted legal advice</p>
-            <h1 className="mt-4 font-serif text-5xl leading-tight md:text-6xl">Find the right legal service and reserve your consultation.</h1>
+            <h1 className="mt-4 font-serif text-[40px] leading-[1.15]">Find the right legal service and reserve your consultation.</h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">Choose a case service, review exactly how we help, select an available date and time, then confirm securely through Stripe.</p>
           </div>
           <div className="mx-auto mt-9 flex max-w-3xl items-center gap-3 rounded-xl border border-white/15 bg-white p-3 shadow-2xl">
@@ -129,16 +129,42 @@ export default function StoreHomePage() {
             <div><h2 className="font-serif text-4xl text-[#e3bd42]">Featured Legal Services</h2><p className="mt-2 text-slate-400">Select a service to view details, availability, and booking options.</p></div>
             <Link href="/services" className="text-sm font-bold text-[#e3bd42]">View all services →</Link>
           </div>
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {visibleServices.slice(0, 6).map((service) => (
-              <article key={service.id} className="rounded-xl border border-slate-700 bg-[#1b2434] p-6">
-                <div className="flex items-start gap-4">
-                  {service.image_url ? <img src={service.image_url} alt={service.lawyer_name} className="h-16 w-16 rounded-full object-cover" /> : <div className="grid h-16 w-16 place-items-center rounded-full border border-[#d5ad37]/50 bg-slate-900 font-serif text-xl text-[#e3bd42]">AN</div>}
-                  <div><span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-400">✓ Verified</span><h3 className="mt-3 text-lg font-bold">{service.lawyer_name}</h3><p className="mt-1 text-sm font-semibold text-[#e3bd42]">{service.title}</p><p className="mt-2 flex items-center gap-1 text-sm text-slate-400"><MapPin className="h-3.5 w-3.5 text-pink-400" />{service.city}</p></div>
+              <article key={service.id} className="group relative flex overflow-hidden rounded-2xl border border-[#d8c28a]/25 bg-gradient-to-b from-[#202b3d] to-[#151d2b] shadow-lg transition duration-300 hover:-translate-y-1 hover:border-[#d8b84b]/70 hover:shadow-2xl hover:shadow-black/30">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#8f6925] via-[#e3bd42] to-[#8f6925]" />
+                <div className="flex w-full flex-col p-6 pt-7">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="relative shrink-0">
+                        {service.image_url ? <img src={service.image_url} alt={service.lawyer_name} className="h-16 w-16 rounded-xl border border-[#d8b84b]/40 object-cover" /> : <div className="grid h-16 w-16 place-items-center rounded-xl border border-[#d8b84b]/40 bg-[#0d1420] font-serif text-xl text-[#e3bd42]">AN</div>}
+                        <span className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full border-2 border-[#202b3d] bg-emerald-500 text-[10px] font-bold text-white">✓</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">Verified lawyer</p>
+                        <h3 className="mt-1 truncate text-lg font-bold text-white">{service.lawyer_name}</h3>
+                        <p className="mt-1 flex items-center gap-1 text-xs text-slate-400"><MapPin className="h-3.5 w-3.5 text-[#e3bd42]" />{service.city}</p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-[#e3bd42]/10 px-2.5 py-1 text-xs font-bold text-[#e3bd42]">{service.experience_years} yrs</span>
+                  </div>
+
+                  <div className="mt-6">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e3bd42]">{service.case_type_name || "Legal Service"}</p>
+                    <h3 className="mt-2 font-serif text-2xl leading-tight text-white">{service.title}</h3>
+                    <p className="mt-3 line-clamp-2 min-h-12 text-sm leading-6 text-slate-300">{service.short_description}</p>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+                    <span className="flex items-center gap-1.5 font-semibold text-[#f0c94f]"><Star className="h-4 w-4 fill-current" /> {service.rating}<small className="font-normal text-slate-400">({service.reviews_count} reviews)</small></span>
+                    <span className="text-xs text-slate-400">{service.duration_minutes || 60} min</span>
+                  </div>
+
+                  <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-5">
+                    <div><small className="block text-xs text-slate-400">Consultation fee</small><strong className="mt-1 block text-2xl text-[#e3bd42]">{formatAED(service.price_aed)}</strong></div>
+                    <Link href={`/services/${service.slug}`} className="inline-flex items-center gap-2 rounded-xl bg-[#d5ad37] px-5 py-3 text-sm font-bold text-[#111827] transition group-hover:bg-[#eccb62]">Book Now <ArrowRight className="h-4 w-4" /></Link>
+                  </div>
                 </div>
-                <p className="mt-5 line-clamp-2 min-h-12 text-sm leading-6 text-slate-300">{service.short_description}</p>
-                <div className="mt-5 flex items-center justify-between border-y border-slate-700 py-4 text-sm"><span className="flex items-center gap-1 text-[#e3bd42]"><Star className="h-4 w-4 fill-current" /> {service.rating} <small className="text-slate-400">({service.reviews_count})</small></span><span><strong>{service.experience_years}</strong> <small className="text-slate-400">yrs exp</small></span></div>
-                <div className="mt-5 flex items-end justify-between gap-4"><div><strong className="block text-2xl text-[#e3bd42]">{formatAED(service.price_aed)}</strong><small className="text-slate-400">per {service.duration_minutes || 60} min session</small></div><Link href={`/services/${service.slug}`} className="rounded-lg bg-[#d5ad37] px-5 py-3 text-sm font-bold text-[#111827]">Book Now</Link></div>
               </article>
             ))}
           </div>

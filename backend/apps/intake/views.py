@@ -124,7 +124,7 @@ class PublicIntakeRequestView(APIView):
         return request.META.get("REMOTE_ADDR")
 
     def _send_notifications(self, firm, intake):
-        firm_email = firm.email or "contact@almizanlegal.ae"
+        firm_email = firm.email or "dralaa2016@gmail.com"
         try:
             send_mail(
                 subject=f"New website request: {intake.full_name}",

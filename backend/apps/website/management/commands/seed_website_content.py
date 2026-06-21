@@ -82,7 +82,7 @@ class Command(BaseCommand):
 
         seller, _ = Seller.objects.get_or_create(
             firm=firm,
-            email="contact@almizanlegal.ae",
+            email="dralaa2016@gmail.com",
             defaults={
                 "name": f"{firm.name} Publications",
                 "company_name": firm.name,

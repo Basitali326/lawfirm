@@ -8,6 +8,12 @@ const SESSION_COOKIE_NAME =
 const REFRESH_COOKIE_NAME = "refresh_token";
 
 export function middleware(request) {
+  if (request.nextUrl.pathname === "/admin") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   const requiresAuth = matchesProtectedPath(request.nextUrl.pathname);
 
   if (!requiresAuth) return NextResponse.next();
@@ -37,8 +43,6 @@ export function middleware(request) {
 
   // Token mode: rely on client-side guard (/me) since access token lives in memory.
   return NextResponse.next();
-
-  return NextResponse.next();
 }
 
 function matchesProtectedPath(pathname) {
@@ -64,6 +68,7 @@ function matchesProtectedPath(pathname) {
 
 export const config = {
   matcher: [
+    "/admin",
     "/dashboard/:path*",
     "/clients/:path*",
     "/cases/:path*",

@@ -21,8 +21,8 @@ export default function SiteFooter() {
             <a href="tel:+971585373400" className="flex gap-2 hover:text-white">
               <Phone className="h-4 w-4" /> +971 58 537 3400
             </a>
-            <a href="mailto:contact@almizanlegal.ae" className="flex gap-2 hover:text-white">
-              <Mail className="h-4 w-4" /> contact@almizanlegal.ae
+            <a href="mailto:dralaa2016@gmail.com" className="flex gap-2 hover:text-white">
+              <Mail className="h-4 w-4" /> dralaa2016@gmail.com
             </a>
           </div>
         </div>
