@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db.models import Avg, Count
 
 from apps.ecommerce.models import Seller
 
@@ -145,6 +146,8 @@ class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
     lawyer_name = serializers.SerializerMethodField()
     lawyer_email = serializers.EmailField(source="lawyer.email", read_only=True)
     case_type_name = serializers.CharField(source="case_type.name", read_only=True)
+    rating = serializers.SerializerMethodField()
+    reviews_count = serializers.SerializerMethodField()
     reviews = serializers.SerializerMethodField()
 
     class Meta:
@@ -173,6 +176,19 @@ class LegalServiceSerializer(AbsoluteFileMixin, serializers.ModelSerializer):
     def get_reviews(self, obj):
         reviews = obj.client_reviews.filter(status=ReviewStatus.APPROVED)[:12]
         return PublicAppointmentReviewSerializer(reviews, many=True).data
+
+    def get_rating(self, obj):
+        totals = obj.client_reviews.filter(
+            status=ReviewStatus.APPROVED,
+            is_sample=False,
+        ).aggregate(average=Avg("rating"))
+        return f"{float(totals['average'] or 0):.2f}"
+
+    def get_reviews_count(self, obj):
+        return obj.client_reviews.filter(
+            status=ReviewStatus.APPROVED,
+            is_sample=False,
+        ).aggregate(count=Count("id"))["count"] or 0
 
 
 class LawyerAvailabilitySerializer(serializers.ModelSerializer):
